@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <path fill="#b6eed1" d="M18 1 46 0.7Q61 1 63 16L63.3 46Q63 62 47 63L17 63.3Q1 62 0.8 47L1 18Q0 2 18 1Z"/>
+  <g fill="#183b2f">
+    <!-- Broad head, uneven body and a tapering, curled tail. -->
+    <path d="M32 23C28 20 29 13 34 10Q41 5 47 10C52 15 49 23 44 25L39 28C40 34 36 42 29 44C24 46 22 50 25 53C29 57 38 56 41 51C42 49 42 46 41 44C47 49 43 58 35 59C24 61 17 56 19 49C20 44 23 41 23 36C23 30 27 26 32 23Z"/>
+  </g>
+  <g fill="none" stroke="#183b2f" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Four splayed legs; short, blunt toes stay readable at icon size. -->
+    <path stroke-width="4.8" d="m31 26-10-6-4-5m23 14 9 2 5-5M26 35l-10 1-4 6m22-3 8 5 7-1"/>
+    <path stroke-width="2.8" d="m17 15-5 1m5-1-1-5m1 5 4-4m33 15-3-4m3 4 4-3m-4 3 5 3M12 42l-5-1m5 1-1 5m1-5 4 3m33-2 2-5m-2 5 5 1m-5-1 1 5"/>
+  </g>
+  <g fill="#b6eed1">
+    <circle cx="36" cy="15" r="1.7"/>
+    <circle cx="44" cy="18" r="1.7"/>
+  </g>
+</svg>

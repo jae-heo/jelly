@@ -1,0 +1,52 @@
+{
+  "name": "jelly",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal, tailnet-only persistent terminal backend",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "build": "npm run build:server && npm run build:web",
+    "start": "node dist/src/main.js",
+    "cli": "node dist/src/cli.js",
+    "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js",
+    "check": "tsc --noEmit && tsc -p web/tsconfig.json",
+    "build:server": "tsc -p tsconfig.json",
+    "build:web": "tsc -p web/tsconfig.json && vite build",
+    "build:icons": "node scripts/generate-icons.mjs",
+    "dev:web": "vite",
+    "test:web": "playwright test",
+    "test:ssh": "npm run build:server && node --test dist/test/remote.integration.js"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "lucide-react": "^1.47.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "ws": "^8.21.3",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0"
+  },
+  "author": "jae-heo <83424878+jae-heo@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jae-heo/jelly.git"
+  },
+  "homepage": "https://github.com/jae-heo/jelly#readme",
+  "bugs": {
+    "url": "https://github.com/jae-heo/jelly/issues"
+  }
+}
