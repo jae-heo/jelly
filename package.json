@@ -1,6 +1,7 @@
 {
   "name": "jelly",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Personal, tailnet-only persistent terminal backend",
   "type": "module",

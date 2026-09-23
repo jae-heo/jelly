@@ -279,3 +279,7 @@ Jelly 서비스만 실행하며, `web/` 소스가 `dist/web/`으로 빌드된다
 [Tailscale 기기 직접 연결](https://tailscale.com/docs/how-to/connect-to-devices).
 SSH 설정 참고: [OpenSSH ssh](https://man.openbsd.org/ssh),
 [ssh_config](https://man.openbsd.org/ssh_config), [tmux](https://man.openbsd.org/tmux).
+
+## 라이선스 / License
+
+[MIT](LICENSE) · Copyright (c) 2026 jae-heo.
