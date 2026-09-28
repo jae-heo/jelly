@@ -44,6 +44,7 @@ export function App() {
   const [historyError, setHistoryError] = useState('');
   const terminal = useRef<TerminalHandle>(null);
   const historyGeneration = useRef(0);
+  const historyContent = useRef<HTMLPreElement>(null);
   const screen = useFullscreen(!!token, setNotice);
 
   const logout = useCallback(() => { forgetToken(); setToken(''); setSessions([]); setProjects([]); setSessionId(null); }, []);
@@ -79,6 +80,10 @@ export function App() {
   useEffect(() => {
     try { localStorage.setItem(FONT_SIZE_KEY, String(fontSize)); } catch { /* Keep the in-memory preference. */ }
   }, [fontSize]);
+  useEffect(() => {
+    const content = historyContent.current;
+    if (historyOpen && !historyBusy && !historyError && content) content.scrollTop = content.scrollHeight;
+  }, [historyOpen, historyBusy, historyError, history]);
   useWorkspaceViewport(!!token);
 
   const project = projects.find(p => p.id === projectId);
@@ -196,6 +201,6 @@ export function App() {
       <div><dt>글씨 크기</dt><dd>상단 더 보기 메뉴에서 조절.</dd></div>
       <div><dt>주소창 숨기기</dt><dd>{screen.available ? '상단 더 보기 → 전체 화면.' : 'iPhone: 브라우저 공유 → 홈 화면에 추가. 추가한 아이콘으로 실행.'}</dd></div>
     </dl></Modal>}
-    {historyOpen && <Modal title="출력 기록" className="history-dialog" onClose={() => { setHistoryOpen(false); historyGeneration.current++; }}><div className="history-caption"><span>최근 출력 · 읽기 전용</span><button className="text-button" disabled={historyBusy} onClick={() => void showHistory()}><RefreshCw size={14} />새로고침</button></div>{historyError ? <p className="form-error" role="alert">{historyError}</p> : <pre className="history-content" tabIndex={0}>{historyBusy ? '기록을 불러오는 중…' : history || '출력 기록 없음'}</pre>}</Modal>}
+    {historyOpen && <Modal title="출력 기록" className="history-dialog" onClose={() => { setHistoryOpen(false); historyGeneration.current++; }}><div className="history-caption"><span>최근 출력 · 읽기 전용</span><button className="text-button" disabled={historyBusy} onClick={() => void showHistory()}><RefreshCw size={14} />새로고침</button></div>{historyError ? <p className="form-error" role="alert">{historyError}</p> : <pre ref={historyContent} className="history-content" tabIndex={0}>{historyBusy ? '기록을 불러오는 중…' : history || '출력 기록 없음'}</pre>}</Modal>}
   </div>;
 }
