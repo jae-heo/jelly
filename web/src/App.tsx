@@ -10,6 +10,7 @@ import { TerminalControls } from './TerminalControls';
 import { FONT_SIZE_KEY, storedFontSize } from './terminalSettings';
 import { useWorkspaceViewport } from './useWorkspaceViewport';
 import { useFullscreen } from './useFullscreen';
+import { useSessionShortcuts } from './useSessionShortcuts';
 import type { Connection, TerminalHandle } from './TerminalView';
 const TerminalCache = lazy(() => import('./TerminalCache').then(module => ({ default: module.TerminalCache })));
 
@@ -95,6 +96,7 @@ export function App() {
     setSessionId(s.id); setProjectId(s.projectId); setSidebar(false); setAttached(true);
     setHistoryOpen(false); setHistory('');
   }
+  useSessionShortcuts({ enabled: !!token && !dialog && !historyOpen, sessions: projectSessions, sessionId, onSelect: chooseSession });
   async function submitProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setFormError('');
     const form = new FormData(event.currentTarget);
@@ -189,6 +191,7 @@ export function App() {
       <div><dt>연결 끊기</dt><dd>접속만 해제. 세션은 서버에서 계속 실행.</dd></div>
       <div><dt>세션 종료</dt><dd>실행 중인 프로그램까지 종료.</dd></div>
       <div><dt>기기 전환</dt><dd>같은 세션을 열면 이전 기기의 접속 해제.</dd></div>
+      <div><dt>세션 전환</dt><dd>⌘⇧[ 이전 세션 · ⌘⇧] 다음 세션. 현재 프로젝트 목록 순서로 순환.</dd></div>
       <div><dt>입력창</dt><dd>보내기·입력창 Enter는 내용만 전송. 실행은 하단 Enter. Shift+Enter로 줄바꿈.</dd></div>
       <div><dt>스크롤</dt><dd>터미널 스와이프. Esc로 입력 복귀. ‘기록’에서 출력 복사.</dd></div>
       <div><dt>글씨 크기</dt><dd>상단 더 보기 메뉴에서 조절.</dd></div>
