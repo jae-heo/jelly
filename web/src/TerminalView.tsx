@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { api, ApiError } from './api';
 import { attachTouchScroll } from './touchScroll';
+import './TerminalViewport.css';
 import { terminalKeySequence, type TerminalKey } from './terminalKeys';
 
 export type Connection = 'connecting' | 'connected' | 'retrying' | 'disconnected' | 'taken' | 'ended';
@@ -73,8 +74,13 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     let frame = 0;
     const scheduleFit = () => { clearTimeout(fitTimer); cancelAnimationFrame(frame); frame = requestAnimationFrame(resize); };
     fitRef.current = scheduleFit;
-    // Wait for keyboard/viewport animation to settle instead of redrawing tmux every frame.
-    const observer = new ResizeObserver(() => { clearTimeout(fitTimer); fitTimer = setTimeout(scheduleFit, 120); });
+    // Mobile keyboards can pause between animation steps. Keep the existing
+    // screen bottom-aligned until the geometry settles, then resize tmux once.
+    const observer = new ResizeObserver(() => {
+      clearTimeout(fitTimer);
+      cancelAnimationFrame(frame);
+      fitTimer = setTimeout(scheduleFit, matchMedia('(pointer: coarse)').matches ? 250 : 120);
+    });
     observer.observe(container.current);
     resize();
     const flushInput = () => {

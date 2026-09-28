@@ -1,0 +1,15 @@
+/* Keep the last visible lines above the keyboard while the PTY waits for the
+   viewport animation to settle. A fixed 100% xterm height clips those lines
+   from the bottom before the server can redraw at its new size. */
+.terminal-stage .terminal-viewport {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: clip;
+  overflow-anchor: none;
+}
+.terminal-stage .terminal-viewport > .xterm {
+  flex: none;
+  width: 100%;
+  height: auto;
+}
