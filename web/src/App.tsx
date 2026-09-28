@@ -96,7 +96,7 @@ export function App() {
     setSessionId(s.id); setProjectId(s.projectId); setSidebar(false); setAttached(true);
     setHistoryOpen(false); setHistory('');
   }
-  useSessionShortcuts({ enabled: !!token && !dialog && !historyOpen, sessions: projectSessions, sessionId, onSelect: chooseSession });
+  useSessionShortcuts({ enabled: !!token && !dialog && !historyOpen, projects, sessions, projectId, sessionId, onSelect: chooseSession });
   async function submitProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setFormError('');
     const form = new FormData(event.currentTarget);
@@ -170,14 +170,13 @@ export function App() {
         {loading && !projects.length ? <div className="empty-state"><div className="spinner" /><p>불러오는 중…</p></div> : !session ? <div className="empty-state">
           <h1>{project ? '세션 선택' : '프로젝트 없음'}</h1>
           <button className="button primary" onClick={() => openDialog(project ? 'session' : 'project')}><Plus size={17} />{project ? '새 세션 열기' : '프로젝트 추가'}</button>
-        </div> : <>
-          <div className="terminal-stage">
-            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>터미널 연결 중…</p></div>}><TerminalCache key={projectId} ref={terminal} token={token} sessionId={session.id} runningIds={projectSessions.filter(s => s.status === 'running').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} /></Suspense>
-            {session.status === 'running' ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH 서버 연결 실패</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />다시 확인</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>세션 종료됨</h2><button className="button primary" onClick={() => openDialog('session')}><Plus size={16} />새 세션</button></div>}
-            {session.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? '다른 기기에서 접속 중' : '연결 끊김'}</h2><p>세션 실행 중</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />다시 연결</button></div></div>}
+        </div> : null}
+          <div className="terminal-stage" hidden={!session}>
+            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>터미널 연결 중…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} /></Suspense>
+            {!session || session.status === 'running' ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH 서버 연결 실패</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />다시 확인</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>세션 종료됨</h2><button className="button primary" onClick={() => openDialog('session')}><Plus size={16} />새 세션</button></div>}
+            {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? '다른 기기에서 접속 중' : '연결 끊김'}</h2><p>세션 실행 중</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />다시 연결</button></div></div>}
           </div>
-          {session.status === 'running' && <TerminalControls key={session.id} enabled={canInput} terminal={terminal} onPaste={() => openDialog('paste')} />}
-        </>}
+          {session?.status === 'running' && <TerminalControls key={session.id} enabled={canInput} terminal={terminal} onPaste={() => openDialog('paste')} />}
       </main>
     </div>
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="알림 닫기" onClick={() => setNotice('')}><X size={14} /></button></div>}
@@ -191,7 +190,7 @@ export function App() {
       <div><dt>연결 끊기</dt><dd>접속만 해제. 세션은 서버에서 계속 실행.</dd></div>
       <div><dt>세션 종료</dt><dd>실행 중인 프로그램까지 종료.</dd></div>
       <div><dt>기기 전환</dt><dd>같은 세션을 열면 이전 기기의 접속 해제.</dd></div>
-      <div><dt>세션 전환</dt><dd>⌘⇧, 이전 세션 · ⌘⇧. 다음 세션. 현재 프로젝트 목록 순서로 순환.</dd></div>
+      <div><dt>세션 전환</dt><dd>⌘⇧, 이전 세션 · ⌘⇧. 다음 세션. 프로젝트·세션 목록 순서로 순환.</dd></div>
       <div><dt>입력창</dt><dd>보내기·입력창 Enter는 내용만 전송. 실행은 하단 Enter. Shift+Enter로 줄바꿈.</dd></div>
       <div><dt>스크롤</dt><dd>터미널 스와이프. Esc로 입력 복귀. ‘기록’에서 출력 복사.</dd></div>
       <div><dt>글씨 크기</dt><dd>상단 더 보기 메뉴에서 조절.</dd></div>

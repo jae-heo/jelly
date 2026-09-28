@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
-import type { Session } from './api';
+import type { Project, Session } from './api';
 
 interface Options {
   enabled: boolean;
+  projects: Project[];
   sessions: Session[];
+  projectId: string | null;
   sessionId: string | null;
   onSelect: (session: Session) => void;
 }
@@ -14,17 +16,30 @@ export function useSessionShortcuts(options: Options) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { enabled, sessions, sessionId, onSelect } = current.current;
+      const { enabled, projects, sessions, projectId, sessionId, onSelect } = current.current;
       if (!enabled || !sessions.length || event.isComposing || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
       const direction = event.code === 'Comma' ? -1 : event.code === 'Period' ? 1 : 0;
       if (!direction) return;
+      const groups = projects.map(project => sessions.filter(session => session.projectId === project.id));
+      const ordered = groups.flat();
+      if (!ordered.length) return;
       // Capture before xterm or an input field consumes the shortcut.
       event.preventDefault();
       event.stopPropagation();
-      const index = sessions.findIndex(session => session.id === sessionId);
-      const next = index < 0 ? (direction > 0 ? 0 : sessions.length - 1)
-        : (index + direction + sessions.length) % sessions.length;
-      const session = sessions[next]!;
+      const index = ordered.findIndex(session => session.id === sessionId);
+      let session: Session | undefined;
+      if (index >= 0) session = ordered[(index + direction + ordered.length) % ordered.length];
+      else {
+        // A manually selected project has no active session yet. Start there,
+        // then walk past empty projects in the requested direction.
+        const projectIndex = projects.findIndex(project => project.id === projectId);
+        const start = projectIndex < 0 ? (direction > 0 ? 0 : projects.length - 1) : projectIndex;
+        for (let offset = 0; offset < groups.length && !session; offset++) {
+          const group = groups[(start + direction * offset + groups.length) % groups.length]!;
+          session = direction > 0 ? group[0] : group.at(-1);
+        }
+      }
+      if (!session) return;
       if (session.id !== sessionId) onSelect(session);
     };
     window.addEventListener('keydown', onKeyDown, true);

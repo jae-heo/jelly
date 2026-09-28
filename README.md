@@ -49,7 +49,11 @@ Tailscale Serve, Funnel, and a separate web server aren't needed.
 - Open a terminal and run your usual tools, including Codex or Claude Code.
 - Close the tab to disconnect. Use the session's stop action when you want to end it.
 - Open the same session on another device to take control. The previous connection closes.
-- Press **⌘⇧,** or **⌘⇧.** to switch to the previous or next session in the current project.
+- Press **⌘⇧,** or **⌘⇧.** to move through sessions in project order, skipping empty projects and wrapping at the ends.
+
+Jelly keeps your three most recently visited terminals connected across projects,
+so switching back doesn't need a new connection. Older sessions keep running on
+the server and reconnect when you open them again.
 
 On phones, Jelly provides touch scrolling and on-screen terminal keys. You can
 also add it to your home screen. The app's interface is currently in Korean.

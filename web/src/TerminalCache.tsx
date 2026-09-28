@@ -2,15 +2,15 @@ import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } fr
 import { TerminalView, type Connection, type TerminalHandle } from './TerminalView';
 
 interface Props {
-  token: string; sessionId: string; runningIds: string[]; enabled: boolean; revision: number; fontSize: number;
+  token: string; sessionId: string | null; runningIds: string[]; enabled: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
 }
 interface Entry { id: string; revision: number }
 const CAPACITY = 3;
 
-// Keep only the most recently visited terminals in this project, in memory.
+// Keep the most recently visited terminals across projects in memory.
 export const TerminalCache = forwardRef<TerminalHandle, Props>(function TerminalCache(props, ref) {
-  const activeId = props.enabled && props.runningIds.includes(props.sessionId) ? props.sessionId : null;
+  const activeId = props.enabled && props.sessionId && props.runningIds.includes(props.sessionId) ? props.sessionId : null;
   const [cache, setCache] = useState<{ entries: Entry[]; revision: number }>({ entries: [], revision: props.revision });
   const handles = useRef(new Map<string, TerminalHandle>());
   const connections = useRef(new Map<string, { revision: number; state: Connection }>());
@@ -48,7 +48,7 @@ export const TerminalCache = forwardRef<TerminalHandle, Props>(function Terminal
     }
   }, [activeId, props.enabled, cache]);
 
-  return <div className="terminal-cache" hidden={!props.runningIds.includes(props.sessionId)}>
+  return <div className="terminal-cache" hidden={!activeId}>
     {entries.map(entry => <div key={entry.id} className="terminal-slot" hidden={entry.id !== activeId} data-session-id={entry.id}>
       <TerminalView ref={handle => { if (handle) handles.current.set(entry.id, handle); else handles.current.delete(entry.id); }}
         token={props.token} sessionId={entry.id} active={entry.id === activeId} revision={entry.revision} fontSize={props.fontSize}
