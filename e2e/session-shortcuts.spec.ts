@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: Command Shift brackets switch project sessions without terminal input`, async ({ page, request }) => {
+for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: Command Shift comma and period switch project sessions without terminal input`, async ({ page, request }) => {
   const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
   const token = readFileSync(info.tokenFile, 'utf8').trim();
   const call = async (path: string, method = 'GET', data?: unknown) => {
@@ -57,14 +57,14 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: Command S
     await readyForInput();
 
     // Focus starts inside xterm; the global shortcut must run before xterm.
-    await page.keyboard.press('Meta+Shift+BracketRight');
+    await page.keyboard.press('Meta+Shift+Period');
     await selected(1);
     await readyForInput();
     const warmTickets = tickets;
     const warmSockets = sockets;
     for (const [key, index] of [
-      ['Meta+Shift+BracketLeft', 0], ['Meta+Shift+BracketLeft', 1],
-      ['Meta+Shift+BracketRight', 0], ['Meta+Shift+BracketRight', 1],
+      ['Meta+Shift+Comma', 0], ['Meta+Shift+Comma', 1],
+      ['Meta+Shift+Period', 0], ['Meta+Shift+Period', 1],
     ] as const) {
       await page.keyboard.press(key);
       await selected(index);
@@ -73,18 +73,25 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: Command S
     expect(sockets).toBe(warmSockets);
     expect(input).toEqual([]);
 
-    // A focused text composer must not receive a bracket or block switching.
+    // A focused text composer must not receive punctuation or block switching.
     await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
     const composer = page.getByLabel('명령어 또는 메시지');
     await composer.fill('draft stays out of the terminal');
+    // The old bracket shortcuts are no longer claimed by Jelly.
+    for (const code of ['BracketLeft', 'BracketRight']) {
+      expect(await composer.evaluate((element, code) => element.dispatchEvent(new KeyboardEvent('keydown', {
+        code, key: code === 'BracketLeft' ? '{' : '}', metaKey: true, shiftKey: true, bubbles: true, cancelable: true,
+      })), code)).toBe(true);
+      await expect(page.locator('.session-row.selected strong')).toHaveText(sessions[1]!.name);
+    }
     // Composition and extra modifiers must leave selection and default handling alone.
     for (const extra of [{ isComposing: true }, { altKey: true }, { ctrlKey: true }, { shiftKey: false }]) {
       expect(await composer.evaluate((element, extra) => element.dispatchEvent(new KeyboardEvent('keydown', {
-        code: 'BracketLeft', key: '{', metaKey: true, shiftKey: true, bubbles: true, cancelable: true, ...extra,
+        code: 'Comma', key: '<', metaKey: true, shiftKey: true, bubbles: true, cancelable: true, ...extra,
       })), extra)).toBe(true);
       await expect(page.locator('.session-row.selected strong')).toHaveText(sessions[1]!.name);
     }
-    await composer.press('Meta+Shift+BracketLeft');
+    await composer.press('Meta+Shift+Comma');
     await selected(0);
     expect(input).toEqual([]);
 
@@ -92,7 +99,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: Command S
     await page.getByRole('button', { name: '새 세션', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('세션 이름').fill('unfinished session');
-    await page.keyboard.press('Meta+Shift+BracketRight');
+    await page.keyboard.press('Meta+Shift+Period');
     await expect(dialog).toBeVisible();
     await expect(dialog.getByLabel('세션 이름')).toHaveValue('unfinished session');
     await expect(page.locator('.session-row.selected strong')).toHaveText(sessions[0]!.name);
@@ -101,14 +108,14 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: Command S
     // A project with no selected session chooses its last/first entry, then
     // a one-session project consumes the shortcut without reconnecting.
     await page.locator('.project-item').filter({ hasText: projects[1]!.name }).click();
-    await page.keyboard.press('Meta+Shift+BracketLeft');
+    await page.keyboard.press('Meta+Shift+Comma');
     await selected(2);
     const singleTickets = tickets;
-    await page.keyboard.press('Meta+Shift+BracketRight');
+    await page.keyboard.press('Meta+Shift+Period');
     await selected(2);
     expect(tickets).toBe(singleTickets);
     await page.locator('.project-item').filter({ hasText: projects[0]!.name }).click();
-    await page.keyboard.press('Meta+Shift+BracketRight');
+    await page.keyboard.press('Meta+Shift+Period');
     await selected(0);
     for (const session of sessions) {
       const state = await call(`/sessions/${session.id}`);

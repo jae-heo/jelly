@@ -16,7 +16,7 @@ export function useSessionShortcuts(options: Options) {
     const onKeyDown = (event: KeyboardEvent) => {
       const { enabled, sessions, sessionId, onSelect } = current.current;
       if (!enabled || !sessions.length || event.isComposing || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
-      const direction = event.code === 'BracketLeft' ? -1 : event.code === 'BracketRight' ? 1 : 0;
+      const direction = event.code === 'Comma' ? -1 : event.code === 'Period' ? 1 : 0;
       if (!direction) return;
       // Capture before xterm or an input field consumes the shortcut.
       event.preventDefault();
