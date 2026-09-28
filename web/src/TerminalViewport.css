@@ -1,6 +1,5 @@
-/* Keep the last visible lines above the keyboard while the PTY waits for the
-   viewport animation to settle. A fixed 100% xterm height clips those lines
-   from the bottom before the server can redraw at its new size. */
+/* The keyboard clips the mobile view without reflowing the server's grid. */
+.workspace-open { --terminal-safe-bottom: env(safe-area-inset-bottom, 0px); }
 .terminal-stage .terminal-viewport {
   display: flex;
   flex-direction: column;

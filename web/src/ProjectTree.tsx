@@ -20,6 +20,7 @@ interface Props {
 
 export function ProjectTree({ projects, sessions, projectId, sessionId, loading, open, onProject, onSession, onNewSession, onRemoveSession }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const tree = useRef<HTMLElement>(null);
   const activeRow = useRef<HTMLLIElement>(null);
   function expand(id: string) {
     setCollapsed(previous => {
@@ -31,12 +32,20 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
   useLayoutEffect(() => { if (projectId) expand(projectId); }, [projectId, sessionId]);
   useLayoutEffect(() => {
     const frame = requestAnimationFrame(() => {
-      if (activeRow.current?.getClientRects().length) activeRow.current.scrollIntoView({ block: 'nearest' });
+      const list = tree.current;
+      const row = activeRow.current;
+      if (!list || !row?.getClientRects().length) return;
+      const bounds = list.getBoundingClientRect();
+      const selected = row.getBoundingClientRect();
+      // Only scroll this list. scrollIntoView also pans outer containers and
+      // the visual viewport on iOS, competing with keyboard focus scrolling.
+      if (selected.top < bounds.top) list.scrollTop += selected.top - bounds.top;
+      else if (selected.bottom > bounds.bottom) list.scrollTop += selected.bottom - bounds.bottom;
     });
     return () => cancelAnimationFrame(frame);
   }, [projectId, sessionId, open]);
 
-  return <nav className="project-tree" aria-label="프로젝트와 세션">
+  return <nav ref={tree} className="project-tree" aria-label="프로젝트와 세션">
     <ul className="project-tree-list">
       {projects.map(project => {
         const expanded = !collapsed.has(project.id);

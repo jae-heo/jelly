@@ -118,6 +118,7 @@ test('font changes preserve the live connection; compact controls retain input a
     // Input focus by itself (e.g. a hardware keyboard) must retain the safe area.
     await expect(input).toBeFocused();
     await expect(page.locator('.terminal-dock')).toHaveCSS('padding-bottom', '34px');
+    await page.waitForTimeout(350);
     const beforeAnimation = resizes;
     // Model browsers that pan the visual viewport above the keyboard without resizing
     // the layout viewport. Real OS keyboard presentation is outside headless Chromium.
@@ -140,8 +141,8 @@ test('font changes preserve the live connection; compact controls retain input a
       return box.y + box.height;
     }).toBe(540);
     await expect(page.locator('.terminal-dock')).toHaveCSS('padding-bottom', '0px');
-    await expect.poll(() => resizes).toBeGreaterThan(beforeAnimation);
-    expect(resizes - beforeAnimation).toBeLessThanOrEqual(2);
+    await page.waitForTimeout(350);
+    expect(resizes).toBe(beforeAnimation);
     await expect(input).toBeFocused();
     await page.evaluate(() => {
       const viewport = window.visualViewport!;

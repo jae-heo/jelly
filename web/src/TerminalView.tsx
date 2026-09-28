@@ -59,28 +59,60 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     let inputQueue: string[] = [];
     const controller = new AbortController();
     const status = (value: Connection) => { if (alive) callbacks.current.onConnection(value); };
+    let unobscuredHeight = 0;
+    let measuredWidth = 0;
+    const mobileKeyboard = () => matchMedia('(pointer: coarse)').matches && document.documentElement.classList.contains('keyboard-open');
+    const cellHeight = () => (term.element?.querySelector('.xterm-screen')?.getBoundingClientRect().height ?? 0) / term.rows;
+    const positionScreen = () => {
+      if (!callbacks.current.active || !term.element || !container.current) return;
+      const height = cellHeight();
+      // Keep the input cursor visible when the keyboard covers an otherwise
+      // empty shell or a TUI with its prompt near the top of the grid.
+      const clipped = Math.max(0, height * term.rows - container.current.clientHeight);
+      const shift = mobileKeyboard() ? Math.max(0, clipped - Math.max(0, term.buffer.active.cursorY - 2) * height) : 0;
+      term.element.style.transform = shift ? `translateY(${shift}px)` : '';
+    };
+    let cursorTimer: ReturnType<typeof setTimeout> | undefined;
+    const cursor = term.onCursorMove(() => {
+      // TUIs move the cursor around while repainting. Follow the final input
+      // position rather than panning with every intermediate escape sequence.
+      clearTimeout(cursorTimer);
+      cursorTimer = setTimeout(positionScreen, 50);
+    });
     const resize = () => {
       if (!alive || !callbacks.current.active || !container.current?.clientWidth || !container.current.clientHeight) return;
       const size = fit.proposeDimensions();
       if (!size) return;
       const cols = Math.min(500, Math.max(2, size.cols));
-      const rows = Math.min(200, Math.max(2, size.rows));
+      const keyboard = mobileKeyboard();
+      if (!keyboard) unobscuredHeight = container.current.clientHeight;
+      else if (!unobscuredHeight || measuredWidth !== container.current.clientWidth) {
+        const style = getComputedStyle(document.documentElement);
+        unobscuredHeight = container.current.clientHeight + (parseFloat(style.getPropertyValue('--keyboard-inset')) || 0)
+          - (parseFloat(style.getPropertyValue('--terminal-safe-bottom')) || 0);
+      }
+      measuredWidth = container.current.clientWidth;
+      const height = cellHeight();
+      // A keyboard is an occlusion, not a new terminal size. Resizing tmux here
+      // reflows applications and moves its copy-mode history even on one resize.
+      const rows = Math.min(200, Math.max(2, keyboard && height ? Math.floor(unobscuredHeight / height) : size.rows));
       if (term.cols !== cols || term.rows !== rows) term.resize(cols, rows);
+      positionScreen();
       if (ready && ws?.readyState === WebSocket.OPEN && sentSize !== `${cols}:${rows}`) {
         sentSize = `${cols}:${rows}`;
         ws.send(JSON.stringify({ type: 'resize', cols, rows }));
       }
     };
     let frame = 0;
-    const scheduleFit = () => { clearTimeout(fitTimer); cancelAnimationFrame(frame); frame = requestAnimationFrame(resize); };
+    const scheduleFit = () => {
+      positionScreen();
+      clearTimeout(fitTimer); cancelAnimationFrame(frame);
+      // Activation, font changes and ResizeObserver must share the same quiet
+      // period. A warm session can be selected before iOS dismisses its keyboard.
+      fitTimer = setTimeout(() => { frame = requestAnimationFrame(resize); }, matchMedia('(pointer: coarse)').matches ? 250 : 120);
+    };
     fitRef.current = scheduleFit;
-    // Mobile keyboards can pause between animation steps. Keep the existing
-    // screen bottom-aligned until the geometry settles, then resize tmux once.
-    const observer = new ResizeObserver(() => {
-      clearTimeout(fitTimer);
-      cancelAnimationFrame(frame);
-      fitTimer = setTimeout(scheduleFit, matchMedia('(pointer: coarse)').matches ? 250 : 120);
-    });
+    const observer = new ResizeObserver(scheduleFit);
     observer.observe(container.current);
     resize();
     const flushInput = () => {
@@ -125,7 +157,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
           if (!alive || socket !== ws) return;
           const message = JSON.parse(event.data);
           if (message.type === 'ready') {
-            term.reset(); ready = true; sentSize = ''; attempts = 0; status('connected'); resize();
+            term.reset(); ready = true; sentSize = ''; attempts = 0; status('connected'); scheduleFit();
             if (callbacks.current.active && matchMedia('(pointer: fine)').matches) term.focus();
           } else if (message.type === 'output') term.write(message.data);
         };
@@ -158,7 +190,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       clearTimeout(timer); clearTimeout(writeTimer); clearTimeout(fitTimer); cancelAnimationFrame(frame);
       observer.disconnect();
       document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake);
-      ws?.close(); input.dispose(); binaryInput.dispose(); disposeTouchScroll(); term.dispose();
+      ws?.close(); clearTimeout(cursorTimer); cursor.dispose(); input.dispose(); binaryInput.dispose(); disposeTouchScroll(); term.dispose();
       termRef.current = null; sendRef.current = () => {}; fitRef.current = () => {}; wakeRef.current = () => {};
     };
   }, [props.token, props.sessionId, props.revision]);

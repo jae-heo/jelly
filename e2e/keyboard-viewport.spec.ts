@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 'local'} keeps the visible tail and settles once`, async ({ browser, request }) => {
+for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 'local'} keeps its grid and history while the keyboard moves`, async ({ browser, request }) => {
   const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
   const token = readFileSync(info.tokenFile, 'utf8').trim();
   const call = async (path: string, method = 'GET', data?: unknown) => {
@@ -26,13 +26,12 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     });
   });
   try {
-    await page.goto('/');
-    await page.evaluate(({ token, projectId, sessionId }) => {
+    await page.addInitScript(({ token, projectId, sessionId }) => {
       sessionStorage.setItem('jelly-token', token);
       localStorage.setItem('jelly-project', projectId);
       localStorage.setItem('jelly-session', sessionId);
     }, { token, projectId: project.id, sessionId: session.id });
-    await page.reload();
+    await page.goto('/');
     await expect(page.locator('.connection-label')).toHaveText('연결됨');
     await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
     const input = page.getByLabel('명령어 또는 메시지');
@@ -67,17 +66,34 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
       return clipped;
     });
     expect(clippedFrames, 'Latest output must stay above the keyboard during animation').toBe(0);
-    await expect.poll(async () => (await call(`/sessions/${session.id}`)).rows).toBeLessThan(originalRows);
-    expect(sizes, 'One PTY redraw after the animation settles').toHaveLength(1);
+    await page.waitForTimeout(350);
+    expect((await call(`/sessions/${session.id}`)).rows).toBe(originalRows);
+    expect(sizes, 'The keyboard must not reflow the server terminal').toEqual([]);
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
     // Reading tmux history must stay in the same region when the keyboard closes.
-    await page.locator('.xterm-screen').hover();
-    for (let i = 0; i < 5; i++) await page.mouse.wheel(0, -250);
+    // Jelly's touch adapter emits these wheel reports too. Mobile WebKit's
+    // automation protocol does not expose a hardware mouse wheel.
+    await page.locator('.xterm').evaluate(async element => {
+      const rect = element.getBoundingClientRect();
+      for (let i = 0; i < 8; i++) {
+        element.dispatchEvent(new WheelEvent('wheel', {
+          bubbles: true, cancelable: true, deltaMode: WheelEvent.DOM_DELTA_LINE, deltaY: -1,
+          clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+        }));
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+    });
     await expect(page.locator('.xterm-rows')).not.toContainText('KEYBOARD_160');
-    const historyLines = async () => ((await page.locator('.xterm-rows').innerText()).match(/KEYBOARD_\d{3}/g) ?? []);
+    const historyLines = () => page.locator('.terminal-viewport').evaluate(element => {
+      const clip = element.getBoundingClientRect();
+      return [...element.querySelectorAll('.xterm-rows > div')].filter(line => {
+        const box = line.getBoundingClientRect();
+        return box.bottom > clip.top && box.top < clip.bottom;
+      }).flatMap(line => line.textContent?.match(/KEYBOARD_\d{3}/g) ?? []);
+    });
     const before = await historyLines();
     expect(before.length).toBeGreaterThan(3);
     sizes.length = 0;
@@ -98,10 +114,10 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
       return drift;
     });
     expect(closingDrift, 'Closing the keyboard must keep the existing screen anchored').toBeLessThan(1);
-    await expect.poll(async () => (await call(`/sessions/${session.id}`)).rows).toBe(originalRows);
-    expect(sizes).toHaveLength(1);
-    const after = await historyLines();
-    expect(after.filter(line => before.includes(line)).length).toBeGreaterThan(3);
+    await page.waitForTimeout(350);
+    expect((await call(`/sessions/${session.id}`)).rows).toBe(originalRows);
+    expect(sizes).toEqual([]);
+    await expect.poll(async () => (await historyLines()).filter(line => before.includes(line)).length).toBeGreaterThan(3);
     await page.getByRole('button', { name: 'Esc', exact: true }).click();
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     // Android-style keyboards resize the layout viewport too.
@@ -114,11 +130,24 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
       await page.setViewportSize({ width: 390, height });
       await page.waitForTimeout(80);
     }
-    await expect.poll(async () => (await call(`/sessions/${session.id}`)).rows).toBeLessThan(originalRows);
-    expect(sizes).toHaveLength(1);
+    await page.waitForTimeout(350);
+    expect((await call(`/sessions/${session.id}`)).rows).toBe(originalRows);
+    expect(sizes).toEqual([]);
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    // A cleared shell has its cursor at the top of the unchanged grid. Keep
+    // that prompt visible too, rather than always clipping to its bottom rows.
+    await input.fill("printf '\\033[2J\\033[HKEYBOARD_TOP\\n'");
+    await page.getByRole('button', { name: '입력 보내기' }).click();
+    await page.getByRole('button', { name: 'Enter', exact: true }).click();
+    await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_TOP');
+    await expect.poll(() => page.locator('.terminal-viewport').evaluate(element => {
+      const clip = element.getBoundingClientRect();
+      const prompt = [...element.querySelectorAll('.xterm-rows > div')].find(line => line.textContent?.startsWith('KEYBOARD_TOP'));
+      const box = prompt?.getBoundingClientRect();
+      return !!box && box.top >= clip.top - 1 && box.bottom <= clip.bottom + 1;
+    })).toBe(true);
     expect(connections).toBe(connected);
     expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
     expect(errors).toEqual([]);

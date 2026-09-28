@@ -58,6 +58,8 @@ the server and reconnect when you open them again.
 
 On phones, Jelly provides touch scrolling and on-screen terminal keys. You can
 also add it to your home screen. The app's interface is currently in Korean.
+Opening the keyboard keeps the terminal's row count unchanged and brings the
+cursor into view, so apps and scrollback aren't rearranged each time.
 
 For SSH projects, Jelly uses the service account's existing OpenSSH settings and
 keys. Set up key-based access and verify the host key from that account before
