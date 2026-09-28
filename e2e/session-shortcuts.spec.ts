@@ -108,7 +108,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH to local' : 'local to 
     expect(input).toEqual([]);
 
     // Modal editing must keep its target session and draft intact.
-    await page.getByRole('button', { name: '새 세션', exact: true }).click();
+    await page.getByRole('button', { name: 'Shortcut project 새 세션', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('세션 이름').fill('unfinished session');
     await page.keyboard.press('Meta+Shift+Period');

@@ -1,0 +1,29 @@
+.project-tree { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px 20px; overscroll-behavior: contain; }
+.project-tree-list, .project-children { list-style: none; margin: 0; padding: 0; }
+.project-branch { margin-bottom: 10px; }
+.project-heading { display: flex; align-items: center; min-height: 40px; border-radius: 7px; }
+.project-heading.active { background: #1e2b22; }
+.project-tree .tree-toggle { display: flex; align-items: center; justify-content: center; flex: 0 0 26px; align-self: stretch; padding: 0; border: 0; border-radius: 6px; color: #879b8d; background: transparent; }
+.tree-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.project-tree .project-item { flex: 1; min-width: 0; width: auto; margin: 0; padding: 10px 2px; gap: 7px; border: 0; background: transparent; }
+.project-tree .project-item.selected { background: transparent; border: 0; color: #c9e6d2; }
+.project-tree .project-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-tree .project-item svg { flex-shrink: 0; }
+.project-tree .tree-add { flex: 0 0 30px; height: 34px; margin: 0 2px; }
+.project-tree .project-children { margin: 4px 0 0 33px; padding-left: 8px; border-left: 1px solid #304437; }
+.project-children[hidden] { display: none; }
+.project-tree .session-row { margin-bottom: 2px; border-radius: 6px; }
+.project-tree .session-item { min-height: 36px; padding: 8px 9px; gap: 9px; text-align: left; }
+.project-tree .session-dot { flex-shrink: 0; }
+.project-tree .session-dot.unreachable { background: #d0a766; }
+.project-tree .session-text strong { font-size: 12px; }
+.project-tree .session-row.selected strong { color: #dcf2e3; }
+.project-tree .remove-session { position: static; flex-shrink: 0; width: 30px; height: 32px; margin-right: 2px; background: transparent; }
+.project-tree .tree-toggle:hover, .project-tree .project-item:hover, .project-tree .session-item:hover { background: #ffffff06; }
+.tree-empty { padding: 10px 9px; color: #73887a; font-size: 11px; }
+@media (max-width: 700px), (pointer: coarse) {
+  .project-tree .tree-toggle { flex-basis: 44px; min-height: 44px; }
+  .project-tree .project-item, .project-tree .session-item { min-height: 44px; }
+  .project-tree .tree-add, .project-tree .remove-session { flex-basis: 44px; width: 44px; height: 44px; margin: 0; }
+  .project-tree .project-children { margin-left: 30px; }
+}

@@ -46,6 +46,7 @@ Tailscale Serve, Funnel, and a separate web server aren't needed.
 ## Using Jelly
 
 - Add a folder on the Jelly server, or choose an SSH host and browse its folders.
+- Sessions appear under their project. Fold a project with its arrow, or use its **+** to open a session.
 - Open a terminal and run your usual tools, including Codex or Claude Code.
 - Close the tab to disconnect. Use the session's stop action when you want to end it.
 - Open the same session on another device to take control. The previous connection closes.
