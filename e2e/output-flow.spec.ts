@@ -44,12 +44,13 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: rendering
     socket.on('framesent', event => { if (JSON.parse(String(event.payload)).type === 'ack') acks++; });
   });
   try {
-    await page.goto('/');
-    await page.evaluate(({ token, project, session }) => {
+    // Seed before React mounts: its initial selection effect may otherwise
+    // clear values written between navigation and reload (notably in WebKit).
+    await page.addInitScript(({ token, project, session }) => {
       sessionStorage.setItem('jelly-token', token);
       localStorage.setItem('jelly-project', project); localStorage.setItem('jelly-session', session);
     }, { token, project: project.id, session: session.id });
-    await page.reload();
+    await page.goto('/');
     await expect(page.locator('.connection-label')).toHaveText('연결됨');
     await page.evaluate(() => (window as any).flowCommand("head -c 2097152 /dev/zero | tr '\\000' x; printf '\\nBROWSER_FLOW_%s_한글😀\\n' DONE\r"));
     await expect.poll(() => page.evaluate(() => (window as any).flowOffset())).toBeGreaterThanOrEqual(128 * 1024);
