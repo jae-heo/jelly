@@ -386,7 +386,8 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     const state = await until(() => api(`/api/sessions/${second.id}`), s => s.status === 'exited' && s.exitCode !== undefined).catch(async error => {
       const details = await exec('tmux', ['-S', socket, 'list-panes', '-t', `=jelly-${second.id}`, '-F', '#{pane_dead}|#{pane_dead_status}|#{pane_dead_signal}|#{pane_pid}']);
       const version = (await exec('tmux', ['-V'])).stdout.trim();
-      throw new Error(`Fixture exit metadata (${version}): ${details.stdout.trim()}; output marker: ${c.output().includes('EXIT_HISTORY')}`, { cause: error });
+      const processState = await exec('ps', ['-o', 'pid=,ppid=,stat=,comm=', '-p', String(second.pid)]).then(result => result.stdout.trim(), () => 'gone');
+      throw new Error(`Fixture exit metadata (${version}): ${details.stdout.trim()}; process: ${processState}; output marker: ${c.output().includes('EXIT_HISTORY')}`, { cause: error });
     });
     assert.equal(state.exitCode, 7);
     assert.ok((await api(`/api/sessions/${second.id}/history`)).text.includes('EXIT_HISTORY'));
