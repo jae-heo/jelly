@@ -11,6 +11,7 @@ import { ApiError, authorized, checkOrigin, failure, Id, Size } from './http.js'
 const Input = z.discriminatedUnion('type', [
   z.object({ type: z.literal('input'), data: z.string().max(16384) }).strict(),
   Size.extend({ type: z.literal('resize') }).strict(),
+  z.object({ type: z.literal('ack'), offset: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) }).strict(),
   z.object({ type: z.literal('ping'), nonce: z.string().min(1).max(64) }).strict(),
 ]);
 
@@ -48,6 +49,7 @@ export class Terminals {
         this.tickets.delete(ticket);
         if (!record || record.id !== id || record.expires <= Date.now()) throw new ApiError(401, 'Unauthorized');
       }
+      const flow = z.literal('ack-v1').optional().parse(url.searchParams.get('flow') ?? undefined);
       const size = Size.parse({
         cols: url.searchParams.has('cols') ? Number(url.searchParams.get('cols')) : undefined,
         rows: url.searchParams.has('rows') ? Number(url.searchParams.get('rows')) : undefined,
@@ -61,7 +63,7 @@ export class Terminals {
       if (socket.destroyed) return;
       this.wss.handleUpgrade(req, socket, head, ws => {
         socket.off('error', onError);
-        this.attach(id, ws, size.cols, size.rows);
+        this.attach(id, ws, size.cols, size.rows, flow === 'ack-v1');
       });
     } catch (error) {
       const { status, message } = failure(error);
@@ -69,7 +71,7 @@ export class Terminals {
     }
   }
 
-  private attach(id: string, ws: WebSocket, cols: number, rows: number): void {
+  private attach(id: string, ws: WebSocket, cols: number, rows: number, flow: boolean): void {
     ws.on('error', () => ws.terminate());
     let terminal: ReturnType<Execution['attach']>;
     try { terminal = this.tmux.attach(id, cols, rows); }
@@ -79,6 +81,19 @@ export class Terminals {
     let closed = false;
     let paused = false;
     let alive = true;
+    // Offsets count UTF-16 code units, matching JavaScript strings in xterm.
+    let sent = 0;
+    let acknowledged = 0;
+    let progressedAt = Date.now();
+    const updatePause = () => {
+      if (closed) return;
+      const pending = sent - acknowledged;
+      if (!paused && (ws.bufferedAmount > 256 * 1024 || (flow && pending >= 128 * 1024))) {
+        terminal.pause(); paused = true;
+      } else if (paused && ws.bufferedAmount < 64 * 1024 && (!flow || pending <= 32 * 1024)) {
+        terminal.resume(); paused = false;
+      }
+    };
     let inputBytes = 0;
     let inputWindow = Date.now();
     let ready = false;
@@ -88,12 +103,17 @@ export class Terminals {
     let prelude = '';
     const send = (message: unknown) => {
       if (ws.readyState !== WebSocket.OPEN) return;
-      if (ws.bufferedAmount > 1024 * 1024) { ws.close(1013, 'Output consumer too slow'); return; }
+      if (ws.bufferedAmount > 1024 * 1024 || (flow && sent - acknowledged > 512 * 1024)) {
+        ws.close(1013, 'Output consumer too slow'); cleanup(); return;
+      }
       ws.send(JSON.stringify(message));
-      if (!paused && ws.bufferedAmount > 256 * 1024) { terminal.pause(); paused = true; }
+      updatePause();
     };
     const drain = setInterval(() => {
-      if (paused && ws.bufferedAmount < 64 * 1024) { terminal.resume(); paused = false; }
+      if (flow && sent > acknowledged && Date.now() - progressedAt > 30_000) {
+        ws.close(1013, 'Output acknowledgement timed out'); cleanup(); return;
+      }
+      updatePause();
     }, 50);
     const heartbeat = setInterval(() => {
       if (!alive) { ws.terminate(); return; }
@@ -105,6 +125,7 @@ export class Terminals {
       cleanup();
     }, remote ? 10_000 : 5000);
     const output = terminal.onData(data => {
+      if (closed) return;
       if (!ready) {
         if (remote) {
           prelude = (prelude + data).slice(-64 * 1024);
@@ -117,9 +138,12 @@ export class Terminals {
         // Its first output marks terminal initialization; hold early keystrokes until then.
         ready = true;
         clearTimeout(startup);
-        send({ type: 'ready', sessionId: id, cols, rows, heartbeat: true });
+        send({ type: 'ready', sessionId: id, cols, rows, heartbeat: true, ...(flow ? { flowControl: 'ack-v1' } : {}) });
       }
-      send({ type: 'output', data });
+      if (sent === acknowledged) progressedAt = Date.now();
+      if (flow) sent += data.length;
+      send({ type: 'output', data, ...(flow ? { offset: sent } : {}) });
+      if (closed) return;
       if (pendingInput.length) {
         terminal.write(pendingInput.join(''));
         pendingInput = [];
@@ -152,6 +176,12 @@ export class Terminals {
         if (binary) throw new Error('Expected JSON text');
         const message = Input.parse(JSON.parse(raw.toString()));
         if (message.type === 'ping') ws.send(JSON.stringify({ type: 'pong', nonce: message.nonce }));
+        else if (message.type === 'ack') {
+          if (!flow || message.offset < acknowledged || message.offset > sent) throw new Error('Invalid output acknowledgement');
+          if (message.offset > acknowledged) progressedAt = Date.now();
+          acknowledged = message.offset;
+          updatePause();
+        }
         else if (message.type === 'resize') terminal.resize(message.cols, message.rows);
         else {
           const bytes = Buffer.byteLength(message.data);

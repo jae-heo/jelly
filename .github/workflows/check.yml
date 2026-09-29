@@ -12,10 +12,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y tmux openssh-client
+      - run: sudo apt-get update && sudo apt-get install -y tmux openssh-client util-linux
       - run: npm ci
       - run: npm run check
       - run: npm test
+      - run: npm run test:soak
       - run: npm run test:ssh
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:web

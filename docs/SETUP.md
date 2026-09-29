@@ -74,6 +74,15 @@ It leaves credentials, databases, sockets and session processes alone, and refus
 invalid protected-release metadata or unsafe directory pointers. Build, deployment
 and cleanup share a lock. `npm run release` builds without activating a release.
 
+Release commands require Linux `flock` from util-linux. The OS releases the lock
+after the deployment process and any build children holding it exit, including
+after a forced termination. `.data/deploy.lock` remains as an empty file; do not
+delete it, since replacing its inode could allow overlapping operations.
+An old **directory** at that path belongs to the earlier locking scheme. It is
+not removed automatically because its owner is unknown: first ensure no old
+release/deploy/cleanup command is running, then remove the empty directory with
+`rmdir .data/deploy.lock` before using the new commands.
+
 For startup at boot and after logout, your account needs systemd lingering enabled.
 An administrator can enable it with `loginctl enable-linger USER`.
 
@@ -147,11 +156,19 @@ npm run test:ssh
 npx playwright install --with-deps chromium webkit
 npm run test:web
 npm run test:webkit
+npm run test:soak
+# Optional one-hour run, using only disposable local sessions:
+JELLY_SOAK_SECONDS=3600 npm run test:soak
 ```
 
 `npm test` builds in `.data/test-build` and runs the backend tests with real tmux
 processes, plus deployment/rollback tests. All test commands build fresh artifacts
 without modifying `dist/` or the selected service release.
+The soak test defaults to 60 seconds. It rotates four sessions through three
+concurrent attachments, delays output acknowledgements, and alternates graceful
+and abrupt disconnects. It checks shell PIDs, connection and descriptor cleanup,
+retained JS heap, and API/test-process and tmux RSS after warm-up. These are regression
+thresholds for the tested duration, not a proof that all workloads have bounded memory.
 SSH and browser tests also need Docker; they create disposable SSH servers and
 temporary credentials. Tests use their own data directories and tmux sockets.
 

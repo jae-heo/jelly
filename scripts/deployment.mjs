@@ -1,18 +1,23 @@
 import { constants } from 'node:fs';
-import { copyFile, link, mkdir, readFile, readdir, readlink, rename, rm, symlink } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { copyFile, link, mkdir, open, readFile, readdir, readlink, rename, rm, symlink } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export async function withDeploymentLock(data, action) {
   await mkdir(data, { recursive: true, mode: 0o700 });
-  const lock = join(data, 'deploy.lock');
-  try { await mkdir(lock); }
-  catch (error) {
-    if (error.code === 'EEXIST') throw new Error('A release, deployment or cleanup is already running (.data/deploy.lock).');
-    throw error;
-  }
-  try { return await action(); }
-  finally { await rm(lock, { recursive: true, force: true }); }
+  // Keep this inode: unlinking a flock file allows two independent locks.
+  // A descriptor shared with build children keeps the lock until they also exit.
+  const lock = await open(join(data, 'deploy.lock'), constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW, 0o600);
+  try {
+    const result = spawnSync('flock', ['--nonblock', '--conflict-exit-code', '75', '3'], {
+      stdio: ['ignore', 'pipe', 'pipe', lock.fd],
+    });
+    if (result.error) throw new Error('Deployment locking requires flock (util-linux).', { cause: result.error });
+    if (result.status === 75) throw new Error('A release, deployment or cleanup is already running (.data/deploy.lock).');
+    if (result.status !== 0) throw new Error('Could not acquire deployment lock');
+    return await action(lock.fd);
+  } finally { await lock.close(); }
 }
 
 export async function publishAssets(source, destination) {

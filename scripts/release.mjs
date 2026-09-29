@@ -6,9 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { withDeploymentLock } from './deployment.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export function buildRelease() {
+export function buildRelease(lockFd) {
+  const inheritLock = mode => {
+    const stdio = mode === 'inherit' ? ['inherit', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'];
+    return lockFd === undefined ? stdio : [...stdio, lockFd];
+  };
   process.umask(0o077);
-  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: inheritLock('pipe') }).trim();
   if (git('status', '--porcelain')) throw new Error('Commit or stash working changes before building a release.');
   const commit = git('rev-parse', 'HEAD');
   const releases = join(root, '.data/releases');
@@ -21,9 +25,9 @@ export function buildRelease() {
   const build = mkdtempSync(join(releases, '.build-'));
   try {
     git('archive', '--format=tar', `--output=${join(build, 'source.tar')}`, commit);
-    execFileSync('tar', ['-xf', 'source.tar'], { cwd: build });
+    execFileSync('tar', ['-xf', 'source.tar'], { cwd: build, stdio: inheritLock('pipe') });
     rmSync(join(build, 'source.tar'));
-    for (const args of [['ci'], ['run', 'check'], ['run', 'build']]) execFileSync('npm', args, { cwd: build, stdio: 'inherit' });
+    for (const args of [['ci'], ['run', 'check'], ['run', 'build']]) execFileSync('npm', args, { cwd: build, stdio: inheritLock('inherit') });
     writeFileSync(join(build, 'release.json'), JSON.stringify({ commit, node: process.version }) + '\n');
     renameSync(build, destination);
     return destination;

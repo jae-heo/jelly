@@ -2,6 +2,29 @@
 
 최종 자동 검증일: 2026-09-29.
 
+## Output flow control and deployment lock recovery (2026-09-29)
+
+- Browsers negotiate output acknowledgements and release more data only after
+  xterm parsing completes. PTY reads pause above the pending-output threshold;
+  invalid acknowledgements or a 30-second stall close the attachment, preserving
+  the shell. Old tabs and the CLI retain their existing protocol.
+- Real local and disposable SSH browser tests withhold acknowledgements during
+  a 2 MiB flood, check that output stops, then release it and verify Unicode output,
+  one continuous connection and the original shell PID. Chromium passed all 23
+  scenarios, including cached sessions, resume, keyboard geometry and live input.
+- Linux flock replaces directory-existence locking. Forced-termination tests
+  verify immediate recovery without a child, continued exclusion while a build
+  child holds the descriptor, and recovery once that child exits. Unknown legacy
+  directories and symlinks are refused; the lock inode is never deleted.
+- `npm run check` passed. `npm test` passed 26 backend and 8 deployment/retention
+  tests; `npm run test:ssh` passed the remote lifecycle suite.
+- The opt-in soak runner rotates four isolated sessions through three concurrent
+  connections with delayed acknowledgements and repeated disconnects. It checks
+  PIDs, empty attachment/client sets, descriptor counts, GC-retained heap and RSS
+  after warm-up. CI runs 60 seconds; the duration can be extended to 24 hours.
+  This does not replace physical iPhone testing or establish bounds for every
+  workload. See SETUP.md for the longer-run command and scope.
+
 ## Release storage retention (2026-09-29)
 
 - Successful deployments retain the current and previous healthy releases.

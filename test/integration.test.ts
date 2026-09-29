@@ -83,8 +83,9 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     assert.equal(res.status, expected, JSON.stringify(data));
     return data;
   }
-  async function connect(id: string, options: { ticket?: string; origin?: string; auth?: boolean; status?: number; initialInput?: string } = {}) {
+  async function connect(id: string, options: { ticket?: string; origin?: string; auth?: boolean; status?: number; initialInput?: string; flow?: boolean } = {}) {
     const query = new URLSearchParams({ cols: '90', rows: '28' });
+    if (options.flow) query.set('flow', 'ack-v1');
     if (options.ticket) query.set('ticket', options.ticket);
     const ws = new WebSocket(`ws://127.0.0.1:${port}/api/sessions/${id}/terminal?${query}`, {
       headers: {
@@ -96,9 +97,20 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     let output = '';
     let ready = false;
     let heartbeat = false;
+    let offset = 0;
+    let flowing = false;
+    let negotiated = false;
     ws.on('message', raw => {
       const message = JSON.parse(raw.toString());
-      if (message.type === 'output') output = (output + message.data).slice(-1024 * 1024);
+      if (message.type === 'output') {
+        output = (output + message.data).slice(-1024 * 1024);
+        if (options.flow) {
+          offset += message.data.length;
+          assert.equal(message.offset, offset);
+          if (flowing) ws.send(JSON.stringify({ type: 'ack', offset }));
+        }
+      }
+      if (message.type === 'ready') negotiated = message.flowControl === 'ack-v1';
       if (message.type === 'ready') { ready = true; heartbeat = message.heartbeat === true; }
     });
     ws.on('error', () => {});
@@ -116,7 +128,8 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
       await until(async () => ready, Boolean);
     }
     return {
-      ws, heartbeat, output: () => output,
+      ws, heartbeat, negotiated, output: () => output, offset: () => offset,
+      resume: () => { flowing = true; ws.send(JSON.stringify({ type: 'ack', offset })); },
       send: (data: string) => ws.send(JSON.stringify({ type: 'input', data })),
       wait: (text: string) => until(async () => output, output => output.includes(text)),
       clear: () => { output = ''; },
@@ -330,6 +343,24 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     await resumed.wait('CRASH_SURVIVED');
     resumed.ws.close(); await once(resumed.ws, 'close');
   });
+  await t.test('render acknowledgements bound output, resume Unicode and reject invalid offsets without stopping the shell', async () => {
+    const c = await connect(sessionId, { flow: true });
+    assert.equal(c.negotiated, true);
+    c.send("head -c 2097152 /dev/zero | tr '\\000' x; printf '\\nFLOW_%s_한글😀\\n' DONE\r");
+    await until(async () => c.offset(), value => value >= 128 * 1024);
+    await sleep(150);
+    const paused = c.offset();
+    await sleep(250);
+    assert.equal(c.offset(), paused, 'output must stop without rendering acknowledgements');
+    assert.ok(paused <= 512 * 1024, 'unacknowledged data stays bounded');
+    assert.equal((await api('/healthz')).status, 'ok');
+    c.resume();
+    await c.wait('FLOW_DONE_한글😀');
+    const ended = once(c.ws, 'close');
+    c.ws.send(JSON.stringify({ type: 'ack', offset: Number.MAX_SAFE_INTEGER }));
+    assert.equal((await ended)[0], 1008);
+    assert.equal((await api(`/api/sessions/${sessionId}`)).pid, shellPid);
+  });
   await t.test('slow receiver can disconnect without losing shell or API responsiveness', async () => {
     const c = await connect(sessionId);
     c.ws.pause();
@@ -342,6 +373,17 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     await resumed.wait('FLOOD_DONE');
     resumed.ws.close(); await once(resumed.ws, 'close');
     assert.equal((await api(`/api/sessions/${sessionId}`)).status, 'running');
+  });
+  await t.test('a client that never acknowledges is detached after the deadline; reconnect keeps its shell', async () => {
+    const c = await connect(sessionId, { flow: true });
+    const ended = once(c.ws, 'close');
+    assert.equal((await ended)[0], 1013);
+    assert.equal((await api(`/api/sessions/${sessionId}`)).pid, shellPid);
+    const resumed = await connect(sessionId, { flow: true });
+    resumed.resume();
+    resumed.send("printf '\\nACK_TIMEOUT_%s\\n' RECOVERED\r");
+    await resumed.wait('ACK_TIMEOUT_RECOVERED');
+    const closed = once(resumed.ws, 'close'); resumed.ws.close(); await closed;
   });
   await t.test('full-screen interactive program redraws after reconnect and returns to shell', async () => {
     const c = await connect(sessionId);

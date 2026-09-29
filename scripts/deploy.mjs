@@ -11,19 +11,19 @@ import { cleanReleases } from './retention.mjs';
 
 process.umask(0o077);
 const data = join(root, '.data');
-await withDeploymentLock(data, async () => {
+await withDeploymentLock(data, async lockFd => {
   const unit = await readFile(join(homedir(), '.config/systemd/user/jelly.service'), 'utf8');
   if (!unit.startsWith('# Managed by Jelly scripts/install-service.mjs') || !unit.includes('start-release.mjs')) {
     throw new Error('Install the release launcher first: node scripts/install-service.mjs');
   }
-  const release = buildRelease();
+  const release = buildRelease(lockFd);
   const assets = join(data, 'web-assets');
   // Preserve lazy chunks for tabs opened before the first managed deployment.
   if (!existsSync(join(data, 'current')) && existsSync(join(root, 'dist/web/assets'))) await publishAssets(join(root, 'dist/web/assets'), assets);
   await publishAssets(join(release, 'dist/web/assets'), assets);
   const runtime = `/run/user/${process.getuid()}`;
   const env = { ...process.env, XDG_RUNTIME_DIR: runtime, DBUS_SESSION_BUS_ADDRESS: `unix:path=${runtime}/bus` };
-  const restart = () => execFileSync('systemctl', ['--user', 'restart', 'jelly.service'], { env, stdio: 'inherit' });
+  const restart = () => execFileSync('systemctl', ['--user', 'restart', 'jelly.service'], { env, stdio: ['inherit', 'inherit', 'inherit', lockFd] });
   const expected = await readFile(join(release, 'dist/web/index.html'), 'utf8');
   await activateRelease(join(data, 'current'), release, restart, async () => {
     for (let attempt = 0; attempt < 30; attempt++) {

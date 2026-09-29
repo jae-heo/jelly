@@ -76,21 +76,39 @@ export function terminalConnection(term: Terminal, token: string, sessionId: str
       const url = new URL(`/api/sessions/${sessionId}/terminal`, location.href);
       url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       url.searchParams.set('ticket', ticket);
+      url.searchParams.set('flow', 'ack-v1');
       url.searchParams.set('cols', String(term.cols));
       url.searchParams.set('rows', String(term.rows));
       const socket = new WebSocket(url);
       ws = socket;
+      let flow = false;
+      let received = 0;
+      let acknowledged = 0;
       socket.onmessage = event => {
         if (!alive || socket !== ws) return;
         const message = JSON.parse(event.data);
         if (message.type === 'ready') {
+          flow = message.flowControl === 'ack-v1';
           clearTimeout(startupTimer); supportsProbe = message.heartbeat === true;
           term.reset(); ready = true; sentSize = ''; attempts = 0; status('connected'); onReady();
           if (callbacks.current.active && matchMedia('(pointer: fine)').matches) term.focus();
         } else if (message.type === 'pong' && pendingProbe && message.nonce === pendingProbe) {
           clearProbe();
           if (!writeTimer && inputQueue.length) flushInput();
-        } else if (message.type === 'output') term.write(message.data);
+        } else if (message.type === 'output') {
+          if (!flow) { term.write(message.data); return; }
+          const offset: number = message.offset;
+          received = offset;
+          // Parsing completion, rather than WebSocket delivery, releases more output.
+          // Hidden cached terminals also acknowledge; callbacks from old sockets cannot.
+          term.write(message.data, () => {
+            if (!alive || socket !== ws || currentGeneration !== generation || socket.readyState !== WebSocket.OPEN) return;
+            if (offset - acknowledged >= 16 * 1024 || offset === received) {
+              acknowledged = offset;
+              socket.send(JSON.stringify({ type: 'ack', offset }));
+            }
+          });
+        }
       };
       socket.onclose = event => {
         if (!alive || socket !== ws) return;

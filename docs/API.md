@@ -107,6 +107,20 @@ attachment process, not necessarily the shell; use GET session to inspect the sh
 Output must be fed to a terminal emulator (for example xterm.js), not inserted as HTML.
 Do not rely on raw output containing whole lines: ANSI commands and Unicode may arrive in separate frames.
 
+Browsers request `&flow=ack-v1`. A supporting server advertises `flowControl: "ack-v1"`
+in `ready` and adds a cumulative `offset` to each output message. Offsets start at zero
+for each connection and count JavaScript string length (UTF-16 code units, not UTF-8 bytes).
+After xterm has **parsed** output, send `{"type":"ack","offset":1234}` for the consumed
+prefix. Acknowledgements must be nondecreasing and cannot exceed the amount sent.
+The browser batches acknowledgements and ignores callbacks from replaced connections.
+
+The server pauses PTY reads at 128 Ki unacknowledged code units and resumes at or below
+32 Ki. More than 512 Ki, or 30 seconds without acknowledgement progress while output
+is pending, closes only the attachment with 1013. The shell remains available for
+reconnection. Network-buffer limits still apply independently. Clients without this
+negotiation, including the CLI and older tabs, retain the existing protocol. A new
+browser also works with an older server that does not advertise the capability.
+
 `heartbeat: true` advertises application-level probes. Send a new nonce (1–64 characters) to verify an
 apparently open connection after browser suspension; the server echoes it without writing to the PTY.
 The web client reuses responsive connections and starts reconnecting after 1.2 seconds without a reply.
