@@ -1,7 +1,19 @@
 import { constants } from 'node:fs';
 import { copyFile, link, mkdir, readFile, readdir, readlink, rename, rm, symlink } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+
+export async function withDeploymentLock(data, action) {
+  await mkdir(data, { recursive: true, mode: 0o700 });
+  const lock = join(data, 'deploy.lock');
+  try { await mkdir(lock); }
+  catch (error) {
+    if (error.code === 'EEXIST') throw new Error('A release, deployment or cleanup is already running (.data/deploy.lock).');
+    throw error;
+  }
+  try { return await action(); }
+  finally { await rm(lock, { recursive: true, force: true }); }
+}
 
 export async function publishAssets(source, destination) {
   await mkdir(destination, { recursive: true, mode: 0o700 });
@@ -32,6 +44,9 @@ export async function activateRelease(current, target, restart, healthy) {
   try {
     await restart();
     await healthy();
+    if (previous && resolve(dirname(current), previous) !== resolve(dirname(current), target)) {
+      await point(join(dirname(current), 'previous'), previous);
+    }
   } catch (error) {
     if (previous) await point(current, previous);
     else await rm(current);

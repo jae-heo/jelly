@@ -54,10 +54,25 @@ atomically, and restarts the API. A failed health check restores the previous
 release. Uncommitted changes must be committed or stashed first.
 
 The service runs the selected release, so development and test builds cannot
-replace its files. Old hashed web chunks remain in `.data/web-assets` for tabs
-opened before deployment. Release directories and cached chunks are retained;
-remove them only when you no longer need rollback or older open tabs.
-`npm run release` builds without activating a release.
+replace its files. After a successful deployment, cleanup keeps the current release
+and the previous healthy release, recorded in `.data/current` and `.data/previous`.
+Other recognized release builds are removed, including unused standalone builds.
+A failed deployment does not run cleanup or replace the recovery pointer.
+
+Hashed web chunks in `.data/web-assets` stay protected while either retained release
+uses them. Once unused, they remain for another 30 days for older open tabs. Tabs
+older than that may need a reload. Cleanup runs after successful deployments; it
+has no background timer. You can inspect or run it separately:
+
+```bash
+npm run cleanup -- --dry-run
+npm run cleanup
+```
+
+Cleanup only touches recognized release directories and generated JS/CSS assets.
+It leaves credentials, databases, sockets and session processes alone, and refuses
+invalid protected-release metadata or unsafe directory pointers. Build, deployment
+and cleanup share a lock. `npm run release` builds without activating a release.
 
 For startup at boot and after logout, your account needs systemd lingering enabled.
 An administrator can enable it with `loginctl enable-linger USER`.

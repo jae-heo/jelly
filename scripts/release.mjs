@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withDeploymentLock } from './deployment.mjs';
 
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export function buildRelease() {
@@ -29,6 +30,6 @@ export function buildRelease() {
   } finally { rmSync(build, { recursive: true, force: true }); }
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const release = buildRelease();
+  const release = await withDeploymentLock(join(root, '.data'), buildRelease);
   console.log(`Release ready: ${JSON.parse(readFileSync(join(release, 'release.json'), 'utf8')).commit}`);
 }

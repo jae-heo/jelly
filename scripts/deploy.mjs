@@ -1,20 +1,17 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { buildRelease, root } from './release.mjs';
-import { activateRelease, publishAssets } from './deployment.mjs';
+import { activateRelease, publishAssets, withDeploymentLock } from './deployment.mjs';
+import { cleanReleases } from './retention.mjs';
 
 process.umask(0o077);
 const data = join(root, '.data');
-await mkdir(data, { recursive: true });
-const lock = join(data, 'deploy.lock');
-try { await mkdir(lock); }
-catch (error) { if (error.code === 'EEXIST') throw new Error('A deployment is already running (.data/deploy.lock).'); throw error; }
-try {
+await withDeploymentLock(data, async () => {
   const unit = await readFile(join(homedir(), '.config/systemd/user/jelly.service'), 'utf8');
   if (!unit.startsWith('# Managed by Jelly scripts/install-service.mjs') || !unit.includes('start-release.mjs')) {
     throw new Error('Install the release launcher first: node scripts/install-service.mjs');
@@ -22,7 +19,7 @@ try {
   const release = buildRelease();
   const assets = join(data, 'web-assets');
   // Preserve lazy chunks for tabs opened before the first managed deployment.
-  if (existsSync(join(root, 'dist/web/assets'))) await publishAssets(join(root, 'dist/web/assets'), assets);
+  if (!existsSync(join(data, 'current')) && existsSync(join(root, 'dist/web/assets'))) await publishAssets(join(root, 'dist/web/assets'), assets);
   await publishAssets(join(release, 'dist/web/assets'), assets);
   const runtime = `/run/user/${process.getuid()}`;
   const env = { ...process.env, XDG_RUNTIME_DIR: runtime, DBUS_SESSION_BUS_ADDRESS: `unix:path=${runtime}/bus` };
@@ -41,4 +38,9 @@ try {
     throw new Error('Release health check failed');
   });
   console.log(`Deployed ${JSON.parse(await readFile(join(release, 'release.json'), 'utf8')).commit}`);
-} finally { await rm(lock, { recursive: true, force: true }); }
+  // A housekeeping failure must not roll back an already healthy deployment.
+  try {
+    const removed = await cleanReleases(data);
+    console.log(`Cleanup: ${removed.releases.length} releases, ${removed.assets.length} expired assets removed.`);
+  } catch (error) { console.error('Deployment succeeded; cleanup was skipped:', error.message); }
+});

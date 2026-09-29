@@ -1,6 +1,20 @@
 # 검증 기록
 
-최종 자동 검증일: 2026-09-28.
+최종 자동 검증일: 2026-09-29.
+
+## Release storage retention (2026-09-29)
+
+- Successful deployments retain the current and previous healthy releases.
+  Failed health checks and redeploying the current release preserve the recovery
+  pointer. Release, deployment and cleanup operations share one lock.
+- Unreferenced web chunks receive a full 30-day grace period, independent of file
+  build timestamps. Reusing a chunk resets its retirement. Active and recovery
+  release assets remain protected.
+- Cleanup supports a dry run and validates protected pointers and metadata before
+  deleting generated artifacts. Tests cover invalid metadata, external symlinks,
+  unrecognized directories, untouched database files, rollback and lock contention.
+- `npm run check` passed; `npm test` passed 23 backend tests and 5 deployment/retention
+  tests. Production cleanup preview selected only an obsolete release and no assets.
 
 ## Workspace, SSH isolation and releases (2026-09-28)
 
