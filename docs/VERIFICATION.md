@@ -13,8 +13,13 @@
 - Cleanup supports a dry run and validates protected pointers and metadata before
   deleting generated artifacts. Tests cover invalid metadata, external symlinks,
   unrecognized directories, untouched database files, rollback and lock contention.
-- `npm run check` passed; `npm test` passed 23 backend tests and 5 deployment/retention
+- `npm run check` passed; `npm test` passed 24 backend tests and 5 deployment/retention
   tests. Production cleanup preview selected only an obsolete release and no assets.
+- CI exposed an existing assertion that assumed tmux always supplies an exit code.
+  Direct fixture metadata confirmed tmux itself sometimes omits it. The lifecycle
+  test now compares API and tmux values, checks code 7 when supplied, and still
+  requires exited state and retained history. Parsing tests independently enforce
+  zero/nonzero codes and omission for unknown status.
 
 ## Workspace, SSH isolation and releases (2026-09-28)
 

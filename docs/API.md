@@ -140,3 +140,7 @@ Session actions and individual session reads await a current status probe.
 Create/stop operations invalidate that host's cached status. Mutations are ordered
 per host so project deletion cannot race session creation, while another host's
 operations can proceed independently.
+
+`exitCode` is optional for an exited session. Jelly returns it when tmux provides
+one; an absent value means unknown, not successful exit. A dead pane and an
+available exit status are distinct in [tmux's format implementation](https://github.com/tmux/tmux/blob/3.4/format.c#L1751-L1789).
