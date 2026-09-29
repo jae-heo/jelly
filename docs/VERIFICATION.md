@@ -18,11 +18,14 @@
   dependencies under `.data/releases`, with atomic activation and health rollback.
   Deployment tests cover rollback, retained old chunks and hash collision refusal;
   API tests cover safe serving of previous chunks.
-- `npm run check` passed. `npm test`: 22 backend tests and 1 deployment test passed.
+- `npm run check` passed. `npm test`: 23 backend tests and 1 deployment test passed.
   `npm run test:ssh`: 7 passed. Chromium: 21 passed. WebKit: 6 passed.
 - WebKit ran in the pinned Playwright Linux container against a disposable host
   fixture; this machine lacks native WebKit runtime libraries. GitHub Actions
   installs both browser engines and runs all suites from fresh builds.
+- CI exposed the empty-server boundary after the last tmux session exits.
+  `no current target` is now treated as an absent session for local and SSH
+  status/stop operations, with deterministic empty-server regression coverage.
 - Browser keyboard movement is simulated. Physical iPhone Chrome and home-screen
   behavior still need device verification.
 

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { once } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -19,8 +20,9 @@ async function until(check: () => boolean | Promise<boolean>, timeout = 10_000) 
 }
 
 test('agentless SSH projects and persistent remote terminals', { timeout: 180_000 }, async t => {
-  const root = resolve('.data'); await mkdir(root, { recursive: true });
-  const dataDir = await mkdtemp(join(root, 'remote-test-'));
+  // Keep OpenSSH control sockets short even in deeply nested CI checkouts.
+  const prefix = join(tmpdir(), 'jelly-remote-');
+  const dataDir = await mkdtemp(prefix);
   const fixture = await sshFixture(dataDir);
   process.env.JELLY_DATA_DIR = dataDir; process.env.JELLY_PORT = '0'; process.env.JELLY_HOST = '127.0.0.1'; process.env.JELLY_SSH_CONFIG = fixture.config;
   const config = loadConfig();
@@ -30,7 +32,7 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
   t.after(async () => {
     sockets.forEach(socket => socket.terminate());
     await app.close(); await fixture.close();
-    assert.ok(dataDir.startsWith(root + '/remote-test-'));
+    assert.ok(dataDir.startsWith(prefix));
     await rm(dataDir, { recursive: true, force: true });
   });
   const request = async (path: string, method = 'GET', body?: unknown, status = 200, auth = true) => {
@@ -196,6 +198,7 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
     resumed.ws.close(); await once(resumed.ws, 'close');
   });
   await t.test('explicit remote stop and deletion leave unrelated tmux untouched', async () => {
+    await fixture.command('tmux', '-L', `jelly-${config.instanceId}`, 'set-option', '-s', 'exit-empty', 'off');
     assert.equal((await request(`/api/sessions/${session.id}/stop`, 'POST')).status, 'stopped');
     await request(`/api/sessions/${session.id}`, 'DELETE');
     await request(`/api/projects/${project.id}`, 'DELETE');

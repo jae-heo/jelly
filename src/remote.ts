@@ -86,7 +86,7 @@ export class RemoteTmux extends Tmux {
       if (failure.killed || failure.code === 255 || failure.code === 'ENOENT') throw new ApiError(502, 'SSH_UNREACHABLE');
       if (/tmux:.*not found|tmux:.*No such file/.test(stderr)) throw new ApiError(502, 'SSH_TMUX_MISSING');
       // Only missing tmux servers/sessions are interpreted as gone; transport errors must stay errors.
-      if (/can't find session|no server running|error connecting to .*No such file|error connecting to .*Connection refused/.test(stderr)) {
+      if (/can't find session|no current target|no server running|error connecting to .*No such file|error connecting to .*Connection refused/.test(stderr)) {
         throw Object.assign(new Error('Missing remote tmux session'), { stderr: 'no server running' });
       }
       throw new ApiError(502, 'SSH_COMMAND_FAILED');

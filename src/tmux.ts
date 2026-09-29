@@ -36,7 +36,7 @@ export class Tmux {
       output = await this.run('list-panes', '-a', '-F', '#{session_name}|#{pane_dead}|#{pane_pid}|#{pane_width}|#{pane_height}|#{pane_dead_status}');
     } catch (error) {
       const stderr = String((error as { stderr?: string }).stderr ?? '');
-      if (/no server running|No such file or directory|Connection refused/.test(stderr)) return new Map();
+      if (/no current target|no server running|No such file or directory|Connection refused/.test(stderr)) return new Map();
       throw error;
     }
     const states = new Map<string, TerminalState>();
@@ -55,7 +55,7 @@ export class Tmux {
     try { await this.run('kill-session', '-t', `=${this.name(id)}`); }
     catch (error) {
       const stderr = String((error as { stderr?: string }).stderr ?? '');
-      if (!/can't find session|no server running|No such file or directory|Connection refused/.test(stderr)) throw error;
+      if (!/can't find session|no current target|no server running|No such file or directory|Connection refused/.test(stderr)) throw error;
     }
   }
   protected attachArgs(id: string): string[] {
