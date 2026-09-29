@@ -12,14 +12,19 @@
     "build": "npm run build:server && npm run build:web",
     "start": "node dist/src/main.js",
     "cli": "node dist/src/cli.js",
-    "test": "npm run build && node --test --test-concurrency=1 dist/test/*.test.js",
+    "test": "npm run build:test && node --test --test-concurrency=1 .data/test-build/test/*.test.js && node --test test/*.test.mjs",
     "check": "tsc --noEmit && tsc -p web/tsconfig.json",
     "build:server": "tsc -p tsconfig.json",
     "build:web": "tsc -p web/tsconfig.json && vite build",
     "build:icons": "node scripts/generate-icons.mjs",
     "dev:web": "vite",
-    "test:web": "playwright test",
-    "test:ssh": "npm run build:server && node --test dist/test/remote.integration.js"
+    "test:web": "npm run build:test && playwright test --project=chromium",
+    "test:ssh": "npm run build:test && node --test .data/test-build/test/remote.integration.js",
+    "build:test": "tsc -p tsconfig.json --outDir .data/test-build && tsc -p web/tsconfig.json && vite build --outDir ../.data/test-build/web",
+    "test:webkit": "npm run build:test && playwright test --project=webkit",
+    "release": "node scripts/release.mjs",
+    "deploy": "node scripts/deploy.mjs",
+    "dev:server": "npm run build:server && node scripts/dev-server.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

@@ -86,13 +86,15 @@ Client → server, JSON text frames:
 {"type":"input","data":"pwd\r"}
 {"type":"input","data":"\u0003"}
 {"type":"resize","cols":80,"rows":24}
+{"type":"ping","nonce":"resume-1"}
 ```
 
 Server → client:
 
 ```json
-{"type":"ready","sessionId":"...","cols":80,"rows":24}
+{"type":"ready","sessionId":"...","cols":80,"rows":24,"heartbeat":true}
 {"type":"output","data":"raw terminal text and ANSI sequences"}
+{"type":"pong","nonce":"resume-1"}
 {"type":"exit","exitCode":0}
 ```
 
@@ -104,6 +106,12 @@ An `exit` message refers to the
 attachment process, not necessarily the shell; use GET session to inspect the shell's actual state.
 Output must be fed to a terminal emulator (for example xterm.js), not inserted as HTML.
 Do not rely on raw output containing whole lines: ANSI commands and Unicode may arrive in separate frames.
+
+`heartbeat: true` advertises application-level probes. Send a new nonce (1–64 characters) to verify an
+apparently open connection after browser suspension; the server echoes it without writing to the PTY.
+The web client reuses responsive connections and starts reconnecting after 1.2 seconds without a reply.
+It immediately retries interrupted connection setup on resume and limits a complete connection attempt
+to 12 seconds. These probes are separate from the WebSocket protocol ping/pong below.
 
 Close codes: 1000 normal detach/end, 1008 invalid input, 1012 backend restarting,
 1013 slow consumer, 4001 replacement by a newer client. WebSocket ping/pong detects abandoned connections.
@@ -119,3 +127,16 @@ curl --fail-with-body --config <(printf 'header = "Authorization: Bearer %s"\n' 
 ```
 
 The supplied CLI reads the token file directly and is preferable for routine use.
+
+## Session list freshness
+
+`GET /api/sessions` shares in-flight status probes per SSH host and caches completed
+results for one second. A list request waits at most 250 ms for each remote host,
+in parallel, then uses a cached result up to five seconds old or `unreachable`.
+A failed probe invalidates the previous result. `unreachable` does not mean the
+shell stopped and must not close an already functioning terminal connection.
+
+Session actions and individual session reads await a current status probe.
+Create/stop operations invalidate that host's cached status. Mutations are ordered
+per host so project deletion cannot race session creation, while another host's
+operations can proceed independently.

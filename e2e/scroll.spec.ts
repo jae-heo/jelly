@@ -96,7 +96,7 @@ for (const remote of [false, true]) {
       await page.getByRole('button', { name: 'Esc', exact: true }).click();
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.locator('.xterm-screen').tap();
-      await expect(page.getByLabel('터미널 입력', { exact: true })).toBeFocused();
+      await expect(page.getByRole('textbox', { name: '라이브 입력', exact: true })).toBeFocused();
       expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
       expect(errors).toEqual([]);
     } finally {

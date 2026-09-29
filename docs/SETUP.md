@@ -31,6 +31,7 @@ Build Jelly, then install the user systemd service:
 ```bash
 npm run build
 node scripts/install-service.mjs
+npm run deploy
 ```
 
 The installer starts the service. To enable remote access, set these values in
@@ -46,6 +47,17 @@ systemctl --user restart jelly
 systemctl --user status jelly
 journalctl --user -u jelly -n 30
 ```
+
+For updates, commit the changes and run `npm run deploy`. It builds the committed
+source with `npm ci` in `.data/releases/<commit>`, switches `.data/current`
+atomically, and restarts the API. A failed health check restores the previous
+release. Uncommitted changes must be committed or stashed first.
+
+The service runs the selected release, so development and test builds cannot
+replace its files. Old hashed web chunks remain in `.data/web-assets` for tabs
+opened before deployment. Release directories and cached chunks are retained;
+remove them only when you no longer need rollback or older open tabs.
+`npm run release` builds without activating a release.
 
 For startup at boot and after logout, your account needs systemd lingering enabled.
 An administrator can enable it with `loginctl enable-linger USER`.
@@ -100,15 +112,16 @@ Tailscale IP URL and `JELLY_TOKEN_FILE` to a securely transferred token file.
 ## Develop
 
 The backend is in `src/`; the React and xterm.js client is in `web/`.
-After installing dependencies and building, start a local backend:
+After installing dependencies, start a local backend:
 
 ```bash
-JELLY_HOST=127.0.0.1 JELLY_ORIGINS=http://127.0.0.1:5173 npm start
+npm run dev:server
 ```
 
 In another terminal, run `npm run dev:web` and open `http://127.0.0.1:5173`.
-Vite proxies API and WebSocket requests to port 47821. Rebuild the backend with
-`npm run build:server` and restart it after server changes.
+Vite proxies API and WebSocket requests to loopback port 47822. Development uses
+`.data/dev` for its own database, token and tmux socket. Restart `dev:server` after
+server changes. `npm start` remains available for a standalone build in `dist/`.
 
 ## Tests
 
@@ -116,13 +129,18 @@ Vite proxies API and WebSocket requests to port 47821. Rebuild the backend with
 npm test
 npm run check
 npm run test:ssh
-npx playwright install chromium
+npx playwright install --with-deps chromium webkit
 npm run test:web
+npm run test:webkit
 ```
 
-`npm test` builds the app and runs the backend tests with real tmux processes.
+`npm test` builds in `.data/test-build` and runs the backend tests with real tmux
+processes, plus deployment/rollback tests. All test commands build fresh artifacts
+without modifying `dist/` or the selected service release.
 SSH and browser tests also need Docker; they create disposable SSH servers and
 temporary credentials. Tests use their own data directories and tmux sockets.
 
-Browser tests run in Chromium. Mobile viewport and input simulations don't replace
-testing on a physical phone.
+Chromium runs the full browser suite. WebKit covers keyboard geometry, warm
+session switching, and workspace response races. GitHub Actions runs both engines
+with the backend and SSH suites. Mobile viewport and input simulations do not
+replace testing on a physical iPhone.

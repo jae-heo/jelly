@@ -67,7 +67,7 @@ export function WorkspaceHeader(props: Props) {
           </div>
           {props.project && <div className="workspace-menu-group">
             <button onClick={act(props.onNewSession)}><Plus size={17} /><span>새 세션</span></button>
-            {props.session?.status === 'running' && <>
+            {(props.session?.status === 'running' || (props.session?.status === 'unreachable' && props.live)) && <>
               <button aria-label={props.canDisconnect ? '연결 끊기' : '다시 연결'} onClick={act(props.onConnection)}>{props.canDisconnect ? <Unplug size={17} /> : <RefreshCw size={17} />}<span>{props.canDisconnect ? '연결 끊기' : '다시 연결'}</span></button>
               <button className="menu-danger" onClick={act(props.onStop)}><Square size={15} /><span>세션 종료</span></button>
             </>}

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Config } from './config.js';
 import { Store, type Session } from './store.js';
 import type { TerminalState } from './tmux.js';
+import { MutationQueue } from './mutation-queue.js';
 import { Execution } from './execution.js';
 import { RemoteTmux } from './remote.js';
 import { sshAliases, sshTargetPattern } from './ssh-config.js';
@@ -31,12 +32,12 @@ export async function startServer(config: Config) {
   try { await tmux.check(); } catch (error) { store.close(); throw error; }
   const terminals = new Terminals(config, store, tmux);
   let stopping = false;
-  let pending = Promise.resolve();
-  // Serialize mutations so project deletion cannot race a session spawn or another deletion.
-  function mutate<T>(action: () => Promise<T>): Promise<T> {
-    const result = pending.then(action);
-    pending = result.then(() => {}, () => {});
-    return result;
+  const mutations = new MutationQueue();
+  const hostKey = (id: string | null) => id ?? 'local';
+  function mutate<T>(key: string, action: () => Promise<T>): Promise<T> {
+    // A request may finish reading its body after shutdown has begun.
+    if (stopping) throw new ApiError(503, 'Server stopping');
+    return mutations.run(key, action);
   }
   function project(id: string) {
     const found = store.project(Id.parse(id));
@@ -72,7 +73,7 @@ export async function startServer(config: Config) {
       if (method === 'GET') return json(res, 200, { hosts: store.hosts() });
       if (method === 'POST') {
         const input = NewHost.parse(await body(req));
-        return mutate(async () => {
+        return mutate('hosts', async () => {
           const existing = store.hosts().find(host => host.target === input.target && host.port === input.port && host.identityFile === input.identityFile);
           if (existing) return json(res, 200, existing);
           if (store.hosts().length >= 20) throw new ApiError(409, 'SSH server limit (20) reached');
@@ -85,7 +86,7 @@ export async function startServer(config: Config) {
       const host = store.host(Id.parse(hostMatch[1]));
       if (!host) throw new ApiError(404, 'SSH server not found');
       if (method === 'POST' && hostMatch[2]) return json(res, 200, await tmux.remote(host.id).probe());
-      if (method === 'DELETE' && !hostMatch[2]) return mutate(async () => {
+      if (method === 'DELETE' && !hostMatch[2]) return mutate(hostKey(host.id), async () => {
         if (store.projects().some(project => project.hostId === host.id)) throw new ApiError(409, 'Remove this server\'s projects first');
         store.deleteHost(host.id);
         json(res, 200, { deleted: true });
@@ -99,8 +100,8 @@ export async function startServer(config: Config) {
       if (method === 'GET') return json(res, 200, { projects: store.projects() });
       if (method === 'POST') {
         const input = NewProject.parse(await body(req));
-        const path = await tmux.directory(input.path, input.hostId);
-        return mutate(async () => {
+        return mutate(hostKey(input.hostId), async () => {
+          const path = await tmux.directory(input.path, input.hostId);
           if (store.projectByPath(path, input.hostId)) throw new ApiError(409, 'Project path already registered');
           json(res, 201, store.addProject(input.name, path, input.hostId));
         });
@@ -111,7 +112,7 @@ export async function startServer(config: Config) {
       const id = projectMatch[1]!;
       if (!projectMatch[2]) {
         if (method === 'GET') return json(res, 200, project(id));
-        if (method === 'DELETE') return mutate(async () => {
+        if (method === 'DELETE') return mutate(hostKey(project(id).hostId), async () => {
           project(id);
           if (store.sessions(id).length) throw new ApiError(409, 'Delete project sessions first');
           store.deleteProject(id);
@@ -120,12 +121,13 @@ export async function startServer(config: Config) {
       } else {
         if (method === 'GET') {
           project(id);
-          const states = await tmux.states(store.sessions(id));
-          return json(res, 200, { sessions: store.sessions(id).map(s => view(s, states)) });
+          const sessions = store.sessions(id);
+          const states = await tmux.states(sessions);
+          return json(res, 200, { sessions: sessions.map(s => view(s, states)) });
         }
         if (method === 'POST') {
           const input = NewSession.parse(await body(req));
-          return mutate(async () => {
+          return mutate(hostKey(project(id).hostId), async () => {
             const p = project(id);
             await tmux.directory(p.path, p.hostId);
             if (store.sessions().length >= 100) throw new ApiError(409, 'Session limit (100) reached; remove old sessions');
@@ -142,8 +144,9 @@ export async function startServer(config: Config) {
       }
     }
     if (method === 'GET' && url.pathname === '/api/sessions') {
-      const states = await tmux.states();
-      return json(res, 200, { sessions: store.sessions().map(s => view(s, states)) });
+      const sessions = store.sessions();
+      const states = await tmux.states(sessions, true);
+      return json(res, 200, { sessions: sessions.map(s => view(s, states)) });
     }
     const sessionMatch = /^\/api\/sessions\/([^/]+)(?:\/(stop|tickets|history))?$/.exec(url.pathname);
     if (sessionMatch) {
@@ -151,7 +154,7 @@ export async function startServer(config: Config) {
       const action = sessionMatch[2];
       if (method === 'GET' && !action) return json(res, 200, view(session(id), await tmux.states([session(id)])));
       if ((method === 'DELETE' && !action) || (method === 'POST' && action === 'stop')) {
-        return mutate(async () => {
+        return mutate(hostKey(project(session(id).projectId).hostId), async () => {
           session(id);
           await tmux.stop(id);
           terminals.disconnect(id);
@@ -200,7 +203,7 @@ export async function startServer(config: Config) {
       stopping = true;
       terminals.close();
       const stopped = new Promise<void>(resolve => server.close(() => resolve()));
-      await pending;
+      await mutations.idle();
       server.closeIdleConnections();
       const deadline = setTimeout(() => server.closeAllConnections(), 1500);
       deadline.unref();

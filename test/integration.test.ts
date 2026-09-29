@@ -4,6 +4,7 @@ import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import { once } from 'node:events';
 import { chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, stat, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import { WebSocket } from 'ws';
@@ -34,8 +35,8 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
   const connections: WebSocket[] = [];
 
   async function boot() {
-    const child = spawn(process.execPath, ['dist/src/main.js'], {
-      cwd: resolve('.'), env: { ...process.env, JELLY_HOST: '127.0.0.1', JELLY_DATA_DIR: dataDir, JELLY_PORT: String(port), JELLY_ORIGINS: 'https://jelly.test' },
+    const child = spawn(process.execPath, [fileURLToPath(new URL('../src/main.js', import.meta.url))], {
+      cwd: resolve('.'), env: { ...process.env, JELLY_HOST: '127.0.0.1', JELLY_DATA_DIR: dataDir, JELLY_PORT: String(port), JELLY_ORIGINS: 'https://jelly.test', JELLY_ASSET_DIR: join(dataDir, 'assets') },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     backend = child;
@@ -94,10 +95,11 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     connections.push(ws);
     let output = '';
     let ready = false;
+    let heartbeat = false;
     ws.on('message', raw => {
       const message = JSON.parse(raw.toString());
       if (message.type === 'output') output = (output + message.data).slice(-1024 * 1024);
-      if (message.type === 'ready') ready = true;
+      if (message.type === 'ready') { ready = true; heartbeat = message.heartbeat === true; }
     });
     ws.on('error', () => {});
     if (options.initialInput) ws.once('open', () => ws.send(JSON.stringify({ type: 'input', data: options.initialInput })));
@@ -114,7 +116,7 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
       await until(async () => ready, Boolean);
     }
     return {
-      ws, output: () => output,
+      ws, heartbeat, output: () => output,
       send: (data: string) => ws.send(JSON.stringify({ type: 'input', data })),
       wait: (text: string) => until(async () => output, output => output.includes(text)),
       clear: () => { output = ''; },
@@ -162,6 +164,14 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
       assert.equal(Number(head.headers.get('content-length')), png.length);
       assert.equal((await head.arrayBuffer()).byteLength, 0);
     }
+    await mkdir(join(dataDir, 'assets'));
+    await writeFile(join(dataDir, 'assets/previous-release.js'), 'export const previous = true;');
+    await writeFile(join(dataDir, 'assets/private.txt'), 'PRIVATE ASSET');
+    const previous = await fetch(`http://127.0.0.1:${port}/assets/previous-release.js`);
+    assert.equal(previous.status, 200);
+    assert.equal(await previous.text(), 'export const previous = true;');
+    assert.match(previous.headers.get('cache-control')!, /immutable/);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/assets/private.txt`)).status, 401);
     for (const path of ['/.data/token', '/src/main.ts', '/assets/../.data/token', '/private.png', '/assets/private.png', '/other.webmanifest']) {
       const privateResponse = await fetch(`http://127.0.0.1:${port}${path}`);
       assert.equal(privateResponse.status, 401);
@@ -242,6 +252,23 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     await until(() => api(`/api/sessions/${sessionId}`), s => s.cols === 71 && s.rows === 19);
     c.ws.close();
     await once(c.ws, 'close');
+  });
+  await t.test('resume probes echo a nonce without sending text to the terminal', async () => {
+    const c = await connect(sessionId);
+    assert.equal(c.heartbeat, true);
+    const messages: any[] = [];
+    c.ws.on('message', raw => messages.push(JSON.parse(raw.toString())));
+    const nonce = 'probe-never-type-this';
+    c.ws.send(JSON.stringify({ type: 'ping', nonce }));
+    await until(async () => messages, rows => rows.some(row => row.type === 'pong' && row.nonce === nonce));
+    c.send("printf '\\nPROBE_%s\\n' OK\r");
+    await c.wait('PROBE_OK');
+    assert.ok(!c.output().includes(nonce));
+    assert.ok(!(await api(`/api/sessions/${sessionId}/history?lines=100`)).text.includes(nonce));
+    const closed = once(c.ws, 'close');
+    c.ws.send(JSON.stringify({ type: 'ping', nonce: '' }));
+    assert.equal((await closed)[0], 1008);
+    assert.equal((await api(`/api/sessions/${sessionId}`)).pid, shellPid);
   });
   await t.test('detached jobs run and reconnect restores screen', async () => {
     const c = await connect(sessionId);
@@ -332,7 +359,7 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     resumed.ws.close(); await once(resumed.ws, 'close');
   });
   await t.test('CLI uses a real TTY, accepts input, and Ctrl+] detaches without killing shell', async () => {
-    const client = pty.spawn(process.execPath, ['dist/src/cli.js', 'attach', sessionId], {
+    const client = pty.spawn(process.execPath, [fileURLToPath(new URL('../src/cli.js', import.meta.url)), 'attach', sessionId], {
       cwd: resolve('.'), cols: 85, rows: 25, name: 'xterm-256color',
       env: { ...process.env, JELLY_URL: `http://127.0.0.1:${port}`, JELLY_TOKEN_FILE: join(dataDir, 'token') } as Record<string, string>,
     });

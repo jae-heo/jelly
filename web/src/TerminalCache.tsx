@@ -2,22 +2,24 @@ import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } fr
 import { TerminalView, type Connection, type TerminalHandle } from './TerminalView';
 
 interface Props {
-  token: string; sessionId: string | null; runningIds: string[]; enabled: boolean; revision: number; fontSize: number;
+  token: string; sessionId: string | null; runningIds: string[]; retainedIds: string[]; enabled: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
+  onTouchInput: () => void;
 }
 interface Entry { id: string; revision: number }
 const CAPACITY = 3;
 
 // Keep the most recently visited terminals across projects in memory.
 export const TerminalCache = forwardRef<TerminalHandle, Props>(function TerminalCache(props, ref) {
-  const activeId = props.enabled && props.sessionId && props.runningIds.includes(props.sessionId) ? props.sessionId : null;
   const [cache, setCache] = useState<{ entries: Entry[]; revision: number }>({ entries: [], revision: props.revision });
+  const activeId = props.enabled && props.sessionId && (props.runningIds.includes(props.sessionId)
+    || (props.retainedIds.includes(props.sessionId) && cache.entries.some(entry => entry.id === props.sessionId))) ? props.sessionId : null;
   const handles = useRef(new Map<string, TerminalHandle>());
   const connections = useRef(new Map<string, { revision: number; state: Connection }>());
   const current = useRef(props);
   current.current = props;
 
-  let entries = cache.entries.filter(entry => props.runningIds.includes(entry.id) && (props.enabled || entry.id !== props.sessionId));
+  let entries = cache.entries.filter(entry => props.retainedIds.includes(entry.id) && (props.enabled || entry.id !== props.sessionId));
   if (activeId) {
     const previous = entries.find(entry => entry.id === activeId);
     const entry = { id: activeId, revision: previous?.revision ?? props.revision };
@@ -55,7 +57,7 @@ export const TerminalCache = forwardRef<TerminalHandle, Props>(function Terminal
         onConnection={state => {
           connections.current.set(entry.id, { revision: entry.revision, state });
           if (current.current.enabled && current.current.sessionId === entry.id) current.current.onConnection(state);
-        }} onUnauthorized={props.onUnauthorized} />
+        }} onUnauthorized={props.onUnauthorized} onTouchInput={props.onTouchInput} />
     </div>)}
   </div>;
 });

@@ -1,13 +1,14 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { CircleAlert, Folder, Plus, Power, RefreshCw, TerminalSquare, Unplug, X, Server } from 'lucide-react';
-import { api, ApiError, errorMessage, forgetToken, storedToken, type Host, type Project, type Session } from './api';
+import { api, errorMessage, forgetToken, storedToken, type Project, type Session } from './api';
+import { useWorkspaceData } from './useWorkspaceData';
 import { Login } from './Login';
 import { Modal } from './Modal';
 import { ProjectDialog } from './ProjectDialog';
 import { ProjectTree } from './ProjectTree';
 import { HostManager } from './Hosts';
 import { WorkspaceHeader } from './WorkspaceHeader';
-import { TerminalControls } from './TerminalControls';
+import { TerminalControls, type TerminalControlsHandle } from './TerminalControls';
 import { FONT_SIZE_KEY, storedFontSize } from './terminalSettings';
 import { useWorkspaceViewport } from './useWorkspaceViewport';
 import { useFullscreen } from './useFullscreen';
@@ -21,13 +22,8 @@ const connectionLabels: Record<Connection, string> = { connecting: '연결 중',
 
 export function App() {
   const [token, setToken] = useState(storedToken);
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [sessions, setSessions] = useState<Session[]>([]);
   const [projectId, setProjectId] = useState<string | null>(() => localStorage.getItem('jelly-project'));
   const [sessionId, setSessionId] = useState<string | null>(() => localStorage.getItem('jelly-session'));
-  const [loading, setLoading] = useState(true);
-  const [online, setOnline] = useState(true);
   const [sidebar, setSidebar] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
@@ -43,37 +39,16 @@ export function App() {
   const [historyBusy, setHistoryBusy] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const terminal = useRef<TerminalHandle>(null);
+  const controls = useRef<TerminalControlsHandle>(null);
   const historyGeneration = useRef(0);
   const historyContent = useRef<HTMLPreElement>(null);
   const screen = useFullscreen(!!token, setNotice);
 
-  const logout = useCallback(() => { forgetToken(); setToken(''); setSessions([]); setProjects([]); setSessionId(null); }, []);
-  const refresh = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const [p, s, h] = await Promise.all([
-        api<{ projects: Project[] }>(token, '/projects', 'GET', undefined, signal),
-        api<{ sessions: Session[] }>(token, '/sessions', 'GET', undefined, signal),
-        api<{ hosts: Host[] }>(token, '/hosts', 'GET', undefined, signal),
-      ]);
-      if (signal?.aborted) return;
-      setProjects(p.projects); setSessions(s.sessions); setHosts(h.hosts); setOnline(true);
-      setProjectId(current => p.projects.some(p => p.id === current) ? current : p.projects[0]?.id ?? null);
-      setSessionId(current => s.sessions.some(s => s.id === current) ? current : null);
-    } catch (error) {
-      if (signal?.aborted) return;
-      if (error instanceof ApiError && error.status === 401) logout();
-      else setOnline(false);
-    } finally { if (!signal?.aborted) setLoading(false); }
-  }, [token, logout]);
-  useEffect(() => {
-    if (!token) return;
-    const controller = new AbortController();
-    setLoading(true); void refresh(controller.signal);
-    const interval = setInterval(() => { if (!document.hidden) void refresh(controller.signal); }, 5000);
-    const visible = () => { if (!document.hidden) void refresh(controller.signal); };
-    document.addEventListener('visibilitychange', visible);
-    return () => { controller.abort(); clearInterval(interval); document.removeEventListener('visibilitychange', visible); };
-  }, [token, refresh]);
+  const logout = useCallback(() => { forgetToken(); setToken(''); setSessionId(null); }, []);
+  const { hosts, projects, sessions, loading, online, refresh, addSession, addHost } = useWorkspaceData(token, logout, snapshot => {
+    setProjectId(current => snapshot.projects.some(p => p.id === current) ? current : snapshot.projects[0]?.id ?? null);
+    setSessionId(current => snapshot.sessions.some(s => s.id === current) ? current : null);
+  });
   useEffect(() => { if (projectId) localStorage.setItem('jelly-project', projectId); else localStorage.removeItem('jelly-project'); }, [projectId]);
   useEffect(() => { if (sessionId) localStorage.setItem('jelly-session', sessionId); else localStorage.removeItem('jelly-session'); }, [sessionId]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4500); return () => clearTimeout(timer); }, [notice]);
@@ -90,7 +65,8 @@ export function App() {
   const session = sessions.find(s => s.id === sessionId && s.projectId === projectId);
   const projectSessions = sessions.filter(s => s.projectId === projectId);
   const newSessionProject = projects.find(p => p.id === newSessionProjectId);
-  const canInput = session?.status === 'running' && attached && connection === 'connected';
+  const hasTerminal = session?.status === 'running' || session?.status === 'unreachable';
+  const canInput = hasTerminal && attached && connection === 'connected';
   const openDialog = (value: Dialog) => { setFormError(''); setDialog(value); };
   function openSession(p = project) {
     if (!p) return;
@@ -122,7 +98,7 @@ export function App() {
     const form = new FormData(event.currentTarget);
     try {
       const s = await api<Session>(token, `/projects/${newSessionProject.id}/sessions`, 'POST', { name: form.get('name') });
-      await refresh(); setSessions(previous => previous.some(row => row.id === s.id) ? previous : [...previous, s]);
+      await refresh(); addSession(s);
       chooseSession(s); setDialog(null);
     } catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
@@ -154,7 +130,7 @@ export function App() {
   if (!token) return <Login onLogin={setToken} />;
   return <div className="workspace">
     <WorkspaceHeader project={project} session={session} hostName={hosts.find(host => host.id === project?.hostId)?.target ?? '이 서버'}
-      status={session ? (session.status === 'running' ? connectionLabels[connection] : stateLabels[session.status]) : online ? '서버 연결됨' : '서버 연결 확인 중'}
+      status={session ? (hasTerminal && (session.status === 'running' || connection === 'connected') ? connectionLabels[connection] : stateLabels[session.status]) : online ? '서버 연결됨' : '서버 연결 확인 중'}
       live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} historyOpen={historyOpen}
       fullscreenAvailable={screen.available} fullscreen={screen.fullscreen} onFullscreen={() => void screen.toggle()}
       canDeleteProject={!!project && projectSessions.length === 0} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
@@ -177,16 +153,16 @@ export function App() {
           <button className="button primary" onClick={() => project ? openSession(project) : openDialog('project')}><Plus size={17} />{project ? '새 세션 열기' : '프로젝트 추가'}</button>
         </div> : null}
           <div className="terminal-stage" hidden={!session}>
-            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>터미널 연결 중…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} /></Suspense>
-            {!session || session.status === 'running' ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH 서버 연결 실패</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />다시 확인</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>세션 종료됨</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />새 세션</button></div>}
+            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>터미널 연결 중…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} /></Suspense>
+            {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH 서버 연결 실패</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />다시 확인</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>세션 종료됨</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />새 세션</button></div>}
             {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? '다른 기기에서 접속 중' : '연결 끊김'}</h2><p>세션 실행 중</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />다시 연결</button></div></div>}
           </div>
-          {session?.status === 'running' && <TerminalControls key={session.id} enabled={canInput} terminal={terminal} onPaste={() => openDialog('paste')} />}
+          {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput} terminal={terminal} onPaste={() => openDialog('paste')} />}
       </main>
     </div>
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="알림 닫기" onClick={() => setNotice('')}><X size={14} /></button></div>}
     {dialog === 'hosts' && <HostManager token={token} hosts={hosts} projects={projects} onChanged={() => void refresh()} onClose={() => setDialog(null)} />}
-    {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={host => setHosts(current => current.some(row => row.id === host.id) ? current : [...current, host])} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
+    {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={addHost} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
     {dialog === 'session' && <Modal title="새 세션" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">세션 이름</label><input id="session-name" name="name" defaultValue={`작업 ${sessions.filter(s => s.projectId === newSessionProjectId).length + 1}`} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? '여는 중…' : '세션 열기'}</button></div></form></Modal>}
     {dialog === 'stop' && <Modal title="세션 종료" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{session?.name}’에서 실행 중인 프로그램도 종료됩니다.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />세션 종료</button></div></Modal>}
     {dialog === 'delete-project' && <Modal title="프로젝트 삭제" onClose={() => !busy && setDialog(null)}><p className="dialog-description">서버의 폴더와 파일은 삭제하지 않습니다.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)}>취소</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>목록에서 삭제</button></div></Modal>}
@@ -196,7 +172,8 @@ export function App() {
       <div><dt>세션 종료</dt><dd>실행 중인 프로그램까지 종료.</dd></div>
       <div><dt>기기 전환</dt><dd>같은 세션을 열면 이전 기기의 접속 해제.</dd></div>
       <div><dt>세션 전환</dt><dd>⌘⇧, 이전 세션 · ⌘⇧. 다음 세션. 프로젝트·세션 목록 순서로 순환.</dd></div>
-      <div><dt>입력창</dt><dd>보내기·입력창 Enter는 내용만 전송. 실행은 하단 Enter. Shift+Enter로 줄바꿈.</dd></div>
+      <div><dt>라이브 입력</dt><dd>타이핑 즉시 전달. 한글은 조합 후 전달. Enter로 실행.</dd></div>
+      <div><dt>문장 입력</dt><dd>연필 버튼으로 열기. 보내기는 내용만 전송. 실행은 하단 Enter. Shift+Enter로 줄바꿈.</dd></div>
       <div><dt>스크롤</dt><dd>터미널 스와이프. Esc로 입력 복귀. ‘기록’에서 출력 복사.</dd></div>
       <div><dt>글씨 크기</dt><dd>상단 더 보기 메뉴에서 조절.</dd></div>
       <div><dt>주소창 숨기기</dt><dd>{screen.available ? '상단 더 보기 → 전체 화면.' : 'iPhone: 브라우저 공유 → 홈 화면에 추가. 추가한 아이콘으로 실행.'}</dd></div>

@@ -1,9 +1,9 @@
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { loadConfig } from '../dist/src/config.js';
-import { startServer } from '../dist/src/server.js';
-import { sshFixture } from '../dist/test/ssh-fixture.js';
+import { loadConfig } from '../.data/test-build/src/config.js';
+import { startServer } from '../.data/test-build/src/server.js';
+import { sshFixture } from '../.data/test-build/test/ssh-fixture.js';
 
 const root = resolve('.data');
 mkdirSync(root, { recursive: true, mode: 0o700 });

@@ -1,6 +1,7 @@
-import { useRef, useState, type FormEvent, type RefObject } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, type FormEvent, type RefObject } from 'react';
 import { flushSync } from 'react-dom';
-import { ChevronDown, ChevronUp, ClipboardPaste, Keyboard, KeyboardOff, Send } from 'lucide-react';
+import { ChevronDown, ChevronUp, ClipboardPaste, Keyboard, PencilLine, Send } from 'lucide-react';
+import { LiveInput, type LiveInputHandle } from './LiveInput';
 import type { TerminalHandle } from './TerminalView';
 import type { TerminalKey } from './terminalKeys';
 
@@ -16,9 +17,10 @@ const controlKeys = ['A', 'B', 'D', 'E', 'F', 'G', 'K', 'L', 'N', 'U', 'W', 'Z']
 const functionKeys: TerminalKey[] = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'];
 const keyGroups = [{ id: 'navigation', label: '이동' }, { id: 'control', label: 'Ctrl' }, { id: 'function', label: 'F1–F12' }] as const;
 
-export function TerminalControls({ enabled, terminal, onPaste }: {
+export interface TerminalControlsHandle { focus: () => void }
+export const TerminalControls = forwardRef<TerminalControlsHandle, {
   enabled: boolean; terminal: RefObject<TerminalHandle | null>; onPaste: () => void;
-}) {
+}>(function TerminalControls({ enabled, terminal, onPaste }, ref) {
   const [expanded, setExpanded] = useState(false);
   const [composer, setComposer] = useState(false);
   const [command, setCommand] = useState('');
@@ -26,16 +28,19 @@ export function TerminalControls({ enabled, terminal, onPaste }: {
   const [group, setGroup] = useState<(typeof keyGroups)[number]['id']>('navigation');
   const input = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
+  const live = useRef<LiveInputHandle>(null);
+  useImperativeHandle(ref, () => ({ focus: () => { if (composer) input.current?.focus({ preventScroll: true }); else live.current?.focus(); } }), [composer]);
+  const run = (action: () => void) => { if (!enabled) return; if (composer) action(); else live.current?.run(action); };
   const keepFocus = () => {
-    if (document.activeElement !== input.current && matchMedia('(pointer: fine)').matches) terminal.current?.focus();
+    if (document.activeElement !== input.current && !(document.activeElement as HTMLElement | null)?.closest('.terminal-live-input') && matchMedia('(pointer: fine)').matches) terminal.current?.focus();
   };
   const press = (key: TerminalKey) => {
     if (!enabled) return;
-    terminal.current?.pressKey(key); keepFocus();
+    run(() => { terminal.current?.pressKey(key); keepFocus(); });
   };
   const control = (letter: string) => {
     if (!enabled) return;
-    terminal.current?.send(String.fromCharCode(letter.toUpperCase().charCodeAt(0) - 64)); keepFocus();
+    run(() => { terminal.current?.send(String.fromCharCode(letter.toUpperCase().charCodeAt(0) - 64)); keepFocus(); });
   };
   const showComposer = (open: boolean) => {
     // Focus during the user's tap so mobile browsers can open the software keyboard.
@@ -55,6 +60,7 @@ export function TerminalControls({ enabled, terminal, onPaste }: {
     // Keep keyboard/Tab navigation intact; only suppress pointer-driven focus changes.
     if (event.button === 0 && (event.target as Element).closest('button:not(:disabled)')) event.preventDefault();
   }}>
+    <LiveInput ref={live} enabled={enabled} hidden={composer} terminal={terminal} />
     <form id="terminal-composer" className="terminal-composer" hidden={!composer} onSubmit={submit}>
       <span className="prompt-symbol">{ctrl ? '⌃' : '❯'}</span>
       <textarea ref={input} aria-label="명령어 또는 메시지" rows={1} value={command} onChange={event => setCommand(event.target.value)}
@@ -69,7 +75,7 @@ export function TerminalControls({ enabled, terminal, onPaste }: {
     <div id="terminal-extra-keys" className="dock-extra" role="group" aria-label="추가 보조 키" hidden={!expanded}>
       <div className="dock-extra-heading">
         <div className="dock-key-groups" role="group" aria-label="보조 키 종류">{keyGroups.map(item => <button key={item.id} aria-pressed={group === item.id} onClick={() => setGroup(item.id)}>{item.label}</button>)}</div>
-        <button className={`dock-control-custom ${ctrl ? 'active' : ''}`} disabled={!enabled} aria-label="Ctrl 키 조합" aria-pressed={ctrl} title="Ctrl + 영문 키" onClick={() => { setCtrl(!ctrl); showComposer(true); }}>Ctrl + …</button>
+        <button className={`dock-control-custom ${ctrl ? 'active' : ''}`} disabled={!enabled} aria-label="Ctrl 키 조합" aria-pressed={ctrl} title="Ctrl + 영문 키" onClick={() => run(() => { setCtrl(!ctrl); showComposer(true); })}>Ctrl + …</button>
       </div>
       <div className="dock-key-grid">
         {group === 'navigation' && navigationKeys.map(item => <button key={item.key} className="dock-key" disabled={!enabled} aria-label={item.name ?? item.label} title={item.name ?? item.label} onClick={() => press(item.key)}>{item.label}</button>)}
@@ -82,14 +88,14 @@ export function TerminalControls({ enabled, terminal, onPaste }: {
         <button className="dock-key" disabled={!enabled} onClick={() => press('Escape')}>Esc</button>
         <button className="dock-key" disabled={!enabled} onClick={() => press('Tab')}>Tab</button>
         <button className="dock-key" disabled={!enabled} onClick={() => control('C')}>Ctrl C</button>
-        <button className="dock-key" disabled={!enabled} aria-label="텍스트 붙여넣기" title="붙여넣기" onClick={onPaste}><ClipboardPaste size={16} /></button>
+        <button className="dock-key" disabled={!enabled} aria-label="텍스트 붙여넣기" title="붙여넣기" onClick={() => run(onPaste)}><ClipboardPaste size={16} /></button>
         <button className="dock-key" disabled={!enabled} onClick={() => press('Enter')}>Enter</button>
         <button className="dock-key" disabled={!enabled} onClick={() => control('R')}>Ctrl R</button>
       </div>
       <div className="dock-toggles">
-        <button className={`dock-toggle ${composer ? 'active' : ''}`} aria-label={composer ? '입력창 숨기기' : '입력창 표시'} title={composer ? '입력창과 키보드 닫기' : '입력창과 키보드 열기'} aria-expanded={composer} aria-controls="terminal-composer" onClick={() => showComposer(!composer)}>{composer ? <KeyboardOff size={19} /> : <Keyboard size={19} />}</button>
+        <button className={`dock-toggle ${composer ? 'active' : ''}`} aria-label={composer ? '입력창 숨기기' : '입력창 표시'} title={composer ? '라이브 입력으로' : '문장 입력'} aria-expanded={composer} aria-controls="terminal-composer" onClick={() => { if (composer) showComposer(false); else run(() => showComposer(true)); }}>{composer ? <Keyboard size={19} /> : <PencilLine size={19} />}</button>
         <button className={`dock-toggle ${expanded ? 'active' : ''}`} aria-label={expanded ? '보조 키 접기' : '보조 키 더 보기'} title="보조 키" aria-expanded={expanded} aria-controls="terminal-extra-keys" onClick={() => setExpanded(!expanded)}>{expanded ? <ChevronDown size={19} /> : <ChevronUp size={19} />}</button>
       </div>
     </div>
   </div>;
-}
+});

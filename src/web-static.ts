@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { ServerResponse } from 'node:http';
@@ -14,7 +15,12 @@ export async function serveWeb(path: string, method: string | undefined, res: Se
   if (!file) return false;
   let content: Buffer;
   try { content = await readFile(fileURLToPath(new URL(file, root))); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false; throw error; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    if (!file.startsWith('assets/') || !process.env.JELLY_ASSET_DIR) return false;
+    try { content = await readFile(join(process.env.JELLY_ASSET_DIR, file.slice('assets/'.length))); }
+    catch (fallback) { if ((fallback as NodeJS.ErrnoException).code === 'ENOENT') return false; throw fallback; }
+  }
   res.writeHead(200, {
     'Content-Type': types[file.split('.').pop()!] ?? 'application/octet-stream',
     'Content-Length': content.length,

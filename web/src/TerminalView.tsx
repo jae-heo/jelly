@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { api, ApiError } from './api';
+import { terminalConnection } from './terminalConnection';
+import { terminalGeometry } from './terminalGeometry';
 import { attachTouchScroll } from './touchScroll';
 import './TerminalViewport.css';
 import { terminalKeySequence, type TerminalKey } from './terminalKeys';
@@ -11,6 +12,7 @@ export interface TerminalHandle { send: (data: string) => void; pressKey: (key: 
 interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
+  onTouchInput: () => void;
 }
 
 export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalView(props, ref) {
@@ -43,154 +45,19 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(container.current);
-    const disposeTouchScroll = attachTouchScroll(term);
+    const disposeTouchScroll = attachTouchScroll(term, () => callbacks.current.onTouchInput());
+    if (matchMedia('(pointer: coarse)').matches && term.textarea) term.textarea.inputMode = 'none';
     term.textarea?.setAttribute('aria-label', '터미널 입력');
     termRef.current = term;
-    let alive = true;
-    let ws: WebSocket | null = null;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let writeTimer: ReturnType<typeof setTimeout> | undefined;
-    let fitTimer: ReturnType<typeof setTimeout> | undefined;
-    let sentSize = '';
-    let attempts = 0;
-    let stopped = false;
-    let opening = false;
-    let ready = false;
-    let inputQueue: string[] = [];
-    const controller = new AbortController();
-    const status = (value: Connection) => { if (alive) callbacks.current.onConnection(value); };
-    let unobscuredHeight = 0;
-    let measuredWidth = 0;
-    const mobileKeyboard = () => matchMedia('(pointer: coarse)').matches && document.documentElement.classList.contains('keyboard-open');
-    const cellHeight = () => (term.element?.querySelector('.xterm-screen')?.getBoundingClientRect().height ?? 0) / term.rows;
-    const positionScreen = () => {
-      if (!callbacks.current.active || !term.element || !container.current) return;
-      const height = cellHeight();
-      // Keep the input cursor visible when the keyboard covers an otherwise
-      // empty shell or a TUI with its prompt near the top of the grid.
-      const clipped = Math.max(0, height * term.rows - container.current.clientHeight);
-      const shift = mobileKeyboard() ? Math.max(0, clipped - Math.max(0, term.buffer.active.cursorY - 2) * height) : 0;
-      term.element.style.transform = shift ? `translateY(${shift}px)` : '';
-    };
-    let cursorTimer: ReturnType<typeof setTimeout> | undefined;
-    const cursor = term.onCursorMove(() => {
-      // TUIs move the cursor around while repainting. Follow the final input
-      // position rather than panning with every intermediate escape sequence.
-      clearTimeout(cursorTimer);
-      cursorTimer = setTimeout(positionScreen, 50);
-    });
-    const resize = () => {
-      if (!alive || !callbacks.current.active || !container.current?.clientWidth || !container.current.clientHeight) return;
-      const size = fit.proposeDimensions();
-      if (!size) return;
-      const cols = Math.min(500, Math.max(2, size.cols));
-      const keyboard = mobileKeyboard();
-      if (!keyboard) unobscuredHeight = container.current.clientHeight;
-      else if (!unobscuredHeight || measuredWidth !== container.current.clientWidth) {
-        const style = getComputedStyle(document.documentElement);
-        unobscuredHeight = container.current.clientHeight + (parseFloat(style.getPropertyValue('--keyboard-inset')) || 0)
-          - (parseFloat(style.getPropertyValue('--terminal-safe-bottom')) || 0);
-      }
-      measuredWidth = container.current.clientWidth;
-      const height = cellHeight();
-      // A keyboard is an occlusion, not a new terminal size. Resizing tmux here
-      // reflows applications and moves its copy-mode history even on one resize.
-      const rows = Math.min(200, Math.max(2, keyboard && height ? Math.floor(unobscuredHeight / height) : size.rows));
-      if (term.cols !== cols || term.rows !== rows) term.resize(cols, rows);
-      positionScreen();
-      if (ready && ws?.readyState === WebSocket.OPEN && sentSize !== `${cols}:${rows}`) {
-        sentSize = `${cols}:${rows}`;
-        ws.send(JSON.stringify({ type: 'resize', cols, rows }));
-      }
-    };
-    let frame = 0;
-    const scheduleFit = () => {
-      positionScreen();
-      clearTimeout(fitTimer); cancelAnimationFrame(frame);
-      // Activation, font changes and ResizeObserver must share the same quiet
-      // period. A warm session can be selected before iOS dismisses its keyboard.
-      fitTimer = setTimeout(() => { frame = requestAnimationFrame(resize); }, matchMedia('(pointer: coarse)').matches ? 250 : 120);
-    };
-    fitRef.current = scheduleFit;
-    const observer = new ResizeObserver(scheduleFit);
-    observer.observe(container.current);
-    resize();
-    const flushInput = () => {
-      writeTimer = undefined;
-      if (!callbacks.current.active || !ready || ws?.readyState !== WebSocket.OPEN) { inputQueue = []; return; }
-      const data = inputQueue.shift();
-      if (data !== undefined) ws.send(JSON.stringify({ type: 'input', data }));
-      if (inputQueue.length) writeTimer = setTimeout(flushInput, 35);
-    };
-    const send = (data: string) => {
-      if (!callbacks.current.active || !ready || ws?.readyState !== WebSocket.OPEN) return;
-      // Paste in bounded UTF-8 chunks to respect server limits and keep control input responsive.
-      const points = Array.from(data);
-      if (inputQueue.length + Math.ceil(points.length / 1024) > 512) return;
-      for (let i = 0; i < points.length; i += 1024) inputQueue.push(points.slice(i, i + 1024).join(''));
-      if (!writeTimer) flushInput();
-    };
-    sendRef.current = send;
-    const input = term.onData(send);
-    const binaryInput = term.onBinary(send);
-    const scheduleReconnect = () => {
-      if (!alive || stopped) return;
-      status('retrying');
-      if (!callbacks.current.active) return;
-      timer = setTimeout(() => { void connect(); }, Math.min(8000, 700 * 2 ** Math.min(attempts++, 4)));
-    };
-    async function connect() {
-      if (!alive || stopped || !callbacks.current.active || opening || ws?.readyState === WebSocket.CONNECTING || ws?.readyState === WebSocket.OPEN) return;
-      opening = true;
-      status(attempts ? 'retrying' : 'connecting');
-      try {
-        const { ticket } = await api<{ ticket: string }>(props.token, `/sessions/${props.sessionId}/tickets`, 'POST', undefined, controller.signal);
-        if (!alive || stopped || !callbacks.current.active) return;
-        const url = new URL(`/api/sessions/${props.sessionId}/terminal`, location.href);
-        url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        url.searchParams.set('ticket', ticket);
-        url.searchParams.set('cols', String(term.cols));
-        url.searchParams.set('rows', String(term.rows));
-        const socket = new WebSocket(url);
-        ws = socket;
-        socket.onmessage = event => {
-          if (!alive || socket !== ws) return;
-          const message = JSON.parse(event.data);
-          if (message.type === 'ready') {
-            term.reset(); ready = true; sentSize = ''; attempts = 0; status('connected'); scheduleFit();
-            if (callbacks.current.active && matchMedia('(pointer: fine)').matches) term.focus();
-          } else if (message.type === 'output') term.write(message.data);
-        };
-        socket.onclose = event => {
-          if (!alive || socket !== ws) return;
-          ready = false; inputQueue = [];
-          if (stopped) return;
-          if (event.code === 4001) { stopped = true; status('taken'); }
-          else if (event.code === 1000) { stopped = true; status('ended'); }
-          else scheduleReconnect();
-        };
-        socket.onerror = () => { /* onclose drives reconnect; credentials never appear in UI errors. */ };
-      } catch (error) {
-        if (!alive || stopped) return;
-        if (error instanceof ApiError && error.status === 401) { stopped = true; callbacks.current.onUnauthorized(); }
-        else if (error instanceof ApiError && [404, 409].includes(error.status)) { stopped = true; status('ended'); }
-        else scheduleReconnect();
-      } finally { opening = false; }
-    }
-    const wake = () => {
-      if (document.visibilityState !== 'visible' || !callbacks.current.active || stopped || ws?.readyState === WebSocket.OPEN || opening) return;
-      clearTimeout(timer); void connect();
-    };
-    document.addEventListener('visibilitychange', wake);
-    window.addEventListener('online', wake);
-    wakeRef.current = wake;
-    void connect();
+    let connection: ReturnType<typeof terminalConnection> | undefined;
+    const geometry = terminalGeometry(term, fit, container.current, () => callbacks.current.active,
+      (cols, rows) => connection?.resize(cols, rows));
+    connection = terminalConnection(term, props.token, props.sessionId, callbacks, geometry.schedule);
+    sendRef.current = connection.send;
+    fitRef.current = geometry.schedule;
+    wakeRef.current = connection.wake;
     return () => {
-      alive = false; stopped = true; ready = false; controller.abort();
-      clearTimeout(timer); clearTimeout(writeTimer); clearTimeout(fitTimer); cancelAnimationFrame(frame);
-      observer.disconnect();
-      document.removeEventListener('visibilitychange', wake); window.removeEventListener('online', wake);
-      ws?.close(); clearTimeout(cursorTimer); cursor.dispose(); input.dispose(); binaryInput.dispose(); disposeTouchScroll(); term.dispose();
+      connection?.dispose(); geometry.dispose(); disposeTouchScroll(); term.dispose();
       termRef.current = null; sendRef.current = () => {}; fitRef.current = () => {}; wakeRef.current = () => {};
     };
   }, [props.token, props.sessionId, props.revision]);

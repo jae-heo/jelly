@@ -3,7 +3,7 @@ import type { Terminal } from '@xterm/xterm';
 // tmux owns the scrollback, while xterm displays its alternate screen. Translate
 // one-finger swipes into wheel events so xterm uses the negotiated mouse protocol
 // and tmux can scroll either its history or the application running inside it.
-export function attachTouchScroll(term: Terminal): () => void {
+export function attachTouchScroll(term: Terminal, onTap: () => void): () => void {
   const element = term.element!;
   let gesture: { id: number; x: number; y: number; previousY: number; pending: number; scrolling: boolean } | undefined;
   const start = (event: TouchEvent) => {
@@ -50,6 +50,10 @@ export function attachTouchScroll(term: Terminal): () => void {
   };
   const end = (event: TouchEvent) => {
     if (gesture?.scrolling) event.preventDefault(); // Suppress the synthetic click after a swipe.
+    else if (gesture && event.type === 'touchend' && !event.touches.length) {
+      event.preventDefault();
+      onTap();
+    }
     if (gesture) event.stopPropagation();
     gesture = undefined;
   };

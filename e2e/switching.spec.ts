@@ -114,6 +114,11 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
     await choose(1, false);
     await expect(page.getByRole('heading', { name: '다른 기기에서 접속 중', exact: true })).toBeVisible();
     await expect(peer.locator('.connection-label')).toHaveText('연결됨');
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('online'));
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+    await expect(page.getByRole('heading', { name: '다른 기기에서 접속 중', exact: true })).toBeVisible();
     expect(tickets).toBe(requested);
     blockTickets = false;
     await page.locator('.connection-overlay').getByRole('button', { name: '다시 연결' }).tap();

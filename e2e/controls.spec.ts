@@ -35,7 +35,8 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(page.getByLabel('명령어 또는 메시지')).not.toBeVisible();
     await expect(page.getByRole('group', { name: '추가 보조 키' })).not.toBeVisible();
     await expect(page.locator('.terminal-statusbar')).toHaveCount(0);
-    expect((await page.locator('.terminal-dock').boundingBox())!.height).toBe(44);
+    await expect(page.getByRole('textbox', { name: '라이브 입력', exact: true })).toBeVisible();
+    expect((await page.locator('.terminal-dock-row').boundingBox())!.height).toBe(43);
     const before = await call(`/sessions/${session.id}`);
     const opened = connections;
     // Use the real browser API: entering/leaving fullscreen must keep the PTY
@@ -109,7 +110,7 @@ test('font changes preserve the live connection; compact controls retain input a
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(input).not.toBeVisible();
     await expect(page.getByRole('button', { name: '입력창 표시', exact: true })).toBeInViewport();
-    expect((await page.locator('.terminal-dock').boundingBox())!.height).toBe(44);
+    expect((await page.locator('.terminal-dock-row').boundingBox())!.height).toBe(43);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
     const cdp = await context.newCDPSession(page);

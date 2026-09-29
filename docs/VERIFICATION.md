@@ -1,6 +1,30 @@
 # 검증 기록
 
-최종 자동 검증일: 2026-09-23.
+최종 자동 검증일: 2026-09-28.
+
+## Workspace, SSH isolation and releases (2026-09-28)
+
+- Workspace refreshes cancel superseded requests and reject stale responses.
+  Background polling shares one pending refresh. A live terminal survives an
+  `unreachable` metadata result; stopped/deleted sessions still dispose it.
+- Workspace data, terminal transport and terminal geometry have separate modules.
+  Existing live input, resume probes, keyboard geometry and session caching remain
+  covered by browser tests.
+- Remote status polling is bounded and deduplicated per host. A controlled delayed
+  remote creation confirmed local creation proceeds independently and same-host
+  project deletion stays ordered. Cache invalidation rejects pre-mutation results.
+- Development uses loopback port 47822 and `.data/dev`. Tests build under
+  `.data/test-build`. Service releases use committed source and isolated locked
+  dependencies under `.data/releases`, with atomic activation and health rollback.
+  Deployment tests cover rollback, retained old chunks and hash collision refusal;
+  API tests cover safe serving of previous chunks.
+- `npm run check` passed. `npm test`: 22 backend tests and 1 deployment test passed.
+  `npm run test:ssh`: 7 passed. Chromium: 21 passed. WebKit: 6 passed.
+- WebKit ran in the pinned Playwright Linux container against a disposable host
+  fixture; this machine lacks native WebKit runtime libraries. GitHub Actions
+  installs both browser engines and runs all suites from fresh builds.
+- Browser keyboard movement is simulated. Physical iPhone Chrome and home-screen
+  behavior still need device verification.
 
 ## 최초 공개 준비 (2026-09-23)
 
@@ -310,6 +334,57 @@ React + TypeScript + Vite, xterm.js 웹 클라이언트를 같은 서버의 `/`�
 - 실제 iPhone 홈 화면 웹 앱에서 Chrome보다 느린 현상 자체는 재현하지 못했다.
   검증한 개선은 캐시된 세션 전환 시 연결 요청과 터미널 재생성을 없앤 것이며,
   첫 방문·캐시 밖 세션·프로젝트 변경·페이지 재시작은 여전히 연결 과정을 거친다.
+
+## 라이브 입력과 한글 조합 (2026-09-23)
+
+- 하단에 44px 라이브 입력줄을 기본으로 표시한다. 별도 전송 버튼 없이 입력을 전달하며,
+  휴대폰 터미널 탭도 이 입력창에 포커스를 준다. 스와이프는 기존 스크롤 동작을 유지한다.
+  키보드를 닫아도 입력줄은 남는다. 연필 버튼은 기존 문장 입력 방식으로 전환한다.
+- 브라우저의 입력값은 React가 다시 쓰지 않도록 하고, 조합 이벤트가 진행 중이면 마지막
+  한글을 보류한다. 확정된 부분만 순서대로 전송한다. 조합 이벤트 없는 키보드 업데이트는
+  마지막 한글을 300ms 보류하고 이후 수정은 삭제·교체로 반영한다.
+- Enter·Ctrl·방향키·붙여넣기 전에 남은 조합을 먼저 확정한다. 붙여넣기에 자동 Enter를
+  추가하지 않는다. 포커스 이동 뒤에는 이전 입력값으로 새 터미널 내용을 지우지 않도록
+  입력 추적을 초기화하며, 접속 해제·세션 변경·언마운트 시 타이머를 취소한다.
+- 임시 tmux의 raw 입력 프로그램으로 실제 수신 바이트를 확인했다. Chromium의 IME API로
+  `ㅎ→하→한`, `한글`, `간→가나`를 조합했고, 360ms 멈춰도 조합 중 자모가 전송되지 않았다.
+  조합 중 Enter/Ctrl+C의 순서·중복, 이벤트 없는 한글 입력·수정, ASCII/이모지 삭제,
+  붙여넣기 후 입력, keydown 없는 모바일 Enter, 세션 간 입력 유출 방지를 검증했다.
+- SSH 컨테이너에서도 브라우저 IME로 한글을 입력한 명령의 실행 결과를 확인했다.
+  기존 키·스크롤·글씨 크기·키보드 여백·전체 화면·세션 캐시 검증도 통과했다.
+  `npm run check`, `npm run build:web` 통과. 전체 브라우저 실행은 8개 통과 후
+  테두리를 제외한 보조 키 줄 높이 기대값을 수정했고, 입력 UI·SSH 2개를 다시 통과했다.
+  총 9개 시나리오가 검증됐다. 320×520 모바일 화면도 직접 확인했다.
+- 실제 iPhone 키보드에서의 IME 이벤트·키보드 재표시는 직접 검증하지 않았다.
+  테스트는 Chromium의 네이티브 조합과 별도의 이벤트 시뮬레이션이며 iOS 검증을 대체하지 않는다.
+- 동작 참고: 로컬 Orca 모바일 소스와
+  [Orca의 라이브 입력·한글 수정](https://github.com/stablyai/orca/pull/7273).
+  웹용 입력 처리는 줼리 컴포넌트로 구현했고 원격 서버에 추가 설치는 없다.
+
+## 백그라운드 복귀 연결 지연 (2026-09-23)
+
+- 최근 세션 3개의 메모리 보관에는 시간 제한이 없다. 이번 변경은 화면 저장이 아닌
+  앱 복귀 후 다시 입력할 수 있을 때까지의 연결 대기를 줄인다.
+- 복귀 시 브라우저가 열린 것으로 표시하는 연결을 고유 nonce로 확인한다. 정상 연결은
+  유지하고 1.2초 안에 응답하지 않으면 교체한다. 연결 도중 멈춘 요청은 취소하고 즉시
+  다시 시작한다. 티켓 발급·WebSocket 연결·터미널 준비 전체 시도는 12초로 제한한다.
+- 정상 연결 확인 중에는 입력창 상태·포커스를 유지하며 입력은 응답 뒤 전달한다.
+  이전 연결 이벤트는 새 연결에 영향을 주지 않는다. 숨긴 세션은 선택할 때 확인하며,
+  명시적 접속 해제나 다른 기기로의 인계는 자동으로 되돌리지 않는다.
+- SSH 유휴 연결 유지 시간을 60초에서 20분으로 늘렸다. OpenSSH가 해석한 실제 옵션을
+  `ssh -G`로 확인했다. 기존 60초 설정의 master를 재사용하지 않도록 소켓 식별자에 정책
+  버전을 포함했다. 생성·종료 등 상태를 바꾸는 SSH 명령의 별도 연결은 유지한다.
+- 실제 로컬·컨테이너 SSH 터미널에 연결한 Chromium에서 이전 소켓만 OPEN으로 남고
+  응답하지 않는 상태를 모의했다. 복귀 후 ready까지 로컬 1,862ms, SSH 1,863ms였다.
+  정상 복귀의 연결 재사용·입력값/포커스 유지, 반복 복귀 이벤트의 중복 연결 방지,
+  중단된 티켓 요청의 교체, 명시적 접속 해제·기기 인계 유지, 같은 셸 PID와 입력을 검증했다.
+- `npm run check`, `npm test` 19개, `npm run test:ssh` 6개,
+  `npm run test:web` 11개가 모두 통과했다. API의 probe 응답·잘못된 nonce 거부 및
+  probe가 터미널 입력으로 유출되지 않는 것도 확인했다.
+- 실제 서비스 재시작 뒤 실행 중인 셸 1개의 PID와 상태가 유지됐고 공개 웹 파일이
+  빌드 결과와 일치했다. 사용자 터미널에 접속하거나 입력하지 않았다.
+- 측정은 로컬 테스트 환경의 복귀 이벤트·고장 모의 결과다. 실제 iPhone에서 10분 동안
+  앱을 중단했다 돌아오는 시간이나 20분 유휴 만료 자체를 실시간으로 측정한 결과는 아니다.
 
 ## 검증 범위의 한계
 

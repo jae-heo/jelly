@@ -3,12 +3,14 @@ import { isAbsolute } from 'node:path';
 import type { Config } from './config.js';
 import { ApiError } from './http.js';
 import { listDirectories } from './directories.js';
+import { HostStateCache } from './host-state-cache.js';
 import { RemoteTmux } from './remote.js';
 import { Store, type Session } from './store.js';
 import { Tmux, type TerminalState } from './tmux.js';
 
 export class Execution {
   readonly local: Tmux;
+  private stateCache = new HostStateCache<Map<string, TerminalState>>();
   constructor(readonly config: Config, readonly store: Store) { this.local = new Tmux(config); }
   remote(hostId: string): RemoteTmux {
     const host = this.store.host(hostId);
@@ -36,7 +38,7 @@ export class Execution {
   directories(hostId: string | null, path?: string, hidden = false) {
     return hostId ? this.remote(hostId).directories(path, hidden) : listDirectories(path, hidden);
   }
-  async states(sessions = this.store.sessions()): Promise<Map<string, TerminalState>> {
+  async states(sessions = this.store.sessions(), bounded = false): Promise<Map<string, TerminalState>> {
     const groups = new Map<string | null, Session[]>();
     for (const session of sessions) {
       if (session.stoppedAt) continue;
@@ -46,7 +48,10 @@ export class Execution {
     const result = new Map<string, TerminalState>();
     await Promise.all([...groups].map(async ([hostId, rows]) => {
       try {
-        const states = await (hostId ? this.remote(hostId) : this.local).states();
+        const states = hostId
+          ? await this.stateCache.get(hostId, () => this.remote(hostId).states(), bounded)
+          : await this.local.states();
+        if (!states) throw new Error('SSH status unavailable');
         for (const row of rows) result.set(row.id, states.get(row.id) ?? { status: 'lost' });
       } catch (error) {
         if (!hostId) throw error;
@@ -55,8 +60,14 @@ export class Execution {
     }));
     return result;
   }
-  create(id: string, cwd: string, cols: number, rows: number) { return this.backend(id).create(id, cwd, cols, rows); }
-  stop(id: string) { return this.backend(id).stop(id); }
+  private async change<T>(id: string, action: (backend: Tmux) => Promise<T>): Promise<T> {
+    const hostId = this.hostId(id);
+    if (hostId) this.stateCache.invalidate(hostId);
+    try { return await action(this.backend(id)); }
+    finally { if (hostId) this.stateCache.invalidate(hostId); }
+  }
+  create(id: string, cwd: string, cols: number, rows: number) { return this.change(id, backend => backend.create(id, cwd, cols, rows)); }
+  stop(id: string) { return this.change(id, backend => backend.stop(id)); }
   attach(id: string, cols: number, rows: number) { return this.backend(id).attach(id, cols, rows); }
   history(id: string, lines: number) { return this.backend(id).history(id, lines); }
 }

@@ -11,6 +11,7 @@ import { ApiError, authorized, checkOrigin, failure, Id, Size } from './http.js'
 const Input = z.discriminatedUnion('type', [
   z.object({ type: z.literal('input'), data: z.string().max(16384) }).strict(),
   Size.extend({ type: z.literal('resize') }).strict(),
+  z.object({ type: z.literal('ping'), nonce: z.string().min(1).max(64) }).strict(),
 ]);
 
 interface Connection { ws: WebSocket; cleanup: () => void }
@@ -116,7 +117,7 @@ export class Terminals {
         // Its first output marks terminal initialization; hold early keystrokes until then.
         ready = true;
         clearTimeout(startup);
-        send({ type: 'ready', sessionId: id, cols, rows });
+        send({ type: 'ready', sessionId: id, cols, rows, heartbeat: true });
       }
       send({ type: 'output', data });
       if (pendingInput.length) {
@@ -150,7 +151,8 @@ export class Terminals {
       try {
         if (binary) throw new Error('Expected JSON text');
         const message = Input.parse(JSON.parse(raw.toString()));
-        if (message.type === 'resize') terminal.resize(message.cols, message.rows);
+        if (message.type === 'ping') ws.send(JSON.stringify({ type: 'pong', nonce: message.nonce }));
+        else if (message.type === 'resize') terminal.resize(message.cols, message.rows);
         else {
           const bytes = Buffer.byteLength(message.data);
           if (Date.now() - inputWindow >= 1000) { inputBytes = 0; inputWindow = Date.now(); }

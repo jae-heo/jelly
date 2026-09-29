@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, readFile, readlink, rm, symlink, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { activateRelease, publishAssets } from '../scripts/deployment.mjs';
+
+test('deployment retains old chunks and rolls back a failed release', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'jelly-deployment-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const source = join(directory, 'source');
+  const assets = join(directory, 'assets');
+  await mkdir(source);
+  await writeFile(join(source, 'old.js'), 'old');
+  await publishAssets(source, assets);
+  await rm(join(source, 'old.js'));
+  await writeFile(join(source, 'new.js'), 'new');
+  await writeFile(join(source, 'private.txt'), 'private');
+  await publishAssets(source, assets);
+  assert.equal(await readFile(join(assets, 'old.js'), 'utf8'), 'old');
+  assert.equal(await readFile(join(assets, 'new.js'), 'utf8'), 'new');
+  await assert.rejects(readFile(join(assets, 'private.txt')), { code: 'ENOENT' });
+  await writeFile(join(source, 'new.js'), 'changed');
+  await assert.rejects(publishAssets(source, assets), /collision/);
+  assert.equal(await readFile(join(assets, 'new.js'), 'utf8'), 'new');
+  const current = join(directory, 'current');
+  await symlink('old-release', current);
+  const restarts = [];
+  const restart = async () => { restarts.push(await readlink(current)); };
+  await assert.rejects(activateRelease(current, 'broken-release', restart, async () => { throw Error('unhealthy'); }), /previous release restored/);
+  assert.equal(await readlink(current), 'old-release');
+  assert.deepEqual(restarts, ['broken-release', 'old-release']);
+  await activateRelease(current, 'new-release', restart, async () => {});
+  assert.equal(await readlink(current), 'new-release');
+});

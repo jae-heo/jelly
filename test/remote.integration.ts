@@ -106,6 +106,12 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
   });
   await t.test('sessions share a private SSH transport and reconnect after its loss', async () => {
     const remote = new RemoteTmux(config, host);
+    // Ask OpenSSH to parse our effective policy without opening a connection.
+    const effective = await exec('ssh', ['-G', ...remote.args(false)]);
+    assert.match(effective.stdout, /^controlpersist 1200$/m);
+    const fresh = await exec('ssh', ['-G', ...remote.args(false, false)]);
+    assert.match(fresh.stdout, /^controlmaster false$/m);
+    assert.ok(!/^controlpath /m.test(fresh.stdout));
     assert.ok(remote.controlPath.startsWith(dataDir + '/ssh-'));
     assert.notEqual(new RemoteTmux(config, { ...host, port: fixture.port }).controlPath, remote.controlPath);
     assert.notEqual(new RemoteTmux(config, { ...host, identityFile: '/different-key' }).controlPath, remote.controlPath);
@@ -140,6 +146,37 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
     } finally {
       first.ws.terminate(); second.ws.terminate();
       await request(`/api/sessions/${secondSession.id}`, 'DELETE');
+    }
+  });
+  await t.test('slow remote mutation does not delay local work; same-host deletion stays ordered', async () => {
+    const localPath = join(dataDir, 'local-project');
+    await mkdir(localPath);
+    const localProject = await request('/api/projects', 'POST', { name: 'Independent local', path: localPath }, 201);
+    const directory = app.tmux.directory.bind(app.tmux);
+    let release!: () => void;
+    let entered!: () => void;
+    const blocked = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    app.tmux.directory = async (path, hostId) => {
+      if (hostId === host.id) { entered(); await blocked; }
+      return directory(path, hostId);
+    };
+    let localSession: any;
+    const remoteCreation = request(`/api/projects/${project.id}/sessions`, 'POST', { name: 'Delayed remote' }, 201);
+    await started;
+    const deletion = request(`/api/projects/${project.id}`, 'DELETE', undefined, 409);
+    const deadline = setTimeout(release, 2000);
+    try {
+      const start = Date.now();
+      localSession = await request(`/api/projects/${localProject.id}/sessions`, 'POST', { name: 'Independent' }, 201);
+      assert.ok(Date.now() - start < 1500, 'Local creation must not wait for the remote mutation');
+    } finally {
+      clearTimeout(deadline); release(); app.tmux.directory = directory;
+      const remoteSession = await remoteCreation;
+      await deletion;
+      await request(`/api/sessions/${remoteSession.id}`, 'DELETE');
+      if (localSession) await request(`/api/sessions/${localSession.id}`, 'DELETE');
+      await request(`/api/projects/${localProject.id}`, 'DELETE');
     }
   });
   await t.test('backend restart and unreachable server preserve remote session identity', async () => {

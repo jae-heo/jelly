@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-accessSync(join(root, 'dist/src/main.js'));
+accessSync(join(root, existsSync(join(root, '.data/current')) ? '.data/current/dist/src/main.js' : 'dist/src/main.js'));
 const directory = join(homedir(), '.config/systemd/user');
 const unit = join(directory, 'jelly.service');
 const marker = '# Managed by Jelly scripts/install-service.mjs';
@@ -27,7 +27,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${root.replaceAll('%', '%%')}
-ExecStart=${quote(process.execPath)} ${quote(join(root, 'dist/src/main.js'))}
+ExecStart=${quote(process.execPath)} ${quote(join(root, 'scripts/start-release.mjs'))}
 Environment=${quote('JELLY_DATA_DIR=' + join(root, '.data'))}
 Environment=${quote('PATH=' + process.env.PATH)}
 EnvironmentFile=-${join(root, '.data/service.env').replaceAll('%', '%%')}

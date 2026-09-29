@@ -44,8 +44,10 @@ export class RemoteTmux extends Tmux {
     super(config);
     this.socketName = `jelly-${config.instanceId}`;
     const key = createHash('sha256').update(JSON.stringify([
-      config.instanceId, config.sshConfig ?? null, host.id, host.target, host.port, host.identityFile,
+      config.instanceId, config.sshConfig ?? null, host.id, host.target, host.port, host.identityFile, 'idle-20m',
     ])).digest('hex').slice(0, 24);
+    // Version the socket with the idle policy: an existing master keeps its
+    // original ControlPersist setting even when a client supplies a new one.
     // The data directory is private. Never reuse a master from the user's SSH config.
     this.controlPath = join(config.dataDir, `ssh-${key}`);
   }
@@ -58,7 +60,7 @@ export class RemoteTmux extends Tmux {
       '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '-o', 'ConnectTimeout=4',
       '-o', 'ConnectionAttempts=1', '-o', 'ServerAliveInterval=10', '-o', 'ServerAliveCountMax=2',
       ...(share
-        ? ['-o', 'ControlMaster=auto', '-o', 'ControlPersist=60', '-S', this.controlPath.replaceAll('%', '%%')]
+        ? ['-o', 'ControlMaster=auto', '-o', 'ControlPersist=1200', '-S', this.controlPath.replaceAll('%', '%%')]
         : ['-o', 'ControlMaster=no', '-S', 'none']),
       '-o', 'ClearAllForwardings=yes',
       '-o', 'PermitLocalCommand=no', '-o', 'RemoteCommand=none', '-o', 'LogLevel=ERROR',

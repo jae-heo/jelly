@@ -54,6 +54,18 @@ test('SSH config aliases, remote folders and terminal from a mobile browser', as
   await page.screenshot({ path: '.data/screenshots/ssh-terminal-mobile.png', fullPage: true });
   await page.reload();
   await expect(page.locator('.connection-label')).toHaveText('연결됨', { timeout: 15_000 });
+  const live = page.getByRole('textbox', { name: '라이브 입력', exact: true });
+  await live.fill("printf '\\nLIVE_SSH_%s\\n' '");
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    for (const text of ['ㅎ', '하', '한', '한ㄱ', '한그', '한글']) {
+      await cdp.send('Input.imeSetComposition', { text, selectionStart: text.length, selectionEnd: text.length });
+    }
+    await cdp.send('Input.insertText', { text: '한글' });
+    await live.pressSequentially("'");
+    await live.press('Enter');
+    await expect(page.locator('.xterm-rows')).toContainText('LIVE_SSH_한글');
+  } finally { await cdp.detach(); }
   await page.getByRole('button', { name: '더 보기', exact: true }).click();
   await page.getByRole('button', { name: '세션 종료', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: '세션 종료', exact: true }).click();
