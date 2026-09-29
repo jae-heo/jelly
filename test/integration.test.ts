@@ -382,7 +382,8 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     const second = await api(`/api/projects/${projectId}/sessions`, 'POST', { name: 'exiting' }, 201);
     const c = await connect(second.id);
     c.send("printf '\\nEXIT_%s\\n' HISTORY; exit 7\r");
-    const state = await until(() => api(`/api/sessions/${second.id}`), s => s.status === 'exited');
+    // tmux can report a dead pane before the child exit status is available.
+    const state = await until(() => api(`/api/sessions/${second.id}`), s => s.status === 'exited' && s.exitCode !== undefined);
     assert.equal(state.exitCode, 7);
     assert.ok((await api(`/api/sessions/${second.id}/history`)).text.includes('EXIT_HISTORY'));
     await connect(second.id, { status: 409 });
