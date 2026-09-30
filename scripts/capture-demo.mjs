@@ -17,6 +17,7 @@ const withCodex = process.env.JELLY_DEMO_CODEX === '1';
 const scratch = await mkdtemp(withCodex ? join(tmpdir(), 'jelly-demo-') : resolve('.data/media-'));
 let config, app, browser, recording = false, frameTask;
 let frameCount = 0;
+let mobileVideoStart = 0, mobileVideoDuration = 0, mobileVideoPath;
 try {
   const quote = text => "'" + text.replaceAll("'", "'\"'\"'") + "'";
   const codexHome = join(scratch, 'codex');
@@ -154,6 +155,8 @@ try {
       await delay(Math.max(0, 125 - (performance.now() - start)));
     }
   })();
+  // Handle capture failures immediately; the awaited promise still reports them.
+  frameTask.catch(() => {});
   if (withCodex) {
     const prompt = page.locator('.terminal-slot:visible').getByLabel('Terminal input', { exact: true });
     await prompt.pressSequentially('Add a /api/status route and a test for it.', { delay: 55 });
@@ -176,12 +179,16 @@ try {
   recording = false; await frameTask;
   await context.close();
 
-  const mobile = await browser.newContext({ viewport: { width: 390, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    ...(withCodex ? { recordVideo: { dir: join(scratch, 'video'), size: { width: 390, height: 740 } } } : {}) });
   await mobile.addInitScript(({ token, projectId, sessionId }) => {
     sessionStorage.setItem('jelly-token', token);
-    localStorage.setItem('jelly-project', projectId); localStorage.setItem('jelly-session', sessionId);
+    if (!localStorage.getItem('jelly-project')) localStorage.setItem('jelly-project', projectId);
+    if (!localStorage.getItem('jelly-session')) localStorage.setItem('jelly-session', sessionId);
   }, { token: config.token, projectId: project.id, sessionId: dev.id });
   const phone = await mobile.newPage();
+  phone.setDefaultTimeout(10000);
+  const videoEpoch = performance.now();
   await phone.goto(origin); await expect(phone.locator('.connection-label')).toHaveText('Connected');
   await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText(withCodex ? 'OpenAI Codex' : 'development server');
   await delay(400);
@@ -194,6 +201,42 @@ try {
   if (!withCodex) {
     await phone.getByRole('button', { name: 'Send key combination', exact: true }).tap();
     await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('^C');
+  } else {
+    await phone.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
+    await tmux('send-keys', '-t', `jelly-${dev.id}`, 'C-u');
+    await delay(300);
+    mobileVideoStart = (performance.now() - videoEpoch) / 1000;
+    await delay(700);
+    await phone.getByRole('button', { name: 'Show draft input', exact: true }).tap();
+    const draft = phone.getByRole('textbox', { name: 'Command or message', exact: true });
+    await draft.pressSequentially('Add a /api/status route and a test for it.', { delay: 65 });
+    await delay(700);
+    // Send input pastes the draft into Codex; no Enter/model request is sent.
+    await phone.getByRole('button', { name: 'Send input', exact: true }).tap();
+    await phone.getByRole('button', { name: 'Hide draft input', exact: true }).tap();
+    await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('Add a /api/status route');
+    await delay(1400);
+    await phone.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
+    await phone.getByRole('button', { name: 'Ctrl', exact: true }).tap();
+    await phone.getByRole('button', { name: 'C', exact: true }).tap();
+    await expect(phone.getByLabel('Selected key combination')).toHaveText('Ctrl + C');
+    await delay(1400);
+    await phone.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
+    for (const name of ['Tests', 'Codex']) {
+      await phone.getByRole('button', { name: 'Open projects and sessions', exact: true }).tap();
+      await delay(650);
+      await phone.getByRole('button', { name: `${name} · Running`, exact: true }).tap();
+      await expect(phone.locator('.connection-label')).toHaveText('Connected');
+      await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText(name === 'Tests' ? 'pass 6' : 'Add a /api/status route');
+      await delay(1300);
+    }
+    await phone.reload();
+    await expect(phone.locator('.connection-label')).toHaveText('Connected');
+    await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('Add a /api/status route');
+    if ((await api(`/sessions/${dev.id}`)).pid !== dev.pid) throw new Error('Mobile demo shell changed on reload');
+    await delay(1300);
+    mobileVideoDuration = (performance.now() - videoEpoch) / 1000 - mobileVideoStart;
+    mobileVideoPath = await phone.video().path();
   }
   await mobile.close();
   await browser.close(); browser = undefined;
@@ -201,6 +244,11 @@ try {
   const ffmpeg = process.env.FFMPEG || 'ffmpeg';
   await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', '8', '-i', join(frames, '%04d.png'), '-filter_complex', '[0:v]split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3', '-loop', '0', join(output, 'jelly-demo.gif')], { timeout: 120_000 });
   await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', '8', '-i', join(frames, '%04d.png'), '-c:v', 'libx264', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(output, 'jelly-demo.mp4')], { timeout: 120_000 });
+  if (mobileVideoPath) {
+    await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(mobileVideoStart), '-t', String(mobileVideoDuration), '-i', mobileVideoPath, '-filter_complex', '[0:v]fps=8,scale=390:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3', '-loop', '0', join(output, 'mobile-codex.gif')], { timeout: 120_000 });
+    await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(mobileVideoStart), '-t', String(mobileVideoDuration), '-i', mobileVideoPath, '-c:v', 'libx264', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(output, 'mobile-codex.mp4')], { timeout: 120_000 });
+    console.log(`Mobile Codex demo: ${mobileVideoDuration.toFixed(1)} seconds.`);
+  }
   console.log(`Captured actual Jelly UI: ${frameCount} frames, ${(frameCount / 8).toFixed(1)} seconds.`);
 } finally {
   recording = false;

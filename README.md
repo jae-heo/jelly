@@ -5,17 +5,16 @@ run Codex or Claude Code, and come back to the same session later.
 
 ![Composing a Codex request, switching terminal sessions and reconnecting in Jelly](docs/media/jelly-demo.gif)
 
-[Watch the video](docs/media/jelly-demo.mp4) · [Codex and Claude Code examples](docs/GUIDE.md#codex-and-claude-code)
+[Desktop video](docs/media/jelly-demo.mp4) · [Mobile video](docs/media/mobile-codex.mp4) · [Codex and Claude Code examples](docs/GUIDE.md#codex-and-claude-code)
 
 - **Persistent sessions.** Closing the tab or restarting Jelly keeps your shells running.
 - **Local and SSH projects.** Remote servers only need SSH, a POSIX shell and tmux.
 - **Phone-friendly input.** Touch scrolling, Unicode input and a floating keyboard for key combinations.
 
 <details>
-<summary>On your phone</summary>
+<summary>Codex on mobile — watch the demo</summary>
 <br>
-<img src="docs/media/mobile-terminal.png" width="240" alt="Composing a Codex request in Jelly on a mobile viewport">
-<img src="docs/media/mobile-keyboard.png" width="240" alt="The floating keyboard with Ctrl+C selected before sending">
+<a href="docs/media/mobile-codex.mp4"><img src="docs/media/mobile-codex.gif" width="300" alt="Mobile viewport demo: composing a Codex request, selecting terminal keys, switching sessions and reconnecting"></a>
 </details>
 
 ## Get started
