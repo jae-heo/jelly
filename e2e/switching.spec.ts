@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -71,7 +72,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
     await page.getByRole('button', { name: '입력창 표시', exact: true }).tap();
     await page.getByLabel('명령어 또는 메시지').fill(value);
     await page.getByRole('button', { name: '입력 보내기' }).tap();
-    await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+    await sendVirtualKey(page, 'Enter');
     await page.getByRole('button', { name: '입력창 숨기기', exact: true }).tap();
   };
   try {

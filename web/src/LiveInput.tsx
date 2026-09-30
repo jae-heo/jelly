@@ -5,7 +5,7 @@ import type { TerminalHandle } from './TerminalView';
 import type { TerminalKey } from './terminalKeys';
 
 export interface LiveInputHandle { focus: () => void; run: (action: () => void) => void }
-interface Props { enabled: boolean; hidden: boolean; terminal: React.RefObject<TerminalHandle | null> }
+interface Props { actions?: React.ReactNode; enabled: boolean; hidden: boolean; terminal: React.RefObject<TerminalHandle | null> }
 
 export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(props, ref) {
   const field = useRef<HTMLTextAreaElement>(null);
@@ -108,7 +108,8 @@ export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(p
       // Backspace edits the native capture while it contains text. Otherwise
       // it belongs to the terminal, including after history/navigation keys.
       if (event.key === 'Backspace' && input.value) return;
-      const key: TerminalKey | undefined = event.key === 'Tab' ? (event.shiftKey ? 'ShiftTab' : 'Tab')
+      const key: TerminalKey | undefined = event.key === 'Enter' && event.shiftKey ? 'ShiftEnter'
+        : event.key === 'Tab' ? (event.shiftKey ? 'ShiftTab' : 'Tab')
         : ['Enter', 'Escape', 'Backspace', 'Delete', 'Insert', 'Home', 'End', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ...Array.from({ length: 12 }, (_, i) => `F${i + 1}`)].includes(event.key) ? event.key as TerminalKey : undefined;
       if (key) { event.preventDefault(); finish(() => current.current.terminal.current?.pressKey(key)); }
     };
@@ -144,6 +145,7 @@ export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(p
     <span className="live-indicator" aria-hidden="true" />
     <textarea ref={field} aria-label="라이브 입력" placeholder="라이브 입력" rows={1} maxLength={16384} disabled={!props.enabled}
       autoCorrect="off" autoCapitalize="off" autoComplete="off" spellCheck={false} enterKeyHint="enter" />
+    {props.actions}
     <button type="button" className="dock-toggle" aria-label="키보드 닫기" onClick={() => actions.current.run(() => field.current?.blur())}><KeyboardOff size={18} /></button>
   </div>;
 });

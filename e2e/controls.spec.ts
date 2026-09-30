@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 
@@ -33,10 +34,10 @@ test('font changes preserve the live connection; compact controls retain input a
     await page.getByRole('button', { name: '연결', exact: true }).click();
     await expect(page.locator('.connection-label')).toHaveText('연결됨');
     await expect(page.getByLabel('명령어 또는 메시지')).not.toBeVisible();
-    await expect(page.getByRole('group', { name: '추가 보조 키' })).not.toBeVisible();
+    await expect(page.getByRole('region', { name: '가상 키보드', exact: true })).not.toBeVisible();
     await expect(page.locator('.terminal-statusbar')).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: '라이브 입력', exact: true })).toBeVisible();
-    expect((await page.locator('.terminal-dock-row').boundingBox())!.height).toBe(43);
+    expect((await page.locator('.terminal-live-input').boundingBox())!.height).toBe(44);
     const before = await call(`/sessions/${session.id}`);
     const opened = connections;
     // Use the real browser API: entering/leaving fullscreen must keep the PTY
@@ -91,26 +92,27 @@ test('font changes preserve the live connection; compact controls retain input a
     await page.getByRole('button', { name: '입력 보내기' }).click();
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).not.toContainText('한글입력유지');
-    await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+    await sendVirtualKey(page, 'Enter');
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).toContainText('한글입력유지');
-    await page.getByRole('button', { name: 'Esc', exact: true }).tap();
+    await sendVirtualKey(page, 'Esc');
     await expect(input).toBeFocused();
-    await page.getByRole('button', { name: '보조 키 더 보기', exact: true }).click();
+    await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).click();
     await expect(input).toBeFocused();
     await expect(page.getByRole('button', { name: '텍스트 붙여넣기', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '이동', exact: true }).click();
     await expect(page.getByRole('button', { name: '왼쪽 화살표', exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 520 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.getByRole('button', { name: '입력 보내기' })).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Esc', exact: true })).toBeInViewport();
     await page.screenshot({ path: '.data/screenshots/controls-expanded-mobile.png', fullPage: true });
-    await page.getByRole('button', { name: '보조 키 접기', exact: true }).click();
+    await page.getByRole('button', { name: '가상 키보드 닫기', exact: true }).click();
     await page.getByRole('button', { name: '입력창 숨기기', exact: true }).click();
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(input).not.toBeVisible();
     await expect(page.getByRole('button', { name: '입력창 표시', exact: true })).toBeInViewport();
-    expect((await page.locator('.terminal-dock-row').boundingBox())!.height).toBe(43);
+    expect((await page.locator('.terminal-live-input').boundingBox())!.height).toBe(44);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
     const cdp = await context.newCDPSession(page);

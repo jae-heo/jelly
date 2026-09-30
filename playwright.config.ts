@@ -6,7 +6,7 @@ export default defineConfig({
   reporter: 'list',
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'webkit', use: { browserName: 'webkit' }, testMatch: /(?:keyboard-viewport|switch-viewport|workspace-state|output-flow)\.spec\.ts/ },
+    { name: 'webkit', use: { browserName: 'webkit' }, testMatch: /(?:keyboard-viewport|switch-viewport|workspace-state|output-flow|quick-session|keys)\.spec\.ts/ },
   ],
   webServer: { command: 'node scripts/browser-test-server.mjs', url: 'http://127.0.0.1:47932/healthz', reuseExistingServer: false, timeout: 180_000, gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 } },
 });

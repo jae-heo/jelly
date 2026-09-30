@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -61,7 +62,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: resume ve
   const connected = () => expect(page.locator('.connection-label')).toHaveText('연결됨');
   const command = async (suffix: string) => {
     await live.fill(`printf '\\nRESUME_%s\\n' ${suffix}`);
-    await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+    await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText(`RESUME_${suffix}`);
   };
   try {

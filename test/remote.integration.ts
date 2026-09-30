@@ -91,6 +91,11 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
     assert.equal((await fixture.command('tmux', '-L', `jelly-${config.instanceId}`, 'show-options', '-v', '-t', `jelly-${session.id}`, 'mouse')).trim(), 'on');
     first.send("printf '\\n%s%s\\n' '한글' 'SSH확인'\r");
     await until(() => first.output().includes('한글SSH확인'));
+    first.send("stty raw -echo; printf '\\nSHIFT_%s\\n' READY; dd bs=1 count=7 2>/dev/null | od -An -tx1; stty sane; printf '\\nSHIFT_%s\\n' DONE\r");
+    await until(() => first.output().includes('SHIFT_READY'));
+    first.send('\x1b[13;2u');
+    await until(() => first.output().includes('SHIFT_DONE'));
+    assert.ok(first.output().includes('1b 5b 31 33 3b 32 75'), 'remote tmux must preserve Shift+Enter rather than converting it to Enter');
     first.ws.send(JSON.stringify({ type: 'resize', cols: 67, rows: 21 }));
     await until(async () => (await request(`/api/sessions/${session.id}`)).cols === 67);
     const closed = once(first.ws, 'close');

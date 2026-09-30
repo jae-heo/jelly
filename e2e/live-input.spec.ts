@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect } from '@playwright/test';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -52,7 +53,7 @@ test('live input: native composition, Korean fallback, ordered controls, edits a
     await page.locator('.xterm-screen').tap();
     await expect(live).toBeFocused();
     await live.fill(`${shellQuote(process.execPath)} ${shellQuote(probe)}`);
-    await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+    await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('LIVE_READY');
 
     let start = readFileSync(log).length;
@@ -71,12 +72,12 @@ test('live input: native composition, Korean fallback, ordered controls, edits a
     // The accessory key commits the native IME first and reaches the PTY once.
     start = readFileSync(log).length;
     for (const value of ['ㄱ', '가', '간', '가나']) await compose(value);
-    await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+    await sendVirtualKey(page, 'Enter');
     await expected(start, '가나\r');
     await expect(live).toBeFocused();
     start = readFileSync(log).length;
     await compose('한');
-    await page.getByRole('button', { name: 'Ctrl C', exact: true }).tap();
+    await sendVirtualKey(page, 'Ctrl C');
     await expected(start, '한\x03');
 
     // Model keyboards that update the field without composition events.

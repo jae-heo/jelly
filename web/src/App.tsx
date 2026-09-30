@@ -39,12 +39,16 @@ export function App() {
   const [historyBusy, setHistoryBusy] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const terminal = useRef<TerminalHandle>(null);
+  const creatingSession = useRef(false);
+  const selectionVersion = useRef(0);
+  const currentToken = useRef(token);
+  currentToken.current = token;
   const controls = useRef<TerminalControlsHandle>(null);
   const historyGeneration = useRef(0);
   const historyContent = useRef<HTMLPreElement>(null);
   const screen = useFullscreen(!!token, setNotice);
 
-  const logout = useCallback(() => { forgetToken(); setToken(''); setSessionId(null); }, []);
+  const logout = useCallback(() => { selectionVersion.current++; currentToken.current = ''; forgetToken(); setToken(''); setSessionId(null); }, []);
   const { hosts, projects, sessions, loading, online, refresh, addSession, addHost } = useWorkspaceData(token, logout, snapshot => {
     setProjectId(current => snapshot.projects.some(p => p.id === current) ? current : snapshot.projects[0]?.id ?? null);
     setSessionId(current => snapshot.sessions.some(s => s.id === current) ? current : null);
@@ -74,17 +78,41 @@ export function App() {
   }
   function chooseProject(id: string) {
     if (id === projectId) return;
+    selectionVersion.current++;
     historyGeneration.current++;
     setProjectId(id); setSessionId(null); setHistoryOpen(false);
     // Leave the list open on phones so the user can choose a session next.
   }
   function chooseSession(s: Session) {
+    selectionVersion.current++;
     historyGeneration.current++;
     if (s.id !== sessionId || !attached) setConnection('connecting');
     setSessionId(s.id); setProjectId(s.projectId); setSidebar(false); setAttached(true);
     setHistoryOpen(false); setHistory('');
   }
-  useSessionShortcuts({ enabled: !!token && !dialog && !historyOpen, projects, sessions, projectId, sessionId, onSelect: chooseSession });
+  function nextSessionName(id: string) {
+    const names = new Set(sessions.filter(s => s.projectId === id).map(s => s.name));
+    let number = 1;
+    while (names.has(`작업 ${number}`)) number++;
+    return `작업 ${number}`;
+  }
+  async function quickCreateSession(p: Project) {
+    if (creatingSession.current) return;
+    creatingSession.current = true;
+    const version = selectionVersion.current;
+    try {
+      const s = await api<Session>(token, `/projects/${p.id}/sessions`, 'POST', { name: nextSessionName(p.id) });
+      if (currentToken.current !== token) return;
+      await refresh();
+      if (currentToken.current !== token) return;
+      addSession(s);
+      // Respect a project/session change or logout made while creation was pending.
+      if (version === selectionVersion.current) chooseSession(s);
+    } catch (error) { if (currentToken.current === token) setNotice(errorMessage(error)); }
+    finally { creatingSession.current = false; }
+  }
+  useSessionShortcuts({ enabled: !!token && !dialog && !historyOpen, projects, sessions, projectId, sessionId,
+    onSelect: chooseSession, onCreate: p => { void quickCreateSession(p); } });
   async function submitProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setFormError('');
     const form = new FormData(event.currentTarget);
@@ -94,13 +122,13 @@ export function App() {
     } catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
   async function submitSession(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!newSessionProject) return; setBusy(true); setFormError('');
+    event.preventDefault(); if (!newSessionProject || creatingSession.current) return; creatingSession.current = true; setBusy(true); setFormError('');
     const form = new FormData(event.currentTarget);
     try {
       const s = await api<Session>(token, `/projects/${newSessionProject.id}/sessions`, 'POST', { name: form.get('name') });
       await refresh(); addSession(s);
       chooseSession(s); setDialog(null);
-    } catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
+    } catch (error) { setFormError(errorMessage(error)); } finally { creatingSession.current = false; setBusy(false); }
   }
   async function stopSession() {
     if (!session) return; setBusy(true); setFormError('');
@@ -163,7 +191,7 @@ export function App() {
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="알림 닫기" onClick={() => setNotice('')}><X size={14} /></button></div>}
     {dialog === 'hosts' && <HostManager token={token} hosts={hosts} projects={projects} onChanged={() => void refresh()} onClose={() => setDialog(null)} />}
     {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={addHost} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
-    {dialog === 'session' && <Modal title="새 세션" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">세션 이름</label><input id="session-name" name="name" defaultValue={`작업 ${sessions.filter(s => s.projectId === newSessionProjectId).length + 1}`} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? '여는 중…' : '세션 열기'}</button></div></form></Modal>}
+    {dialog === 'session' && <Modal title="새 세션" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">세션 이름</label><input id="session-name" name="name" defaultValue={newSessionProjectId ? nextSessionName(newSessionProjectId) : '작업 1'} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? '여는 중…' : '세션 열기'}</button></div></form></Modal>}
     {dialog === 'stop' && <Modal title="세션 종료" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{session?.name}’에서 실행 중인 프로그램도 종료됩니다.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />세션 종료</button></div></Modal>}
     {dialog === 'delete-project' && <Modal title="프로젝트 삭제" onClose={() => !busy && setDialog(null)}><p className="dialog-description">서버의 폴더와 파일은 삭제하지 않습니다.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)}>취소</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>목록에서 삭제</button></div></Modal>}
     {dialog === 'paste' && <Modal title="터미널에 붙여넣기" onClose={() => setDialog(null)}><form onSubmit={e => { e.preventDefault(); terminal.current?.paste(String(new FormData(e.currentTarget).get('text') ?? '')); setDialog(null); }}><textarea aria-label="붙여넣을 텍스트" name="text" className="paste-area" rows={7} required autoFocus /><div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)}>취소</button><button className="button primary">터미널로 보내기</button></div></form></Modal>}
@@ -172,8 +200,10 @@ export function App() {
       <div><dt>세션 종료</dt><dd>실행 중인 프로그램까지 종료.</dd></div>
       <div><dt>기기 전환</dt><dd>같은 세션을 열면 이전 기기의 접속 해제.</dd></div>
       <div><dt>세션 전환</dt><dd>⌘⇧, 이전 세션 · ⌘⇧. 다음 세션. 프로젝트·세션 목록 순서로 순환.</dd></div>
-      <div><dt>라이브 입력</dt><dd>타이핑 즉시 전달. 한글은 조합 후 전달. Enter로 실행.</dd></div>
-      <div><dt>문장 입력</dt><dd>연필 버튼으로 열기. 보내기는 내용만 전송. 실행은 하단 Enter. Shift+Enter로 줄바꿈.</dd></div>
+      <div><dt>새 세션</dt><dd>⌘⇧Enter. 현재 프로젝트에 바로 생성.</dd></div>
+      <div><dt>키 조합</dt><dd>입력줄의 키보드 버튼 → 키 선택 → 보내기.</dd></div>
+      <div><dt>라이브 입력</dt><dd>타이핑 즉시 전달. 한글은 조합 후 전달. Enter로 실행. Shift+Enter는 줄바꿈 키.</dd></div>
+      <div><dt>문장 입력</dt><dd>연필 버튼으로 열기. 보내기는 내용만 전송. 실행은 Enter 키. Shift+Enter로 줄바꿈.</dd></div>
       <div><dt>스크롤</dt><dd>터미널 스와이프. Esc로 입력 복귀. ‘기록’에서 출력 복사.</dd></div>
       <div><dt>글씨 크기</dt><dd>상단 더 보기 메뉴에서 조절.</dd></div>
       <div><dt>주소창 숨기기</dt><dd>{screen.available ? '상단 더 보기 → 전체 화면.' : 'iPhone: 브라우저 공유 → 홈 화면에 추가. 추가한 아이콘으로 실행.'}</dd></div>

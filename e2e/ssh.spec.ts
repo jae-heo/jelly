@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 
@@ -46,7 +47,7 @@ test('SSH config aliases, remote folders and terminal from a mobile browser', as
   await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
   await page.getByLabel('명령어 또는 메시지').fill("printf '\\nBROWSER_SSH_%s\\n' OK; pwd");
   await page.getByRole('button', { name: '입력 보내기' }).click();
-  await page.getByRole('button', { name: 'Enter', exact: true }).click();
+  await sendVirtualKey(page, 'Enter');
   await page.getByRole('button', { name: '기록', exact: true }).click();
   await expect(page.locator('.history-content')).toContainText('BROWSER_SSH_OK');
   await expect(page.locator('.history-content')).toContainText('/workspaces/remote-project');

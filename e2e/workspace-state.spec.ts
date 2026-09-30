@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect, type Page, type Route } from '@playwright/test';
 
 const project = { id: 'fixture-project', name: 'Workspace fixture', path: '/fixture', hostId: 'fixture-host' };
@@ -69,7 +70,7 @@ test('failed SSH status polling preserves live terminal input; explicit stop rem
   await expect(page.getByRole('button', { name: 'First session · 서버 연결 안 됨', exact: true })).toBeVisible();
   await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', first.id);
   await expect(page.locator('.connection-label')).toHaveText('연결됨');
-  await page.getByRole('button', { name: 'Enter', exact: true }).click();
+  await sendVirtualKey(page, 'Enter');
   await expect.poll(() => state.input).toContain('\r');
   expect(state.opened).toBe(1);
   expect(state.closed).toBe(0);

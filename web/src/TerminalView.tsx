@@ -5,10 +5,10 @@ import { terminalConnection } from './terminalConnection';
 import { terminalGeometry } from './terminalGeometry';
 import { attachTouchScroll } from './touchScroll';
 import './TerminalViewport.css';
-import { terminalKeySequence, type TerminalKey } from './terminalKeys';
+import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
 export type Connection = 'connecting' | 'connected' | 'retrying' | 'disconnected' | 'taken' | 'ended';
-export interface TerminalHandle { send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void }
+export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void }
 interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
@@ -25,6 +25,10 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
   callbacks.current = props;
   useImperativeHandle(ref, () => ({
     send: data => sendRef.current(data),
+    chord: (key, modifiers) => {
+      const sequence = terminalChordSequence(key, modifiers, termRef.current?.modes.applicationCursorKeysMode ?? false);
+      if (sequence !== undefined) sendRef.current(sequence);
+    },
     pressKey: key => sendRef.current(terminalKeySequence(key, termRef.current?.modes.applicationCursorKeysMode ?? false)),
     paste: data => { if (callbacks.current.active) termRef.current?.paste(data); },
     focus: () => { if (callbacks.current.active) termRef.current?.focus(); },
@@ -53,6 +57,15 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     const geometry = terminalGeometry(term, fit, container.current, () => callbacks.current.active,
       (cols, rows) => connection?.resize(cols, rows));
     connection = terminalConnection(term, props.token, props.sessionId, callbacks, geometry.schedule);
+    term.attachCustomKeyEventHandler(event => {
+      if (event.key !== 'Enter' || !event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229) return true;
+      // xterm's legacy encoding otherwise makes Shift+Enter indistinguishable from Enter.
+      if (event.type === 'keydown') {
+        event.preventDefault();
+        connection?.send(terminalKeySequence('ShiftEnter', false));
+      }
+      return false;
+    });
     sendRef.current = connection.send;
     fitRef.current = geometry.schedule;
     wakeRef.current = connection.wake;

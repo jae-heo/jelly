@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -62,7 +63,7 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await page.getByRole('button', { name: '입력창 표시' }).click();
   await page.getByLabel('명령어 또는 메시지').fill("printf '\\nJELLY_%s\\n' WEB_OK");
   await page.getByRole('button', { name: '입력 보내기' }).click();
-  await page.getByRole('button', { name: 'Enter', exact: true }).click();
+  await sendVirtualKey(page, 'Enter');
   await page.getByRole('button', { name: '기록', exact: true }).click();
   await expect(page.locator('.history-content')).toContainText('JELLY_WEB_OK');
   await page.getByRole('button', { name: '닫기', exact: true }).click();
@@ -105,11 +106,11 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   const command = mobile.getByLabel('명령어 또는 메시지');
   await command.fill("printf '\\n%s%s\\n' '한글' '입력확인'");
   await mobile.getByRole('button', { name: '입력 보내기' }).click();
-  await mobile.getByRole('button', { name: 'Enter', exact: true }).tap();
+  await sendVirtualKey(mobile, 'Enter');
   await mobile.getByRole('button', { name: '기록', exact: true }).click();
   await expect(mobile.locator('.history-content')).toContainText('한글입력확인');
   await mobile.getByRole('button', { name: '닫기', exact: true }).click();
-  await mobile.getByRole('button', { name: '보조 키 더 보기', exact: true }).click();
+  await mobile.getByRole('button', { name: '가상 키보드 열기', exact: true }).click();
   await mobile.getByLabel('텍스트 붙여넣기').click();
   await mobile.getByLabel('붙여넣을 텍스트').fill("printf '\\nPASTE_%s\\n' OK");
   await mobile.getByRole('button', { name: '터미널로 보내기' }).click();
@@ -118,7 +119,7 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await mobile.getByRole('button', { name: '기록', exact: true }).click();
   await expect(mobile.locator('.history-content')).toContainText('PASTE_OK');
   await mobile.getByRole('button', { name: '닫기', exact: true }).click();
-  await mobile.getByRole('button', { name: '보조 키 접기', exact: true }).click();
+  await mobile.getByRole('button', { name: '가상 키보드 닫기', exact: true }).click();
   await mobile.getByRole('button', { name: '입력창 숨기기', exact: true }).click();
   await mobile.screenshot({ path: '.data/screenshots/terminal-mobile.png', fullPage: true });
   // The terminal begins immediately under a single 56px header on a phone.
@@ -145,7 +146,7 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await mobile.setViewportSize({ width: 390, height: 520 });
   await mobile.getByRole('button', { name: '입력창 표시', exact: true }).click();
   await expect(mobile.getByRole('button', { name: '입력 보내기' })).toBeInViewport();
-  await expect(mobile.getByRole('button', { name: 'Esc', exact: true })).toBeInViewport();
+  await expect(mobile.getByRole('button', { name: '가상 키보드 열기', exact: true })).toBeInViewport();
   await mobile.getByRole('button', { name: '더 보기', exact: true }).click();
   await mobile.getByRole('button', { name: '세션 종료', exact: true }).click();
   await mobile.getByRole('dialog').getByRole('button', { name: '세션 종료', exact: true }).click();

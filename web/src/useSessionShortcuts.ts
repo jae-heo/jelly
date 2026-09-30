@@ -8,6 +8,7 @@ interface Options {
   projectId: string | null;
   sessionId: string | null;
   onSelect: (session: Session) => void;
+  onCreate: (project: Project) => void;
 }
 
 export function useSessionShortcuts(options: Options) {
@@ -16,8 +17,16 @@ export function useSessionShortcuts(options: Options) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { enabled, projects, sessions, projectId, sessionId, onSelect } = current.current;
-      if (!enabled || !sessions.length || event.isComposing || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
+      const { enabled, projects, sessions, projectId, sessionId, onSelect, onCreate } = current.current;
+      if (!enabled || event.isComposing || event.keyCode === 229 || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
+      if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+        const project = projects.find(project => project.id === projectId);
+        if (!project) return;
+        event.preventDefault(); event.stopPropagation();
+        if (!event.repeat) onCreate(project);
+        return;
+      }
+      if (!sessions.length) return;
       const direction = event.code === 'Comma' ? -1 : event.code === 'Period' ? 1 : 0;
       if (!direction) return;
       const groups = projects.map(project => sessions.filter(session => session.projectId === project.id));

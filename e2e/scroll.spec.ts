@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -64,7 +65,7 @@ for (const remote of [false, true]) {
       await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
       await page.getByLabel('명령어 또는 메시지').fill('i=1; while [ "$i" -le 120 ]; do printf "SCROLL_%03d\\n" "$i"; i=$((i+1)); done');
       await page.getByRole('button', { name: '입력 보내기' }).click();
-      await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+      await sendVirtualKey(page, 'Enter');
       await expect(rows).toContainText('SCROLL_120');
       const latest = await firstLine();
       await swipe(page, 'older');
@@ -79,7 +80,7 @@ for (const remote of [false, true]) {
       await swipe(page, 'newer');
       await page.getByLabel('명령어 또는 메시지').fill("printf 'AFTER_SCROLL_%s\\n' OK");
       await page.getByRole('button', { name: '입력 보내기' }).click();
-      await page.getByRole('button', { name: 'Enter', exact: true }).tap();
+      await sendVirtualKey(page, 'Enter');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.reload();
       await expect(page.locator('.connection-label')).toHaveText('연결됨');
@@ -87,13 +88,13 @@ for (const remote of [false, true]) {
       await swipe(page, 'older');
       await expect.poll(firstLine).toBeLessThan(reconnected - 3);
       // The existing Esc key is another way to leave scrollback immediately.
-      await page.getByRole('button', { name: 'Esc', exact: true }).click();
+      await sendVirtualKey(page, 'Esc');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.locator('.xterm-screen').hover();
       await page.mouse.wheel(0, -250);
       await page.mouse.wheel(0, -250);
       await expect.poll(firstLine).toBeLessThan(reconnected);
-      await page.getByRole('button', { name: 'Esc', exact: true }).click();
+      await sendVirtualKey(page, 'Esc');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.locator('.xterm-screen').tap();
       await expect(page.getByRole('textbox', { name: '라이브 입력', exact: true })).toBeFocused();

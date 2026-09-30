@@ -32,6 +32,7 @@ export const TerminalCache = forwardRef<TerminalHandle, Props>(function Terminal
   }
 
   useImperativeHandle(ref, () => ({
+    chord: (key, modifiers) => { if (activeId) handles.current.get(activeId)?.chord(key, modifiers); },
     send: data => { if (activeId) handles.current.get(activeId)?.send(data); },
     pressKey: key => { if (activeId) handles.current.get(activeId)?.pressKey(key); },
     paste: data => { if (activeId) handles.current.get(activeId)?.paste(data); },

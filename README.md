@@ -51,15 +51,22 @@ Tailscale Serve, Funnel, and a separate web server aren't needed.
 - Close the tab to disconnect. Use the session's stop action when you want to end it.
 - Open the same session on another device to take control. The previous connection closes.
 - Press **⌘⇧,** or **⌘⇧.** to move through sessions in project order, skipping empty projects and wrapping at the ends.
+- Press **⌘⇧Enter** to create and open a session in the current project.
 
 Jelly keeps your three most recently visited terminals connected across projects,
 so switching back doesn't need a new connection. Older sessions keep running on
 the server and reconnect when you open them again.
 
-On phones, Jelly provides touch scrolling and on-screen terminal keys. You can
-also add it to your home screen. The app's interface is currently in Korean.
+On phones, tap the keyboard button beside live input to open terminal keys.
+Select a key and modifiers such as Ctrl or Alt, then tap **Send**. Selecting keys
+doesn't transmit them. You can also add Jelly to your home screen. The app's
+interface is currently in Korean.
 Opening the keyboard keeps the terminal's row count unchanged and brings the
 cursor into view, so apps and scrollback aren't rearranged each time.
+
+**Shift+Enter** is sent as a distinct key so terminal apps can use it for newlines.
+Its behavior depends on the running app.
+In the separate message input (pencil button), it inserts a newline into the draft.
 
 For SSH projects, Jelly uses the service account's existing OpenSSH settings and
 keys. Set up key-based access and verify the host key from that account before

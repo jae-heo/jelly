@@ -1,6 +1,30 @@
 # 검증 기록
 
-최종 자동 검증일: 2026-09-29.
+최종 자동 검증일: 2026-09-30.
+
+## Session creation and virtual keyboard (2026-09-30)
+
+- Cmd+Shift+Enter creates a session in the selected local or SSH project. Browser
+  coverage checks an empty project, repeated presses, failed creation and retry,
+  modal/IME exclusion, and a later project selection during a delayed response.
+- The input row opens a virtual keyboard. Keys and Ctrl/Alt/Shift modifiers are
+  selected before Send; selection alone produces no terminal input. Switching
+  sessions clears the selection. Unsupported chords cannot be sent.
+- A raw terminal probe compares virtual keys with physical keys, including
+  application cursor mode, function keys, modified arrows and Alt characters.
+  Tests also cover retained input focus and the 320px mobile layout.
+- Physical and live-input Shift+Enter preserve the modified key (CSI 13;2u)
+  through Jelly's private tmux server. A disposable SSH raw-mode probe verifies
+  the same bytes remotely. Ordinary Enter remains CR. The draft input retains
+  its native newline behavior; terminal-app interpretation is app-specific.
+- These checks use automated browsers and temporary shells, not physical
+  iPhone keyboards or paid Codex/Claude sessions.
+- WebKit coverage caught touch clicks suppressed by cancelled pointer events.
+  Focus preservation now cancels mouse-down instead; touch Send, modifier
+  selection and unchanged input focus pass in both browser engines.
+- `npm run check`, `npm test` and `npm run test:ssh` passed. Chromium passed
+  all 25 scenarios; all 11 WebKit scenarios passed across the initial run and
+  the corrected touch-input rerun in an isolated Playwright container.
 
 ## Output flow control and deployment lock recovery (2026-09-29)
 

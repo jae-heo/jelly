@@ -1,3 +1,4 @@
+import { sendVirtualKey } from './virtual-keyboard';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
@@ -37,7 +38,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     const input = page.getByLabel('명령어 또는 메시지');
     await input.fill('i=1; while [ "$i" -le 160 ]; do printf "KEYBOARD_%03d\\n" "$i"; i=$((i+1)); done');
     await page.getByRole('button', { name: '입력 보내기' }).click();
-    await page.getByRole('button', { name: 'Enter', exact: true }).click();
+    await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     // Let startup sizing finish before measuring a keyboard animation.
     await page.waitForTimeout(400);
@@ -118,7 +119,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     expect((await call(`/sessions/${session.id}`)).rows).toBe(originalRows);
     expect(sizes).toEqual([]);
     await expect.poll(async () => (await historyLines()).filter(line => before.includes(line)).length).toBeGreaterThan(3);
-    await page.getByRole('button', { name: 'Esc', exact: true }).click();
+    await sendVirtualKey(page, 'Esc');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     // Android-style keyboards resize the layout viewport too.
     await page.evaluate(() => {
@@ -140,7 +141,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     // that prompt visible too, rather than always clipping to its bottom rows.
     await input.fill("printf '\\033[2J\\033[HKEYBOARD_TOP\\n'");
     await page.getByRole('button', { name: '입력 보내기' }).click();
-    await page.getByRole('button', { name: 'Enter', exact: true }).click();
+    await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_TOP');
     await expect.poll(() => page.locator('.terminal-viewport').evaluate(element => {
       const clip = element.getBoundingClientRect();

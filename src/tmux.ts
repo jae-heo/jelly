@@ -62,6 +62,9 @@ export class Tmux {
     const name = this.name(id);
     // Apply on attachment too: persistent sessions may predate mouse/scroll support.
     return ['set-option', '-t', name, 'mouse', 'on',
+      // Preserve Shift+Enter even with tmux 3.2 and applications that do not
+      // negotiate extended keys. Bind only on Jelly's private server.
+      ';', 'bind-key', '-n', 'S-Enter', 'send-keys', '-l', '\x1b[13;2u',
       // Esc should return to the live screen regardless of the server's EDITOR/mode-keys.
       ';', 'bind-key', '-T', 'copy-mode-vi', 'Escape', 'send-keys', '-X', 'cancel',
       ';', 'attach-session', '-t', `=${name}`];
