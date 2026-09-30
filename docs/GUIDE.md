@@ -51,7 +51,8 @@ keys such as Esc, Tab and Ctrl+C. Review each tool's permission prompts as usual
 
 The README demo shows the real Codex CLI with a request being composed, alongside
 an actual test run in a separate session. The [mobile video](media/mobile-codex.mp4)
-also shows draft input, the floating keyboard and switching back to Codex.
+also shows live input reaching Codex as you type, the floating keyboard and
+switching back to Codex.
 
 ## Input
 

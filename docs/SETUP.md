@@ -230,7 +230,7 @@ It opens the real CLI and types an unsent example request; it does not submit a
 model task. The CLI must support `--no-daemon` to keep this capture independent of
 existing sessions.
 
-The Codex capture also creates `mobile-codex.gif` and `mobile-codex.mp4`: draft
+The Codex capture also creates `mobile-codex.gif` and `mobile-codex.mp4`: live
 input, virtual key selection, session switching and reconnecting at a 390 × 740
 mobile viewport. These are browser captures; native phone keyboard chrome is not
 included. Both video formats use the viewport's 390 × 740 resolution.
