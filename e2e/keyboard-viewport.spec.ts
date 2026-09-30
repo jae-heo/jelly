@@ -45,6 +45,29 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     const connected = connections;
     const originalRows = (await call(`/sessions/${session.id}`)).rows;
     sizes.length = 0;
+    const panelCycle = async () => {
+      const screen = await page.locator('.xterm-rows').innerText();
+      const bounds = await page.locator('.terminal-viewport').boundingBox();
+      await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
+      for (const group of ['문자', '이동', 'F1–F12']) {
+        await page.getByRole('button', { name: group, exact: true }).tap();
+        // Leave each panel open beyond the fit debounce: a quick send/close
+        // would hide the unwanted terminal resize that users see when composing.
+        await page.waitForTimeout(350);
+        expect((await call(`/sessions/${session.id}`)).rows).toBe(originalRows);
+        expect(sizes, 'Virtual keys must not resize the server grid').toEqual([]);
+        expect(await page.locator('.terminal-viewport').boundingBox(), 'The floating panel must leave terminal layout untouched').toEqual(bounds);
+        expect(await page.locator('.xterm-rows').innerText()).toBe(screen);
+      }
+      await page.getByRole('button', { name: '가상 키보드 닫기', exact: true }).tap();
+      await page.waitForTimeout(350);
+      expect(sizes).toEqual([]);
+      expect(await page.locator('.terminal-viewport').boundingBox()).toEqual(bounds);
+      expect(await page.locator('.xterm-rows').innerText()).toBe(screen);
+      await expect(input).toBeFocused();
+    };
+    await panelCycle();
+    await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
     // Chromium cannot open an OS keyboard headlessly. Model visualViewport
     // events, including animation pauses longer than the old 120 ms fit timer.
     const clippedFrames = await page.evaluate(async () => {
@@ -73,6 +96,9 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.getByRole('button', { name: '가상 키보드 닫기', exact: true }).tap();
+    // The virtual panel and native keyboard can be open together.
+    await panelCycle();
 
     // Reading tmux history must stay in the same region when the keyboard closes.
     // Jelly's touch adapter emits these wheel reports too. Mobile WebKit's
@@ -98,6 +124,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     const before = await historyLines();
     expect(before.length).toBeGreaterThan(3);
     sizes.length = 0;
+    await panelCycle();
     const closingDrift = await page.evaluate(async () => {
       const viewport = visualViewport!;
       let drift = 0;
@@ -143,6 +170,8 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     await page.getByRole('button', { name: '입력 보내기' }).click();
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_TOP');
+    await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
+    await page.waitForTimeout(350);
     await expect.poll(() => page.locator('.terminal-viewport').evaluate(element => {
       const clip = element.getBoundingClientRect();
       const prompt = [...element.querySelectorAll('.xterm-rows > div')].find(line => line.textContent?.startsWith('KEYBOARD_TOP'));

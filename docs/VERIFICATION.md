@@ -2,6 +2,18 @@
 
 최종 자동 검증일: 2026-09-30.
 
+## Floating virtual keyboard (2026-09-30)
+
+- Holding the virtual keyboard open reproduced a terminal resize from 35 to 17
+  rows on both local and SSH sessions. Earlier key tests opened and closed the
+  panel before the fit debounce expired, missing the application redraw.
+- Virtual keys now float above the input row, outside normal layout. The panel
+  is capped at 320px wide, with 28px keys and smaller spacing. Opening it or
+  switching key groups leaves the terminal's position and dimensions unchanged.
+- Browser regressions hold each tab open beyond the debounce, assert no resize
+  messages or changed output, and repeat while reading history and while the
+  native keyboard is open. A cleared-screen prompt must remain visible too.
+
 ## Session creation and virtual keyboard (2026-09-30)
 
 - Cmd+Shift+Enter creates a session in the selected local or SSH project. Browser

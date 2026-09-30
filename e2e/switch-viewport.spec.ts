@@ -39,6 +39,7 @@ test('switching during keyboard dismissal does not resize a warm terminal to int
     const fullRows = (await call(`/sessions/${sessions[1]!.id}`)).rows;
     await page.keyboard.press('Meta+Shift+Comma');
     await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
+    await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
     await page.evaluate(() => {
       Object.defineProperty(visualViewport!, 'height', { configurable: true, value: 460 });
       visualViewport!.dispatchEvent(new Event('resize'));
@@ -63,6 +64,7 @@ test('switching during keyboard dismissal does not resize a warm terminal to int
       }
     });
     await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', sessions[1]!.id);
+    await expect(page.getByRole('region', { name: '가상 키보드', exact: true })).toHaveCount(0);
     await expect.poll(async () => (await call(`/sessions/${sessions[1]!.id}`)).rows).toBe(fullRows);
     expect(resizes, 'Cached destination should not be shrunk and expanded during a switch').toEqual([]);
     expect(connections).toBe(opened);
