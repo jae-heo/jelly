@@ -46,7 +46,7 @@ not to the maintainer's device testing.
 - A raw terminal probe compares virtual keys with physical keys, including
   application cursor mode, function keys, modified arrows and Alt characters.
   Tests also cover retained input focus and the 320px mobile layout.
-- Physical and live-input Shift+Enter preserve the modified key (CSI 13;2u)
+- Physical and input Shift+Enter preserve the modified key (CSI 13;2u)
   through Jelly's private tmux server. A disposable SSH raw-mode probe verifies
   the same bytes remotely. Ordinary Enter remains CR. The draft input retains
   its native newline behavior; terminal-app interpretation is app-specific.
@@ -68,7 +68,7 @@ not to the maintainer's device testing.
 - Real local and disposable SSH browser tests withhold acknowledgements during
   a 2 MiB flood, check that output stops, then release it and verify Unicode output,
   one continuous connection and the original shell PID. Chromium passed all 23
-  scenarios, including cached sessions, resume, keyboard geometry and live input.
+  scenarios, including cached sessions, resume, keyboard geometry and input.
 - Linux flock replaces directory-existence locking. Forced-termination tests
   verify immediate recovery without a child, continued exclusion while a build
   child holds the descriptor, and recovery once that child exits. Unknown legacy
@@ -107,7 +107,7 @@ not to the maintainer's device testing.
   Background polling shares one pending refresh. A live terminal survives an
   `unreachable` metadata result; stopped/deleted sessions still dispose it.
 - Workspace data, terminal transport and terminal geometry have separate modules.
-  Existing live input, resume probes, keyboard geometry and session caching remain
+  Existing input, resume probes, keyboard geometry and session caching remain
   covered by browser tests.
 - Remote status polling is bounded and deduplicated per host. A controlled delayed
   remote creation confirmed local creation proceeds independently and same-host
@@ -449,9 +449,9 @@ form population and host options without browser errors.
   These checks establish removal of connection/render setup for cached switches;
   first visits, cache misses and page restarts still require a connection.
 
-## Live input and Korean composition (2026-09-23)
+## Input and Korean composition (2026-09-23)
 
-- A default 44px live-input row sends typing without a separate Send button. Mobile
+- A default 44px input row sends typing without a separate Send button. Mobile
   terminal taps focus it; swipes retain scrolling. Dismissing the keyboard leaves
   the row visible. The pencil switches to draft input.
 - React does not rewrite the native capture value. During composition, the final
@@ -473,7 +473,7 @@ form population and host options without browser errors.
 - Actual iPhone IME events and keyboard reopening were not tested. Native Chromium
   composition and simulated events do not substitute for iOS device testing.
 - References included local Orca mobile source and
-  [Orca live input and Korean edits](https://github.com/stablyai/orca/pull/7273).
+  [Orca input and Korean edits](https://github.com/stablyai/orca/pull/7273).
   Jelly's browser component requires no additional remote installation.
 
 ## Returning from the background (2026-09-23)

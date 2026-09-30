@@ -207,17 +207,17 @@ try {
     await delay(300);
     mobileVideoStart = (performance.now() - videoEpoch) / 1000;
     await delay(700);
-    const liveInput = phone.getByRole('textbox', { name: 'Live input', exact: true });
-    await liveInput.tap();
-    const inputHeight = await liveInput.evaluate(element => element.getBoundingClientRect().height);
-    await liveInput.pressSequentially('Add a /api/status route', { delay: 85 });
-    // Live input must reach Codex before typing is finished, without a Send tap.
+    const inputField = phone.getByRole('textbox', { name: 'Input', exact: true });
+    await inputField.tap();
+    const inputHeight = await inputField.evaluate(element => element.getBoundingClientRect().height);
+    await inputField.pressSequentially('Add a /api/status route', { delay: 85 });
+    // Input must reach Codex before typing is finished, without a Send tap.
     await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('Add a /api/status route');
     await delay(400);
-    await liveInput.pressSequentially(' and a test for it.', { delay: 85 });
+    await inputField.pressSequentially(' and a test for it.', { delay: 85 });
     await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('and a test for');
     await expect(phone.getByRole('textbox', { name: 'Command or message', exact: true })).toBeHidden();
-    if (await liveInput.evaluate(element => element.getBoundingClientRect().height) !== inputHeight) throw new Error('Live input changed height while typing');
+    if (await inputField.evaluate(element => element.getBoundingClientRect().height) !== inputHeight) throw new Error('Input changed height while typing');
     await delay(1400);
     await phone.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
     await phone.getByRole('button', { name: 'Ctrl', exact: true }).tap();

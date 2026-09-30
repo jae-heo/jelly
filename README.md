@@ -13,7 +13,7 @@ run Codex or Claude Code, and come back to the same session later.
 
 **Codex on mobile**
 
-<a href="docs/media/mobile-codex.mp4"><img src="docs/media/mobile-codex.gif" width="300" alt="Mobile viewport demo: typing directly into Codex with live input, selecting terminal keys, switching sessions and reconnecting"></a>
+<a href="docs/media/mobile-codex.mp4"><img src="docs/media/mobile-codex.gif" width="300" alt="Mobile viewport demo: typing directly into Codex with input, selecting terminal keys, switching sessions and reconnecting"></a>
 
 ## Get started
 

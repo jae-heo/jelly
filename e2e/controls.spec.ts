@@ -36,8 +36,8 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(page.getByLabel('Command or message')).not.toBeVisible();
     await expect(page.getByRole('region', { name: 'Virtual keyboard', exact: true })).not.toBeVisible();
     await expect(page.locator('.terminal-statusbar')).toHaveCount(0);
-    await expect(page.getByRole('textbox', { name: 'Live input', exact: true })).toBeVisible();
-    expect((await page.locator('.terminal-live-input').boundingBox())!.height).toBe(44);
+    await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeVisible();
+    expect((await page.locator('.terminal-input').boundingBox())!.height).toBe(44);
     const before = await call(`/sessions/${session.id}`);
     const opened = connections;
     // Use the real browser API: entering/leaving fullscreen must keep the PTY
@@ -112,7 +112,7 @@ test('font changes preserve the live connection; compact controls retain input a
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(input).not.toBeVisible();
     await expect(page.getByRole('button', { name: 'Show draft input', exact: true })).toBeInViewport();
-    expect((await page.locator('.terminal-live-input').boundingBox())!.height).toBe(44);
+    expect((await page.locator('.terminal-input').boundingBox())!.height).toBe(44);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
     const cdp = await context.newCDPSession(page);

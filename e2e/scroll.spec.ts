@@ -97,7 +97,7 @@ for (const remote of [false, true]) {
       await sendVirtualKey(page, 'Esc');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.locator('.xterm-screen').tap();
-      await expect(page.getByRole('textbox', { name: 'Live input', exact: true })).toBeFocused();
+      await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeFocused();
       expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
       expect(errors).toEqual([]);
     } finally {

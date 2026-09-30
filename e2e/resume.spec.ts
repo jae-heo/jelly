@@ -58,10 +58,10 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: resume ve
     });
   });
   const visibility = (hidden: boolean) => page.evaluate(value => (window as any).resumeTestVisibility(value), hidden);
-  const live = page.getByRole('textbox', { name: 'Live input', exact: true });
+  const inputField = page.getByRole('textbox', { name: 'Input', exact: true });
   const connected = () => expect(page.locator('.connection-label')).toHaveText('Connected');
   const command = async (suffix: string) => {
-    await live.fill(`printf '\\nRESUME_%s\\n' ${suffix}`);
+    await inputField.fill(`printf '\\nRESUME_%s\\n' ${suffix}`);
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText(`RESUME_${suffix}`);
   };
@@ -77,15 +77,15 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: resume ve
     await command('BEFORE');
     const initialTickets = tickets;
     const initialSockets = sockets;
-    await live.fill('# draft stays');
+    await inputField.fill('# draft stays');
     await visibility(true);
     await visibility(false);
     await expect.poll(() => pongs).toBe(1);
-    await expect(live).toHaveValue('# draft stays');
-    await expect(live).toBeFocused();
+    await expect(inputField).toHaveValue('# draft stays');
+    await expect(inputField).toBeFocused();
     expect(tickets).toBe(initialTickets);
     expect(sockets).toBe(initialSockets);
-    await live.press('Control+c');
+    await inputField.press('Control+c');
 
     await visibility(true);
     await page.evaluate(() => (window as any).stallResumeTestSocket());

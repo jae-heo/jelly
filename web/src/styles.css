@@ -100,14 +100,14 @@
 .dock-key-groups{display:flex;gap:3px}
 .dock-key-groups button{border:0;border-radius:5px;background:none;color:#809c8a;min-height:28px;padding:0 8px;font-size:10px}
 .dock-key-groups button[aria-pressed="true"]{background:#b6eed114;color:#c7e5d1}
-.terminal-live-input{display:flex;align-items:center;gap:4px;height:44px;flex-shrink:0;padding:0 6px 0 12px;background:#142219}
-.terminal-live-input[hidden]{display:none}
-.terminal-live-input textarea{flex:1;min-width:0;resize:none;height:36px;min-height:36px;border:0;border-radius:5px;padding:8px 2px;background:transparent;font-size:16px;line-height:20px;white-space:pre;overflow:auto}
-.terminal-live-input textarea:focus{box-shadow:none;outline:none}
-.terminal-live-input:focus-within{background:#1a2b20}
-.live-indicator{width:5px;height:5px;border-radius:50%;background:#62896e;flex-shrink:0;margin-right:5px}
-.terminal-live-input:focus-within .live-indicator{background:var(--mint)}
-.terminal-live-input:has(textarea:disabled){opacity:.5}
+.terminal-input{display:flex;align-items:center;gap:4px;height:44px;flex-shrink:0;padding:0 6px 0 12px;background:#142219}
+.terminal-input[hidden]{display:none}
+.terminal-input textarea{flex:1;min-width:0;resize:none;height:36px;min-height:36px;border:0;border-radius:5px;padding:8px 2px;background:transparent;font-size:16px;line-height:20px;white-space:pre;overflow:auto}
+.terminal-input textarea:focus{box-shadow:none;outline:none}
+.terminal-input:focus-within{background:#1a2b20}
+.input-indicator{width:5px;height:5px;border-radius:50%;background:#62896e;flex-shrink:0;margin-right:5px}
+.terminal-input:focus-within .input-indicator{background:var(--mint)}
+.terminal-input:has(textarea:disabled){opacity:.5}
 .terminal-composer{display:flex;align-items:center;gap:4px;padding:6px;margin:0;background:#142219}
 .terminal-composer textarea{flex:1;min-width:0;resize:none;font-size:16px;line-height:1.35;min-height:36px;max-height:90px;padding:8px;border-color:#35513e;background:#0d1911}
 .terminal-composer .send-button{width:36px;height:36px}

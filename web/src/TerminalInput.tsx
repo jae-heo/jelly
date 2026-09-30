@@ -1,17 +1,17 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import { KeyboardOff } from 'lucide-react';
-import { liveInputDelta, liveInputTarget } from './liveInput';
+import { inputDelta, inputTarget } from './inputText';
 import type { TerminalHandle } from './TerminalView';
 import type { TerminalKey } from './terminalKeys';
 
-export interface LiveInputHandle { focus: () => void; run: (action: () => void) => void }
+export interface TerminalInputHandle { focus: () => void; run: (action: () => void) => void }
 interface Props { actions?: React.ReactNode; enabled: boolean; hidden: boolean; terminal: React.RefObject<TerminalHandle | null> }
 
-export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(props, ref) {
+export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function TerminalInput(props, ref) {
   const field = useRef<HTMLTextAreaElement>(null);
   const current = useRef(props);
   current.current = props;
-  const actions = useRef<LiveInputHandle>({ focus: () => {}, run: () => {} });
+  const actions = useRef<TerminalInputHandle>({ focus: () => {}, run: () => {} });
   const reset = useRef(() => {});
   useImperativeHandle(ref, () => ({ focus: () => actions.current.focus(), run: action => actions.current.run(action) }), []);
 
@@ -32,8 +32,8 @@ export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(p
     reset.current = clear;
     const mirror = (commit: boolean) => {
       if (!available()) return;
-      const target = liveInputTarget(input.value, composing, compositionStart, commit);
-      const delta = liveInputDelta(sent, target);
+      const target = inputTarget(input.value, composing, compositionStart, commit);
+      const delta = inputDelta(sent, target);
       if (delta) current.current.terminal.current?.send(delta);
       sent = target;
     };
@@ -82,8 +82,8 @@ export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(p
         finish(() => current.current.terminal.current?.pressKey('Enter'));
         return;
       }
-      const target = liveInputTarget(input.value, isComposing, compositionStart, false);
-      const delta = liveInputDelta(sent, target);
+      const target = inputTarget(input.value, isComposing, compositionStart, false);
+      const delta = inputDelta(sent, target);
       if (delta) current.current.terminal.current?.send(delta);
       sent = target;
       if (!isComposing) settle(300);
@@ -141,9 +141,9 @@ export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(p
 
   useLayoutEffect(() => { if (!props.enabled || props.hidden) reset.current(); }, [props.enabled, props.hidden]);
 
-  return <div className="terminal-live-input" hidden={props.hidden}>
-    <span className="live-indicator" aria-hidden="true" />
-    <textarea ref={field} aria-label="Live input" placeholder="Live input" rows={1} maxLength={16384} disabled={!props.enabled}
+  return <div className="terminal-input" hidden={props.hidden}>
+    <span className="input-indicator" aria-hidden="true" />
+    <textarea ref={field} aria-label="Input" placeholder="Input" rows={1} maxLength={16384} disabled={!props.enabled}
       autoCorrect="off" autoCapitalize="off" autoComplete="off" spellCheck={false} enterKeyHint="enter" />
     {props.actions}
     <button type="button" className="dock-toggle" aria-label="Dismiss keyboard" onClick={() => actions.current.run(() => field.current?.blur())}><KeyboardOff size={18} /></button>

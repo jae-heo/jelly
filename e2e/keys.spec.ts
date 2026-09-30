@@ -132,10 +132,10 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     expect(readFileSync(log).length).toBe(beforeDraft);
     await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
     await page.getByRole('button', { name: 'Hide draft input', exact: true }).tap();
-    const live = page.getByLabel('Live input', { exact: true });
-    expect(await capture(() => live.fill('line'))).toBe(Buffer.from('line').toString('hex'));
-    expect(await capture(() => live.press('Shift+Enter'))).toBe('1b5b31333b3275');
-    expect(await capture(() => live.press('Enter'))).toBe('0d');
+    const inputField = page.getByLabel('Input', { exact: true });
+    expect(await capture(() => inputField.fill('line'))).toBe(Buffer.from('line').toString('hex'));
+    expect(await capture(() => inputField.press('Shift+Enter'))).toBe('1b5b31333b3275');
+    expect(await capture(() => inputField.press('Enter'))).toBe('0d');
     expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
     expect(errors).toEqual([]);
   } finally {

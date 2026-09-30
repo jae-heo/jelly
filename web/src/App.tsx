@@ -202,7 +202,7 @@ export function App() {
       <div><dt>Switch sessions</dt><dd>⌘⇧, previous · ⌘⇧. next. Cycles through sessions in project order.</dd></div>
       <div><dt>New session</dt><dd>⌘⇧Enter creates a session in the current project.</dd></div>
       <div><dt>Key combination</dt><dd>Keyboard button → select a key and modifiers → Send.</dd></div>
-      <div><dt>Live input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
+      <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
       <div><dt>Draft input</dt><dd>Open with the pencil button. Send pastes the draft. Shift+Enter adds a newline. Use the terminal Enter key to submit.</dd></div>
       <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns to input. Copy output from History.</dd></div>
       <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>
