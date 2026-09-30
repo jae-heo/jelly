@@ -19,6 +19,39 @@ projects. Older sessions keep running and reconnect when selected.
 Sessions survive Jelly restarts, but not a reboot of the machine running the shell.
 Jelly uses private tmux sockets and leaves unrelated tmux sessions alone.
 
+## Codex and Claude Code
+
+Install and sign in to the CLI you use on the machine running the project, under
+its shell account. For an SSH project, that means the remote server.
+
+Create a session named **Codex** in your project and run:
+
+```bash
+codex
+```
+
+Try a request such as:
+
+> Add a /api/status route and a test for it.
+
+Or create a session named **Claude Code** and run:
+
+```bash
+claude
+```
+
+For example:
+
+> Review the API routes and point out missing error cases.
+
+Keep a separate **Tests** session for commands such as `npm test`. Switch between
+the assistant and terminal sessions, or reopen the same session from your phone.
+On a phone, draft input helps compose longer requests; the floating keyboard sends
+keys such as Esc, Tab and Ctrl+C. Review each tool's permission prompts as usual.
+
+The README demo shows the real Codex CLI with a request being composed, alongside
+an actual test run in a separate session.
+
 ## Input
 
 **Live input** sends text as you type, after IME composition. Enter submits to the

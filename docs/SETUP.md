@@ -222,3 +222,10 @@ app with disposable example projects on loopback, using its own data directory
 and tmux socket. It writes desktop and mobile viewport screenshots, a GIF and an
 MP4 to `docs/media/`, then removes its temporary sessions and files. Review the
 generated media before committing it.
+
+For the Codex version used in the README, install and sign in to Codex locally,
+then run `JELLY_DEMO_CODEX=1 node scripts/capture-demo.mjs`. It uses a temporary
+Codex configuration and a private copy of the local login, removed after capture.
+It opens the real CLI and types an unsent example request; it does not submit a
+model task. The CLI must support `--no-daemon` to keep this capture independent of
+existing sessions.

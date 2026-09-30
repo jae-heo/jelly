@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Capture the real UI against a disposable local Jelly server. No production data.
 // Run npm run build:test first, then FFMPEG=/path/to/ffmpeg node scripts/capture-demo.mjs.
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, copyFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -12,71 +13,80 @@ import { startServer } from '../.data/test-build/src/server.js';
 
 const exec = promisify(execFile);
 const output = resolve('docs/media');
-const scratch = await mkdtemp(resolve('.data/media-'));
-const frames = join(scratch, 'frames');
-await mkdir(output, { recursive: true });
-await mkdir(frames);
-const atlas = join(scratch, 'atlas');
-const toolbox = join(scratch, 'toolbox');
-await mkdir(atlas); await mkdir(toolbox);
-const rc = join(scratch, 'bashrc');
-const npmConfig = join(scratch, 'npmrc');
-const npmGlobalConfig = join(scratch, 'npmrc-global');
-await writeFile(npmConfig, '');
-await writeFile(npmGlobalConfig, '');
-await writeFile(rc, String.raw`PS1='\[\e[32m\]\W\[\e[0m\] $ '
-HISTFILE=/dev/null
-unset PROMPT_COMMAND
-export npm_config_update_notifier=false
-export npm_config_userconfig='${npmConfig}'
-export npm_config_globalconfig='${npmGlobalConfig}'
-`);
-const shell = join(scratch, 'shell');
-await writeFile(shell, `#!/bin/sh\nexec /bin/bash --noprofile --rcfile '${rc}' -i\n`, { mode: 0o700 });
-await writeFile(join(atlas, 'package.json'), JSON.stringify({ name: 'atlas', version: '1.0.0', type: 'module', scripts: { dev: 'node server.mjs', test: 'node --test --test-reporter=spec' } }, null, 2));
-await writeFile(join(atlas, 'server.mjs'), `import { createServer } from 'node:http';
-import { writeFileSync } from 'node:fs';
-export function route(path) {
-  if (path === '/health') return { status: 200, body: { ok: true } };
-  if (path === '/api/projects') return { status: 200, body: { projects: ['atlas', 'toolbox'] } };
-  return { status: 404, body: { error: 'Not found' } };
-}
-if (process.argv[1]?.endsWith('server.mjs')) {
-  const server = createServer((req, res) => {
-    const result = route(req.url);
-    res.writeHead(result.status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(result.body));
-    console.log('  GET ' + req.url.padEnd(18) + '\\x1b[32m' + result.status + '\\x1b[0m');
-  });
-  server.listen(0, '127.0.0.1', () => {
-    writeFileSync('.port', String(server.address().port));
-    console.log('\\n  \\x1b[32mAtlas\\x1b[0m · development server\\n');
-    console.log('  Local: http://localhost:' + server.address().port);
-    console.log('  Press Ctrl+C to stop.\\n');
-  });
-}
-`);
-await writeFile(join(atlas, 'routes.test.mjs'), `import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import { route } from './server.mjs';
-test('health check returns 200', () => assert.equal(route('/health').status, 200));
-test('health response is ready', () => assert.equal(route('/health').body.ok, true));
-test('project list returns 200', () => assert.equal(route('/api/projects').status, 200));
-test('project names are preserved', () => assert.deepEqual(route('/api/projects').body.projects, ['atlas', 'toolbox']));
-test('unknown routes return 404', () => assert.equal(route('/missing').status, 404));
-test('errors have a readable message', () => assert.equal(route('/missing').body.error, 'Not found'));
-`);
-await writeFile(join(toolbox, 'README.md'), '# Toolbox\n\nSmall scripts for everyday work.\n');
-process.env.JELLY_DATA_DIR = join(scratch, 'runtime');
-process.env.JELLY_HOST = '127.0.0.1';
-process.env.JELLY_PORT = '0';
-process.env.JELLY_SHELL = shell;
-process.env.JELLY_SSH_CONFIG = join(scratch, 'ssh-config');
-await writeFile(process.env.JELLY_SSH_CONFIG, '');
-const config = loadConfig();
-let app, browser, recording = false, frameTask;
+const withCodex = process.env.JELLY_DEMO_CODEX === '1';
+const scratch = await mkdtemp(withCodex ? join(tmpdir(), 'jelly-demo-') : resolve('.data/media-'));
+let config, app, browser, recording = false, frameTask;
 let frameCount = 0;
 try {
+  const quote = text => "'" + text.replaceAll("'", "'\"'\"'") + "'";
+  const codexHome = join(scratch, 'codex');
+  const frames = join(scratch, 'frames');
+  await mkdir(output, { recursive: true });
+  await mkdir(frames);
+  const atlas = join(scratch, 'atlas');
+  const toolbox = join(scratch, 'toolbox');
+  await mkdir(atlas); await mkdir(toolbox);
+  if (withCodex) {
+    await mkdir(codexHome, { mode: 0o700 });
+    await copyFile(join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'auth.json'), join(codexHome, 'auth.json'));
+    await writeFile(join(codexHome, 'config.toml'), 'check_for_update_on_startup = false\n');
+  }
+  const rc = join(scratch, 'bashrc');
+  const npmConfig = join(scratch, 'npmrc');
+  const npmGlobalConfig = join(scratch, 'npmrc-global');
+  await writeFile(npmConfig, '');
+  await writeFile(npmGlobalConfig, '');
+  await writeFile(rc, String.raw`PS1='\[\e[32m\]\W\[\e[0m\] $ '
+  HISTFILE=/dev/null
+  unset PROMPT_COMMAND
+  export npm_config_update_notifier=false
+  export npm_config_userconfig='${npmConfig}'
+  export npm_config_globalconfig='${npmGlobalConfig}'
+  ${withCodex ? `export CODEX_HOME=${quote(codexHome)}\nalias codex='codex --no-daemon'` : ''}
+  `);
+  const shell = join(scratch, 'shell');
+  await writeFile(shell, `#!/bin/sh\nexec /bin/bash --noprofile --rcfile '${rc}' -i\n`, { mode: 0o700 });
+  await writeFile(join(atlas, 'package.json'), JSON.stringify({ name: 'atlas', version: '1.0.0', type: 'module', scripts: { dev: 'node server.mjs', test: 'node --test --test-reporter=spec' } }, null, 2));
+  await writeFile(join(atlas, 'server.mjs'), `import { createServer } from 'node:http';
+  import { writeFileSync } from 'node:fs';
+  export function route(path) {
+    if (path === '/health') return { status: 200, body: { ok: true } };
+    if (path === '/api/projects') return { status: 200, body: { projects: ['atlas', 'toolbox'] } };
+    return { status: 404, body: { error: 'Not found' } };
+  }
+  if (process.argv[1]?.endsWith('server.mjs')) {
+    const server = createServer((req, res) => {
+      const result = route(req.url);
+      res.writeHead(result.status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result.body));
+      console.log('  GET ' + req.url.padEnd(18) + '\\x1b[32m' + result.status + '\\x1b[0m');
+    });
+    server.listen(0, '127.0.0.1', () => {
+      writeFileSync('.port', String(server.address().port));
+      console.log('\\n  \\x1b[32mAtlas\\x1b[0m · development server\\n');
+      console.log('  Local: http://localhost:' + server.address().port);
+      console.log('  Press Ctrl+C to stop.\\n');
+    });
+  }
+  `);
+  await writeFile(join(atlas, 'routes.test.mjs'), `import { test } from 'node:test';
+  import assert from 'node:assert/strict';
+  import { route } from './server.mjs';
+  test('health check returns 200', () => assert.equal(route('/health').status, 200));
+  test('health response is ready', () => assert.equal(route('/health').body.ok, true));
+  test('project list returns 200', () => assert.equal(route('/api/projects').status, 200));
+  test('project names are preserved', () => assert.deepEqual(route('/api/projects').body.projects, ['atlas', 'toolbox']));
+  test('unknown routes return 404', () => assert.equal(route('/missing').status, 404));
+  test('errors have a readable message', () => assert.equal(route('/missing').body.error, 'Not found'));
+  `);
+  await writeFile(join(toolbox, 'README.md'), '# Toolbox\n\nSmall scripts for everyday work.\n');
+  process.env.JELLY_DATA_DIR = join(scratch, 'runtime');
+  process.env.JELLY_HOST = '127.0.0.1';
+  process.env.JELLY_PORT = '0';
+  process.env.JELLY_SHELL = shell;
+  process.env.JELLY_SSH_CONFIG = join(scratch, 'ssh-config');
+  await writeFile(process.env.JELLY_SSH_CONFIG, '');
+  config = loadConfig();
   app = await startServer(config);
   const origin = `http://127.0.0.1:${app.port}`;
   config.origins.add(origin);
@@ -87,7 +97,7 @@ try {
   };
   const project = await api('/projects', 'POST', { name: 'Atlas', path: atlas });
   const other = await api('/projects', 'POST', { name: 'Toolbox', path: toolbox });
-  const dev = await api(`/projects/${project.id}/sessions`, 'POST', { name: 'Dev server' });
+  const dev = await api(`/projects/${project.id}/sessions`, 'POST', { name: withCodex ? 'Codex' : 'Dev server' });
   const tests = await api(`/projects/${project.id}/sessions`, 'POST', { name: 'Tests' });
   const tools = await api(`/projects/${other.id}/sessions`, 'POST', { name: 'Shell' });
   const tmux = (...args) => exec('tmux', ['-S', config.socket, ...args]);
@@ -95,10 +105,12 @@ try {
     await tmux('send-keys', '-t', `jelly-${session.id}`, '-l', text);
     await tmux('send-keys', '-t', `jelly-${session.id}`, 'Enter');
   };
-  await command(dev, 'npm run dev');
-  await expect.poll(async () => { try { return Number(await readFile(join(atlas, '.port'), 'utf8')); } catch { return 0; } }).toBeGreaterThan(0);
-  const demoPort = Number(await readFile(join(atlas, '.port'), 'utf8'));
-  for (const path of ['/health', '/api/projects', '/health', '/api/projects', '/health']) await fetch(`http://127.0.0.1:${demoPort}${path}`);
+  if (!withCodex) {
+    await command(dev, 'npm run dev');
+    await expect.poll(async () => { try { return Number(await readFile(join(atlas, '.port'), 'utf8')); } catch { return 0; } }).toBeGreaterThan(0);
+    const demoPort = Number(await readFile(join(atlas, '.port'), 'utf8'));
+    for (const path of ['/health', '/api/projects', '/health', '/api/projects', '/health']) await fetch(`http://127.0.0.1:${demoPort}${path}`);
+  }
   await command(tests, 'npm test');
   await expect.poll(async () => (await tmux('capture-pane', '-p', '-t', `jelly-${tests.id}`)).stdout).toContain('pass 6');
   await command(tools, 'node --version');
@@ -116,9 +128,24 @@ try {
   const select = async name => { await page.getByRole('button', { name: `${name} · Running`, exact: true }).click(); await ready(); await delay(350); };
   await page.goto(origin); await ready();
   // Warm the actual terminal cache before recording; no mock UI or transport.
-  await select('Dev server'); await select('Shell'); await select('Tests');
+  await select(withCodex ? 'Codex' : 'Dev server'); await select('Shell'); await select('Tests');
   await expect(page.locator('.terminal-slot:visible .xterm-rows')).toContainText('pass 6');
+  if (withCodex) {
+    await select('Codex');
+    await command(dev, 'codex');
+    // Only open the real CLI and compose a prompt; no model task is submitted.
+    await delay(3000);
+    const pane = () => tmux('capture-pane', '-p', '-t', `jelly-${dev.id}`).then(result => result.stdout);
+    if ((await pane()).includes('trust')) {
+      await tmux('send-keys', '-t', `jelly-${dev.id}`, 'Enter');
+      await delay(2000);
+    }
+    await expect.poll(pane, { timeout: 20000 }).toContain('OpenAI Codex');
+    await tmux('send-keys', '-t', `jelly-${dev.id}`, '-l', 'Add a /api/status route and a test for it.');
+    await delay(700);
+  }
   await page.screenshot({ path: join(output, 'desktop.png') });
+  if (withCodex) await tmux('send-keys', '-t', `jelly-${dev.id}`, 'C-u');
   recording = true;
   frameTask = (async () => {
     while (recording) {
@@ -127,8 +154,12 @@ try {
       await delay(Math.max(0, 125 - (performance.now() - start)));
     }
   })();
+  if (withCodex) {
+    const prompt = page.locator('.terminal-slot:visible').getByLabel('Terminal input', { exact: true });
+    await prompt.pressSequentially('Add a /api/status route and a test for it.', { delay: 55 });
+  }
   await delay(1700);
-  await select('Dev server'); await delay(1600);
+  await select(withCodex ? 'Tests' : 'Dev server'); await delay(1600);
   await select('Shell'); await delay(1200);
   await page.keyboard.press('Meta+Shift+Enter');
   await expect(page.locator('.workspace-current strong')).toHaveText('Session 1');
@@ -136,10 +167,11 @@ try {
   const input = page.locator('.terminal-slot:visible').getByLabel('Terminal input', { exact: true });
   await input.pressSequentially('node --version', { delay: 80 }); await input.press('Enter');
   await delay(1400);
-  await select('Tests'); await delay(900);
+  await select(withCodex ? 'Codex' : 'Tests'); await delay(900);
   await page.reload(); await ready();
-  await expect(page.locator('.terminal-slot:visible .xterm-rows')).toContainText('pass 6');
-  if ((await api(`/sessions/${tests.id}`)).pid !== tests.pid) throw new Error('Demo shell changed on reload');
+  await expect(page.locator('.terminal-slot:visible .xterm-rows')).toContainText(withCodex ? 'OpenAI Codex' : 'pass 6');
+  const restored = withCodex ? dev : tests;
+  if ((await api(`/sessions/${restored.id}`)).pid !== restored.pid) throw new Error('Demo shell changed on reload');
   await delay(1800);
   recording = false; await frameTask;
   await context.close();
@@ -151,7 +183,7 @@ try {
   }, { token: config.token, projectId: project.id, sessionId: dev.id });
   const phone = await mobile.newPage();
   await phone.goto(origin); await expect(phone.locator('.connection-label')).toHaveText('Connected');
-  await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('development server');
+  await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText(withCodex ? 'OpenAI Codex' : 'development server');
   await delay(400);
   await phone.screenshot({ path: join(output, 'mobile-terminal.png') });
   await phone.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
@@ -159,8 +191,10 @@ try {
   await phone.getByRole('button', { name: 'C', exact: true }).tap();
   await expect(phone.getByLabel('Selected key combination')).toHaveText('Ctrl + C');
   await phone.screenshot({ path: join(output, 'mobile-keyboard.png') });
-  await phone.getByRole('button', { name: 'Send key combination', exact: true }).tap();
-  await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('^C');
+  if (!withCodex) {
+    await phone.getByRole('button', { name: 'Send key combination', exact: true }).tap();
+    await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('^C');
+  }
   await mobile.close();
   await browser.close(); browser = undefined;
 
@@ -171,9 +205,15 @@ try {
 } finally {
   recording = false;
   await frameTask?.catch(() => {});
-  await browser?.close();
-  await app?.close();
-  // Only the private tmux server created for this capture is terminated.
-  if (app) await exec('tmux', ['-S', config.socket, 'kill-server']).catch(() => {});
-  await rm(scratch, { recursive: true, force: true });
+  try {
+    await browser?.close();
+  } finally {
+    try {
+      await app?.close();
+    } finally {
+      // Only the private tmux server created for this capture is terminated.
+      if (app) await exec('tmux', ['-S', config.socket, 'kill-server']).catch(() => {});
+      await rm(scratch, { recursive: true, force: true });
+    }
+  }
 }

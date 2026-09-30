@@ -1,11 +1,11 @@
 # Jelly
 
 A web terminal for your own servers. Open a project on your phone or computer,
-run your tools, and come back to the same session later.
+run Codex or Claude Code, and come back to the same session later.
 
-![Jelly switching projects, creating a session and reconnecting after a refresh](docs/media/jelly-demo.gif)
+![Composing a Codex request, switching terminal sessions and reconnecting in Jelly](docs/media/jelly-demo.gif)
 
-[Watch the video](docs/media/jelly-demo.mp4)
+[Watch the video](docs/media/jelly-demo.mp4) · [Codex and Claude Code examples](docs/GUIDE.md#codex-and-claude-code)
 
 - **Persistent sessions.** Closing the tab or restarting Jelly keeps your shells running.
 - **Local and SSH projects.** Remote servers only need SSH, a POSIX shell and tmux.
@@ -14,7 +14,7 @@ run your tools, and come back to the same session later.
 <details>
 <summary>On your phone</summary>
 <br>
-<img src="docs/media/mobile-terminal.png" width="240" alt="Jelly running a development server in a mobile viewport">
+<img src="docs/media/mobile-terminal.png" width="240" alt="Composing a Codex request in Jelly on a mobile viewport">
 <img src="docs/media/mobile-keyboard.png" width="240" alt="The floating keyboard with Ctrl+C selected before sending">
 </details>
 
