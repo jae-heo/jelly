@@ -2,6 +2,15 @@
 
 Last automated verification: 2026-09-30.
 
+## Verification sources
+
+The maintainer has tested Jelly on a physical iPhone, both in Chrome and as a
+home-screen web app, and provided feedback during development.
+
+The records below describe automated tests and development checks. Historical
+notes about physical-device checks not being performed refer to those checks,
+not to the maintainer's device testing.
+
 ## English interface (2026-09-30)
 
 - Jelly uses one English interface, independent of browser locale. UI labels,
@@ -494,7 +503,6 @@ form population and host options without browser errors.
 
 ## Limits
 
-- Physical phone Korean IME, keyboards, rotation and touch scrolling remain unverified.
 - No real-account or paid Codex/Claude Code tasks were run. Shells and a real fullscreen
   TUI (`top`) were tested.
 - Slow-consumer and soak tests cover specific scenarios and durations; they do not

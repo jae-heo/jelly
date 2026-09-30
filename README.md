@@ -82,8 +82,7 @@ Sessions survive disconnections and Jelly restarts, but not a reboot of the
 machine running the shell. Terminal history is limited tmux scrollback, not a
 permanent log. Jelly uses its own tmux sockets and leaves your other sessions alone.
 
-Runtime data lives in `.data/`, which is excluded from Git. Real-device iPhone
-keyboard and input testing is still incomplete.
+Runtime data lives in `.data/`, which is excluded from Git.
 
 ## More
 
