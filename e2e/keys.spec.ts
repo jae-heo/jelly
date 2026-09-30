@@ -41,11 +41,10 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     }, { token, projectId: project.id, sessionId: session.id });
     await page.goto('/');
     await expect(page.locator('.connection-label')).toHaveText('Connected');
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
-    const composer = page.getByLabel('Command or message');
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
+    const inputField = page.getByRole('textbox', { name: 'Input', exact: true });
     const physical = page.getByLabel('Terminal input', { exact: true });
-    await composer.fill(`${shellQuote(process.execPath)} ${shellQuote(probe)}`);
-    await page.getByRole('button', { name: 'Send input', exact: true }).click();
+    await inputField.fill(`${shellQuote(process.execPath)} ${shellQuote(probe)}`);
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEY_PROBE_READY');
     const capture = async (action: () => Promise<unknown>) => {
@@ -56,28 +55,11 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     };
     const compare = async (button: string, key: string) => {
       const expected = await capture(() => physical.press(key));
-      await composer.focus();
+      await inputField.focus();
       const received = await capture(() => sendVirtualKey(page, button));
       expect(received, button).toBe(expected);
-      await expect(composer).toBeFocused();
+      await expect(inputField).toBeFocused();
     };
-    // Both submission paths only paste the draft. A following Ctrl+G marks the
-    // end of queued input so an accidentally appended Enter cannot escape detection.
-    for (const viaKeyboard of [false, true]) {
-      const draft = viaKeyboard ? 'keyboard-send' : '한글 보내기';
-      await composer.fill(draft);
-      const start = readFileSync(log).length;
-      if (viaKeyboard) await composer.press('Enter');
-      else await page.getByRole('button', { name: 'Send input', exact: true }).tap();
-      await expect(composer).toHaveValue('');
-      await expect(composer).toBeFocused();
-      await physical.press('Control+g');
-      await expect.poll(() => readFileSync(log).subarray(start).toString('hex'))
-        .toBe(Buffer.from(draft + '\x07').toString('hex'));
-      await composer.focus();
-      expect(await capture(() => sendVirtualKey(page, 'Enter'))).toBe('0d');
-      await expect(composer).toBeFocused();
-    }
     for (const [button, key] of [['Esc', 'Escape'], ['Tab', 'Tab'], ['Enter', 'Enter'], ['Ctrl C', 'Control+c'], ['Ctrl R', 'Control+r']]) {
       await compare(button!, key!);
     }
@@ -103,7 +85,7 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     expect(await capture(() => page.getByRole('button', { name: 'Send to terminal', exact: true }).click())).toBe(Buffer.from('paste-check').toString('hex'));
     await page.setViewportSize({ width: 320, height: 520 });
     await expect(page.getByRole('button', { name: 'F12', exact: true })).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Hide draft input', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Dismiss keyboard', exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: '.data/screenshots/keys-function-mobile.png', fullPage: true });
     await page.getByRole('button', { name: 'Letters', exact: true }).tap();
@@ -112,7 +94,7 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     await page.screenshot({ path: '.data/screenshots/keys-navigation-mobile.png', fullPage: true });
     // Selecting modifiers/keys does not send anything until explicitly confirmed.
     await page.getByRole('button', { name: 'Letters', exact: true }).tap();
-    await composer.focus();
+    await inputField.focus();
     const beforeSelection = readFileSync(log).length;
     await page.getByRole('button', { name: 'Ctrl', exact: true }).tap();
     await page.getByRole('button', { name: 'T', exact: true }).tap();
@@ -121,18 +103,12 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     expect(readFileSync(log).length).toBe(beforeSelection);
     expect(await capture(() => page.getByRole('button', { name: 'Send key combination', exact: true }).tap())).toBe('14');
     await expect(page.getByRole('button', { name: 'Send key combination', exact: true })).toBeDisabled();
-    await expect(composer).toBeFocused();
+    await expect(inputField).toBeFocused();
     for (const [button, physicalKey] of [['Alt+c', 'Alt+c'], ['Shift+c', 'Shift+C'], ['Ctrl+Up arrow', 'Control+ArrowUp'], ['Shift+Enter', 'Shift+Enter']]) {
       await compare(button!, physicalKey!);
     }
-    const beforeDraft = readFileSync(log).length;
-    await composer.fill('first');
-    await composer.press('Shift+Enter');
-    await expect(composer).toHaveValue('first\n');
-    expect(readFileSync(log).length).toBe(beforeDraft);
     await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
-    await page.getByRole('button', { name: 'Hide draft input', exact: true }).tap();
-    const inputField = page.getByLabel('Input', { exact: true });
+    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
     expect(await capture(() => inputField.fill('line'))).toBe(Buffer.from('line').toString('hex'));
     expect(await capture(() => inputField.press('Shift+Enter'))).toBe('1b5b31333b3275');
     expect(await capture(() => inputField.press('Enter'))).toBe('0d');

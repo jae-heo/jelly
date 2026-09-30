@@ -44,9 +44,8 @@ test('SSH config aliases, remote folders and terminal from a mobile browser', as
   await page.getByLabel('Session name').fill('원격 작업');
   await page.getByRole('button', { name: 'Open session', exact: true }).click();
   await expect(page.locator('.connection-label')).toHaveText('Connected', { timeout: 15_000 });
-  await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
-  await page.getByLabel('Command or message').fill("printf '\\nBROWSER_SSH_%s\\n' OK; pwd");
-  await page.getByRole('button', { name: 'Send input' }).click();
+  await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
+  await page.getByRole('textbox', { name: 'Input', exact: true }).fill("printf '\\nBROWSER_SSH_%s\\n' OK; pwd");
   await sendVirtualKey(page, 'Enter');
   await page.getByRole('button', { name: 'History', exact: true }).click();
   await expect(page.locator('.history-content')).toContainText('BROWSER_SSH_OK');

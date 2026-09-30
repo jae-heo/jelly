@@ -11,6 +11,17 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Single input row (2026-09-30)
+
+- Removed the pencil button and separate draft mode. Input sends typing directly
+  to the terminal; the floating keyboard and keyboard-dismiss button remain.
+- Paste text is still available in the floating keyboard. Shift+Enter continues
+  to send its modified terminal key sequence. Older draft-mode notes below
+  describe the previous interface.
+- Browser workflows now use Input for commands, IME, viewport and focus checks.
+  README screenshots and videos show the simplified controls.
+- Type checks and the build passed; all 25 Chromium and 11 WebKit scenarios passed.
+
 ## English interface (2026-09-30)
 
 - Jelly uses one English interface, independent of browser locale. UI labels,

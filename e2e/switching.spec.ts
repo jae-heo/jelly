@@ -69,11 +69,10 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
   };
   const visibleTerminal = () => page.locator('.terminal-slot:visible .xterm-rows');
   const command = async (value: string) => {
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).tap();
-    await page.getByLabel('Command or message').fill(value);
-    await page.getByRole('button', { name: 'Send input' }).tap();
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
+    await page.getByRole('textbox', { name: 'Input', exact: true }).fill(value);
     await sendVirtualKey(page, 'Enter');
-    await page.getByRole('button', { name: 'Hide draft input', exact: true }).tap();
+    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
   };
   try {
     for (const name of ['전환 A', '전환 B', '전환 C', '전환 D']) sessions.push(await call(`/projects/${project.id}/sessions`, 'POST', { name }));

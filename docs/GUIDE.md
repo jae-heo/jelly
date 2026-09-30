@@ -46,8 +46,8 @@ For example:
 
 Keep a separate **Tests** session for commands such as `npm test`. Switch between
 the assistant and terminal sessions, or reopen the same session from your phone.
-On a phone, draft input helps compose longer requests; the floating keyboard sends
-keys such as Esc, Tab and Ctrl+C. Review each tool's permission prompts as usual.
+On a phone, use **Input** to type and the floating keyboard for Esc, Tab and Ctrl+C.
+Review each tool's permission prompts as usual.
 
 The README demo shows the real Codex CLI with a request being composed, alongside
 an actual test run in a separate session. The [mobile video](media/mobile-codex.mp4)
@@ -58,10 +58,6 @@ switching back to Codex.
 
 **Input** sends text as you type, after IME composition. Enter submits to the
 terminal. Unicode input, including Korean, is supported.
-
-The **pencil button** opens draft input. Its Send button or Enter key pastes the
-text without submitting it to the terminal; Shift+Enter adds a line to the draft.
-Use the virtual keyboard's Enter key to submit the pasted text.
 
 In the terminal and input, **Shift+Enter** is delivered as a separate key.
 Applications can use it for newlines; the running program determines its behavior.

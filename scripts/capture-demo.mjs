@@ -216,7 +216,6 @@ try {
     await delay(400);
     await inputField.pressSequentially(' and a test for it.', { delay: 85 });
     await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('and a test for');
-    await expect(phone.getByRole('textbox', { name: 'Command or message', exact: true })).toBeHidden();
     if (await inputField.evaluate(element => element.getBoundingClientRect().height) !== inputHeight) throw new Error('Input changed height while typing');
     await delay(1400);
     await phone.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();

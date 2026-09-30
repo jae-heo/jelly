@@ -62,9 +62,8 @@ for (const remote of [false, true]) {
         const values = (await rows.innerText()).match(/SCROLL_\d{3}/g) ?? [];
         return Math.min(...values.map(value => Number(value.slice(7))));
       };
-      await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
-      await page.getByLabel('Command or message').fill('i=1; while [ "$i" -le 120 ]; do printf "SCROLL_%03d\\n" "$i"; i=$((i+1)); done');
-      await page.getByRole('button', { name: 'Send input' }).click();
+      await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
+      await page.getByRole('textbox', { name: 'Input', exact: true }).fill('i=1; while [ "$i" -le 120 ]; do printf "SCROLL_%03d\\n" "$i"; i=$((i+1)); done');
       await sendVirtualKey(page, 'Enter');
       await expect(rows).toContainText('SCROLL_120');
       const latest = await firstLine();
@@ -78,8 +77,7 @@ for (const remote of [false, true]) {
       await expect.poll(firstLine).toBeGreaterThan(older);
       // Scrolling down to the live screen leaves copy mode; ordinary input works again.
       await swipe(page, 'newer');
-      await page.getByLabel('Command or message').fill("printf 'AFTER_SCROLL_%s\\n' OK");
-      await page.getByRole('button', { name: 'Send input' }).click();
+      await page.getByRole('textbox', { name: 'Input', exact: true }).fill("printf 'AFTER_SCROLL_%s\\n' OK");
       await sendVirtualKey(page, 'Enter');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.reload();

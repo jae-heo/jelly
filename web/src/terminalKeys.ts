@@ -23,7 +23,7 @@ export interface KeyModifiers { ctrl: boolean; alt: boolean; shift: boolean }
 export const noModifiers: KeyModifiers = { ctrl: false, alt: false, shift: false };
 
 // Match conventional terminal encodings. Unsupported chords stay disabled in
-// the composer rather than silently turning into an unmodified command key.
+// the virtual keyboard rather than silently turning into an unmodified command key.
 export function terminalChordSequence(key: string, modifiers: KeyModifiers, applicationCursor: boolean): string | undefined {
   const { ctrl, alt, shift } = modifiers;
   const prefix = alt ? '\x1b' : '';

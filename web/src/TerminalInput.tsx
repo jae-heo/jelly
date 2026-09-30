@@ -5,7 +5,7 @@ import type { TerminalHandle } from './TerminalView';
 import type { TerminalKey } from './terminalKeys';
 
 export interface TerminalInputHandle { focus: () => void; run: (action: () => void) => void }
-interface Props { actions?: React.ReactNode; enabled: boolean; hidden: boolean; terminal: React.RefObject<TerminalHandle | null> }
+interface Props { actions?: React.ReactNode; enabled: boolean; terminal: React.RefObject<TerminalHandle | null> }
 
 export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function TerminalInput(props, ref) {
   const field = useRef<HTMLTextAreaElement>(null);
@@ -23,7 +23,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     let compositionStart = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let finishing: (() => void)[] | null = null;
-    const available = () => alive && current.current.enabled && !current.current.hidden;
+    const available = () => alive && current.current.enabled;
     const focus = () => { if (available()) input.focus({ preventScroll: true }); };
     const clear = () => {
       clearTimeout(timer); timer = undefined; finishing = null;
@@ -139,9 +139,9 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     };
   }, []);
 
-  useLayoutEffect(() => { if (!props.enabled || props.hidden) reset.current(); }, [props.enabled, props.hidden]);
+  useLayoutEffect(() => { if (!props.enabled) reset.current(); }, [props.enabled]);
 
-  return <div className="terminal-input" hidden={props.hidden}>
+  return <div className="terminal-input">
     <span className="input-indicator" aria-hidden="true" />
     <textarea ref={field} aria-label="Input" placeholder="Input" rows={1} maxLength={16384} disabled={!props.enabled}
       autoCorrect="off" autoCapitalize="off" autoComplete="off" spellCheck={false} enterKeyHint="enter" />

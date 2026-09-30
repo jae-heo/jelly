@@ -38,7 +38,7 @@ test('switching during keyboard dismissal does not resize a warm terminal to int
     await page.waitForTimeout(350);
     const fullRows = (await call(`/sessions/${sessions[1]!.id}`)).rows;
     await page.keyboard.press('Meta+Shift+Comma');
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
     await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
     await page.evaluate(() => {
       Object.defineProperty(visualViewport!, 'height', { configurable: true, value: 460 });
@@ -47,7 +47,7 @@ test('switching during keyboard dismissal does not resize a warm terminal to int
     await expect(page.locator('html')).toHaveClass(/keyboard-open/);
     await page.waitForTimeout(350);
     await expect(page.locator('html')).toHaveClass(/keyboard-open/);
-    await page.getByLabel('Command or message').evaluate(el => (el as HTMLTextAreaElement).blur());
+    await page.getByRole('textbox', { name: 'Input', exact: true }).evaluate(el => (el as HTMLTextAreaElement).blur());
     await page.waitForTimeout(40);
     await expect(page.locator('html')).toHaveClass(/keyboard-open/);
     resizes.length = 0;

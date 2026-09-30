@@ -85,25 +85,24 @@ for (const remote of [false, true]) test(`${remote ? 'SSH to local' : 'local to 
     expect(sockets).toBe(warmSockets);
     expect(input).toEqual([]);
 
-    // A focused text composer must not receive punctuation or block switching.
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
-    const composer = page.getByLabel('Command or message');
-    await composer.fill('draft stays out of the terminal');
+    // The focused input must not receive punctuation or block switching.
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
+    const inputField = page.getByRole('textbox', { name: 'Input', exact: true });
     // The old bracket shortcuts are no longer claimed by Jelly.
     for (const code of ['BracketLeft', 'BracketRight']) {
-      expect(await composer.evaluate((element, code) => element.dispatchEvent(new KeyboardEvent('keydown', {
+      expect(await inputField.evaluate((element, code) => element.dispatchEvent(new KeyboardEvent('keydown', {
         code, key: code === 'BracketLeft' ? '{' : '}', metaKey: true, shiftKey: true, bubbles: true, cancelable: true,
       })), code)).toBe(true);
       await expect(page.locator('.session-row.selected strong')).toHaveText(sessions[1]!.name);
     }
     // Composition and extra modifiers must leave selection and default handling alone.
     for (const extra of [{ isComposing: true }, { altKey: true }, { ctrlKey: true }, { shiftKey: false }]) {
-      expect(await composer.evaluate((element, extra) => element.dispatchEvent(new KeyboardEvent('keydown', {
+      expect(await inputField.evaluate((element, extra) => element.dispatchEvent(new KeyboardEvent('keydown', {
         code: 'Comma', key: '<', metaKey: true, shiftKey: true, bubbles: true, cancelable: true, ...extra,
       })), extra)).toBe(true);
       await expect(page.locator('.session-row.selected strong')).toHaveText(sessions[1]!.name);
     }
-    await composer.press('Meta+Shift+Comma');
+    await inputField.press('Meta+Shift+Comma');
     await selected(0);
     expect(input).toEqual([]);
 

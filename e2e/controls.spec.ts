@@ -33,7 +33,6 @@ test('font changes preserve the live connection; compact controls retain input a
     await page.getByLabel('Connection key', { exact: true }).fill(token);
     await page.getByRole('button', { name: 'Connect', exact: true }).click();
     await expect(page.locator('.connection-label')).toHaveText('Connected');
-    await expect(page.getByLabel('Command or message')).not.toBeVisible();
     await expect(page.getByRole('region', { name: 'Virtual keyboard', exact: true })).not.toBeVisible();
     await expect(page.locator('.terminal-statusbar')).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeVisible();
@@ -81,15 +80,10 @@ test('font changes preserve the live connection; compact controls retain input a
     await page.getByRole('button', { name: 'Reset font size', exact: true }).click();
     await expect(page.locator('.xterm-rows')).toHaveCSS('font-size', '14px');
     await page.keyboard.press('Escape');
-    const input = page.getByLabel('Command or message');
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
+    const input = page.getByRole('textbox', { name: 'Input', exact: true });
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
     await expect(input).toBeFocused();
     await input.fill("printf '\\n%s%s\\n' '한글' '입력유지'");
-    await page.getByRole('button', { name: 'Hide draft input', exact: true }).click();
-    await expect(input).not.toBeVisible();
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
-    await expect(input).toHaveValue("printf '\\n%s%s\\n' '한글' '입력유지'");
-    await page.getByRole('button', { name: 'Send input' }).click();
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).not.toContainText('한글입력유지');
     await sendVirtualKey(page, 'Enter');
@@ -104,17 +98,17 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(page.getByRole('button', { name: 'Left arrow', exact: true })).toBeVisible();
     await page.setViewportSize({ width: 320, height: 520 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await expect(page.getByRole('button', { name: 'Send input' })).toBeInViewport();
+    await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Esc', exact: true })).toBeInViewport();
     await page.screenshot({ path: '.data/screenshots/controls-expanded-mobile.png', fullPage: true });
     await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).click();
-    await page.getByRole('button', { name: 'Hide draft input', exact: true }).click();
+    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).click();
     await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(input).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Show draft input', exact: true })).toBeInViewport();
+    await expect(input).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeInViewport();
     expect((await page.locator('.terminal-input').boundingBox())!.height).toBe(44);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
     const cdp = await context.newCDPSession(page);
     // Model an iPhone that keeps its home-indicator inset while the keyboard is open.
     await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { bottom: 34 } });
@@ -165,9 +159,9 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(input).toBeFocused();
     await expect(page.locator('.terminal-dock')).toHaveCSS('padding-bottom', '34px');
     await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: {} });
-    await page.getByRole('button', { name: 'Hide draft input', exact: true }).tap();
+    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
     await expect(input).not.toBeFocused();
-    await expect(input).not.toBeVisible();
+    await expect(input).toBeVisible();
     expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
     const nativeFullscreen = await page.evaluate(() => {
       // Exercise browser refusal without letting a rejected promise escape.

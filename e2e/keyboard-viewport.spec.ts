@@ -34,10 +34,9 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     }, { token, projectId: project.id, sessionId: session.id });
     await page.goto('/');
     await expect(page.locator('.connection-label')).toHaveText('Connected');
-    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
-    const input = page.getByLabel('Command or message');
+    await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
+    const input = page.getByRole('textbox', { name: 'Input', exact: true });
     await input.fill('i=1; while [ "$i" -le 160 ]; do printf "KEYBOARD_%03d\\n" "$i"; i=$((i+1)); done');
-    await page.getByRole('button', { name: 'Send input' }).click();
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     // Let startup sizing finish before measuring a keyboard animation.
@@ -167,7 +166,6 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     // A cleared shell has its cursor at the top of the unchanged grid. Keep
     // that prompt visible too, rather than always clipping to its bottom rows.
     await input.fill("printf '\\033[2J\\033[HKEYBOARD_TOP\\n'");
-    await page.getByRole('button', { name: 'Send input' }).click();
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_TOP');
     await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
