@@ -72,7 +72,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
     await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
     await page.getByRole('textbox', { name: 'Input', exact: true }).fill(value);
     await sendVirtualKey(page, 'Enter');
-    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
+    await page.getByRole('button', { name: 'Hide keyboard', exact: true }).tap();
   };
   try {
     for (const name of ['전환 A', '전환 B', '전환 C', '전환 D']) sessions.push(await call(`/projects/${project.id}/sessions`, 'POST', { name }));

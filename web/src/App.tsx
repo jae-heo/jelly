@@ -201,7 +201,7 @@ export function App() {
       <div><dt>Switch devices</dt><dd>Opening a session disconnects the previous device.</dd></div>
       <div><dt>Switch sessions</dt><dd>⌘⇧, previous · ⌘⇧. next. Cycles through sessions in project order.</dd></div>
       <div><dt>New session</dt><dd>⌘⇧Enter creates a session in the current project.</dd></div>
-      <div><dt>Key combination</dt><dd>Keyboard button → select a key and modifiers → Send.</dd></div>
+      <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
       <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
       <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns to input. Copy output from History.</dd></div>
       <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>

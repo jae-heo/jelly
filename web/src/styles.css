@@ -97,6 +97,7 @@
 .keyboard-open .terminal-dock{padding-bottom:0}
 .dock-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:40px;padding:0;border:0;border-radius:6px;background:none;color:#82a38e;flex-shrink:0}
 .dock-toggle:hover,.dock-toggle.active{background:#b6eed110;color:#c4ebd2}
+.dock-dismiss{margin-left:6px;border-left:1px solid #304237;border-radius:0;color:#7f9387}
 .dock-key-groups{display:flex;gap:3px}
 .dock-key-groups button{border:0;border-radius:5px;background:none;color:#809c8a;min-height:28px;padding:0 8px;font-size:10px}
 .dock-key-groups button[aria-pressed="true"]{background:#b6eed114;color:#c7e5d1}

@@ -91,7 +91,7 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(page.locator('.xterm-rows')).toContainText('한글입력유지');
     await sendVirtualKey(page, 'Esc');
     await expect(input).toBeFocused();
-    await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).click();
+    await page.getByRole('button', { name: 'Open shortcuts', exact: true }).click();
     await expect(input).toBeFocused();
     await expect(page.getByRole('button', { name: 'Paste text', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Navigate', exact: true }).click();
@@ -101,8 +101,8 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Esc', exact: true })).toBeInViewport();
     await page.screenshot({ path: '.data/screenshots/controls-expanded-mobile.png', fullPage: true });
-    await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).click();
-    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).click();
+    await page.getByRole('button', { name: 'Close shortcuts', exact: true }).click();
+    await page.getByRole('button', { name: 'Hide keyboard', exact: true }).click();
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(input).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeInViewport();
@@ -159,7 +159,7 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(input).toBeFocused();
     await expect(page.locator('.terminal-dock')).toHaveCSS('padding-bottom', '34px');
     await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: {} });
-    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
+    await page.getByRole('button', { name: 'Hide keyboard', exact: true }).tap();
     await expect(input).not.toBeFocused();
     await expect(input).toBeVisible();
     expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);

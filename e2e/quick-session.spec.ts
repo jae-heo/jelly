@@ -38,7 +38,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
     await expect(page.locator('.terminal-slot:visible .xterm-helper-textarea')).toBeFocused();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(creates).toBe(1);
-    await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).click();
+    await page.getByRole('button', { name: 'Open shortcuts', exact: true }).click();
     await page.getByRole('button', { name: 'Ctrl', exact: true }).click();
     await page.getByRole('button', { name: 'C', exact: true }).click();
     await expect(page.getByLabel('Selected key combination')).toHaveText('Ctrl + C');
@@ -71,7 +71,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
     await expect(page.locator('.workspace-current strong')).toHaveText('Session 3');
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     await expect(page.getByRole('region', { name: 'Virtual keyboard', exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).click();
+    await page.getByRole('button', { name: 'Open shortcuts', exact: true }).click();
     await expect(page.getByLabel('Selected key combination')).toHaveText('Select a key');
     await expect(page.getByRole('button', { name: 'Send key combination', exact: true })).toBeDisabled();
     expect(creates).toBe(4);

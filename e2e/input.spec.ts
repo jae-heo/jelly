@@ -122,14 +122,14 @@ test('input: native composition, Korean fallback, ordered controls, edits and se
     await inputField.fill('mobile');
     await inputField.evaluate(field => field.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertLineBreak' })));
     await expected(start, 'mobile\r');
-    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
+    await page.getByRole('button', { name: 'Hide keyboard', exact: true }).tap();
     await expect(inputField).not.toBeFocused();
     await expect(inputField).toBeVisible();
     await inputField.tap();
     await expect(inputField).toBeFocused();
     await page.setViewportSize({ width: 320, height: 520 });
     await expect(inputField).toBeInViewport();
-    await expect(page.getByRole('button', { name: 'Dismiss keyboard', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Hide keyboard', exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     mkdirSync('.data/screenshots', { recursive: true });
     await page.screenshot({ path: '.data/screenshots/input-mobile.png', fullPage: true });

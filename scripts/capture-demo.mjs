@@ -15,15 +15,13 @@ const exec = promisify(execFile);
 const output = resolve('docs/media');
 const withCodex = process.env.JELLY_DEMO_CODEX === '1';
 const scratch = await mkdtemp(withCodex ? join(tmpdir(), 'jelly-demo-') : resolve('.data/media-'));
-let config, app, browser, recording = false, frameTask;
-let frameCount = 0;
+let config, app, browser;
+let desktopVideoStart = 0, desktopVideoDuration = 0, desktopVideoPath;
 let mobileVideoStart = 0, mobileVideoDuration = 0, mobileVideoPath;
 try {
   const quote = text => "'" + text.replaceAll("'", "'\"'\"'") + "'";
   const codexHome = join(scratch, 'codex');
-  const frames = join(scratch, 'frames');
   await mkdir(output, { recursive: true });
-  await mkdir(frames);
   const atlas = join(scratch, 'atlas');
   const toolbox = join(scratch, 'toolbox');
   await mkdir(atlas); await mkdir(toolbox);
@@ -117,7 +115,8 @@ try {
   await command(tools, 'node --version');
   await command(tools, 'ls');
   browser = await chromium.launch();
-  const context = await browser.newContext({ viewport: { width: 1100, height: 680 }, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width: 1100, height: 680 }, deviceScaleFactor: 1,
+    recordVideo: { dir: join(scratch, 'desktop-video'), size: { width: 1100, height: 680 } } });
   await context.addInitScript(({ token, projectId, sessionId }) => {
     sessionStorage.setItem('jelly-token', token);
     if (!localStorage.getItem('jelly-project')) localStorage.setItem('jelly-project', projectId);
@@ -125,6 +124,8 @@ try {
     localStorage.setItem('jelly-font-size', '17');
   }, { token: config.token, projectId: project.id, sessionId: tests.id });
   const page = await context.newPage();
+  page.setDefaultTimeout(10000);
+  const desktopEpoch = performance.now();
   const ready = () => expect(page.locator('.connection-label')).toHaveText('Connected');
   const select = async name => { await page.getByRole('button', { name: `${name} · Running`, exact: true }).click(); await ready(); await delay(350); };
   await page.goto(origin); await ready();
@@ -147,16 +148,7 @@ try {
   }
   await page.screenshot({ path: join(output, 'desktop.png') });
   if (withCodex) await tmux('send-keys', '-t', `jelly-${dev.id}`, 'C-u');
-  recording = true;
-  frameTask = (async () => {
-    while (recording) {
-      const start = performance.now();
-      await page.screenshot({ path: join(frames, `${String(frameCount++).padStart(4, '0')}.png`) });
-      await delay(Math.max(0, 125 - (performance.now() - start)));
-    }
-  })();
-  // Handle capture failures immediately; the awaited promise still reports them.
-  frameTask.catch(() => {});
+  desktopVideoStart = (performance.now() - desktopEpoch) / 1000;
   if (withCodex) {
     const prompt = page.locator('.terminal-slot:visible').getByLabel('Terminal input', { exact: true });
     await prompt.pressSequentially('Add a /api/status route and a test for it.', { delay: 55 });
@@ -176,7 +168,8 @@ try {
   const restored = withCodex ? dev : tests;
   if ((await api(`/sessions/${restored.id}`)).pid !== restored.pid) throw new Error('Demo shell changed on reload');
   await delay(1800);
-  recording = false; await frameTask;
+  desktopVideoDuration = (performance.now() - desktopEpoch) / 1000 - desktopVideoStart;
+  desktopVideoPath = await page.video().path();
   await context.close();
 
   const mobile = await browser.newContext({ viewport: { width: 390, height: 740 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
@@ -193,7 +186,7 @@ try {
   await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText(withCodex ? 'OpenAI Codex' : 'development server');
   await delay(400);
   await phone.screenshot({ path: join(output, 'mobile-terminal.png') });
-  await phone.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
+  await phone.getByRole('button', { name: 'Open shortcuts', exact: true }).tap();
   await phone.getByRole('button', { name: 'Ctrl', exact: true }).tap();
   await phone.getByRole('button', { name: 'C', exact: true }).tap();
   await expect(phone.getByLabel('Selected key combination')).toHaveText('Ctrl + C');
@@ -202,7 +195,7 @@ try {
     await phone.getByRole('button', { name: 'Send key combination', exact: true }).tap();
     await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('^C');
   } else {
-    await phone.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
+    await phone.getByRole('button', { name: 'Close shortcuts', exact: true }).tap();
     await tmux('send-keys', '-t', `jelly-${dev.id}`, 'C-u');
     await delay(300);
     mobileVideoStart = (performance.now() - videoEpoch) / 1000;
@@ -218,12 +211,12 @@ try {
     await expect(phone.locator('.terminal-slot:visible .xterm-rows')).toContainText('and a test for');
     if (await inputField.evaluate(element => element.getBoundingClientRect().height) !== inputHeight) throw new Error('Input changed height while typing');
     await delay(1400);
-    await phone.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
+    await phone.getByRole('button', { name: 'Open shortcuts', exact: true }).tap();
     await phone.getByRole('button', { name: 'Ctrl', exact: true }).tap();
     await phone.getByRole('button', { name: 'C', exact: true }).tap();
     await expect(phone.getByLabel('Selected key combination')).toHaveText('Ctrl + C');
     await delay(1400);
-    await phone.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
+    await phone.getByRole('button', { name: 'Close shortcuts', exact: true }).tap();
     for (const name of ['Tests', 'Codex']) {
       await phone.getByRole('button', { name: 'Open projects and sessions', exact: true }).tap();
       await delay(650);
@@ -244,17 +237,15 @@ try {
   await browser.close(); browser = undefined;
 
   const ffmpeg = process.env.FFMPEG || 'ffmpeg';
-  await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', '8', '-i', join(frames, '%04d.png'), '-filter_complex', '[0:v]split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3', '-loop', '0', join(output, 'jelly-demo.gif')], { timeout: 120_000 });
-  await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-framerate', '8', '-i', join(frames, '%04d.png'), '-c:v', 'libx264', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(output, 'jelly-demo.mp4')], { timeout: 120_000 });
+  await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(desktopVideoStart), '-t', String(desktopVideoDuration), '-i', desktopVideoPath, '-filter_complex', '[0:v]fps=8,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3', '-loop', '0', join(output, 'jelly-demo.gif')], { timeout: 120_000 });
+  await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(desktopVideoStart), '-t', String(desktopVideoDuration), '-i', desktopVideoPath, '-c:v', 'libx264', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(output, 'jelly-demo.mp4')], { timeout: 120_000 });
   if (mobileVideoPath) {
     await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(mobileVideoStart), '-t', String(mobileVideoDuration), '-i', mobileVideoPath, '-filter_complex', '[0:v]fps=8,scale=390:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=3', '-loop', '0', join(output, 'mobile-codex.gif')], { timeout: 120_000 });
     await exec(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-y', '-ss', String(mobileVideoStart), '-t', String(mobileVideoDuration), '-i', mobileVideoPath, '-c:v', 'libx264', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', join(output, 'mobile-codex.mp4')], { timeout: 120_000 });
     console.log(`Mobile Codex demo: ${mobileVideoDuration.toFixed(1)} seconds.`);
   }
-  console.log(`Captured actual Jelly UI: ${frameCount} frames, ${(frameCount / 8).toFixed(1)} seconds.`);
+  console.log(`Desktop demo: ${desktopVideoDuration.toFixed(1)} seconds.`);
 } finally {
-  recording = false;
-  await frameTask?.catch(() => {});
   try {
     await browser?.close();
   } finally {

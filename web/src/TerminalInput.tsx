@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react';
-import { KeyboardOff } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { inputDelta, inputTarget } from './inputText';
 import type { TerminalHandle } from './TerminalView';
 import type { TerminalKey } from './terminalKeys';
@@ -146,6 +146,6 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     <textarea ref={field} aria-label="Input" placeholder="Input" rows={1} maxLength={16384} disabled={!props.enabled}
       autoCorrect="off" autoCapitalize="off" autoComplete="off" spellCheck={false} enterKeyHint="enter" />
     {props.actions}
-    <button type="button" className="dock-toggle" aria-label="Dismiss keyboard" onClick={() => actions.current.run(() => field.current?.blur())}><KeyboardOff size={18} /></button>
+    <button type="button" className="dock-toggle dock-dismiss" aria-label="Hide keyboard" title="Hide keyboard" onClick={() => actions.current.run(() => field.current?.blur())}><ChevronDown size={20} aria-hidden="true" /></button>
   </div>;
 });

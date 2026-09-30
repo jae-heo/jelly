@@ -2,7 +2,7 @@ import { type Page } from '@playwright/test';
 
 // Exercise the actual selection + Send flow, preserving the caller's panel state.
 export async function sendVirtualKey(page: Page, chord: string) {
-  const open = page.getByRole('button', { name: 'Open virtual keyboard', exact: true });
+  const open = page.getByRole('button', { name: 'Open shortcuts', exact: true });
   const wasClosed = await open.isVisible();
   if (wasClosed) await open.click();
   const panel = page.getByRole('region', { name: 'Virtual keyboard', exact: true });
@@ -16,5 +16,5 @@ export async function sendVirtualKey(page: Page, chord: string) {
   for (const modifier of parts) await panel.getByRole('button', { name: modifier === 'Control' ? 'Ctrl' : modifier, exact: true }).click();
   await panel.getByRole('button', { name: key.length === 1 ? key.toUpperCase() : key, exact: true }).click();
   await panel.getByRole('button', { name: 'Send key combination', exact: true }).click();
-  if (wasClosed) await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).click();
+  if (wasClosed) await page.getByRole('button', { name: 'Close shortcuts', exact: true }).click();
 }

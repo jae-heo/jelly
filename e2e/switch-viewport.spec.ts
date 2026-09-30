@@ -39,7 +39,7 @@ test('switching during keyboard dismissal does not resize a warm terminal to int
     const fullRows = (await call(`/sessions/${sessions[1]!.id}`)).rows;
     await page.keyboard.press('Meta+Shift+Comma');
     await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
-    await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
+    await page.getByRole('button', { name: 'Open shortcuts', exact: true }).tap();
     await page.evaluate(() => {
       Object.defineProperty(visualViewport!, 'height', { configurable: true, value: 460 });
       visualViewport!.dispatchEvent(new Event('resize'));

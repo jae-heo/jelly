@@ -62,7 +62,7 @@ terminal. Unicode input, including Korean, is supported.
 In the terminal and input, **Shift+Enter** is delivered as a separate key.
 Applications can use it for newlines; the running program determines its behavior.
 
-The **keyboard button** opens a compact floating panel. Select a key and modifiers
+The **⌘ button** opens a compact floating panel. Select a key and modifiers
 such as Ctrl, Alt or Shift, then press **Send**. Selection alone sends nothing.
 Opening the panel does not resize or rearrange the terminal. Switching sessions
 clears the selected combination.
@@ -74,7 +74,7 @@ input. Use **History** to read and copy recent output; it opens at the bottom.
 History is bounded tmux scrollback, not a permanent log.
 
 The native keyboard clips the visible terminal without changing its row count.
-Tap the keyboard-dismiss button to hide it while keeping input available.
+Tap the **down arrow** to hide the native keyboard while keeping Input available.
 
 On iPhone, use **Share → Add to Home Screen** and launch the saved icon. On browsers
 that support fullscreen, use **More → Fullscreen**. Font size is also in **More**.

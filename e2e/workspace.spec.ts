@@ -111,7 +111,7 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await mobile.getByRole('button', { name: 'History', exact: true }).click();
   await expect(mobile.locator('.history-content')).toContainText('한글입력확인');
   await mobile.getByRole('button', { name: 'Close', exact: true }).click();
-  await mobile.getByRole('button', { name: 'Open virtual keyboard', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Open shortcuts', exact: true }).click();
   await mobile.getByLabel('Paste text').click();
   await mobile.getByLabel('Text to paste').fill("printf '\\nPASTE_%s\\n' OK");
   await mobile.getByRole('button', { name: 'Send to terminal' }).click();
@@ -120,8 +120,8 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await mobile.getByRole('button', { name: 'History', exact: true }).click();
   await expect(mobile.locator('.history-content')).toContainText('PASTE_OK');
   await mobile.getByRole('button', { name: 'Close', exact: true }).click();
-  await mobile.getByRole('button', { name: 'Close virtual keyboard', exact: true }).click();
-  await mobile.getByRole('button', { name: 'Dismiss keyboard', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Close shortcuts', exact: true }).click();
+  await mobile.getByRole('button', { name: 'Hide keyboard', exact: true }).click();
   await mobile.screenshot({ path: '.data/screenshots/terminal-mobile.png', fullPage: true });
   // The terminal begins immediately under a single 56px header on a phone.
   await expect(mobile.locator('header')).toHaveCount(1);
@@ -147,7 +147,7 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await mobile.setViewportSize({ width: 390, height: 520 });
   await mobile.getByRole('textbox', { name: 'Input', exact: true }).focus();
   await expect(mobile.getByRole('textbox', { name: 'Input', exact: true })).toBeInViewport();
-  await expect(mobile.getByRole('button', { name: 'Open virtual keyboard', exact: true })).toBeInViewport();
+  await expect(mobile.getByRole('button', { name: 'Open shortcuts', exact: true })).toBeInViewport();
   await mobile.getByRole('button', { name: 'More', exact: true }).click();
   await mobile.getByRole('button', { name: 'Stop session', exact: true }).click();
   await mobile.getByRole('dialog').getByRole('button', { name: 'Stop session', exact: true }).click();
