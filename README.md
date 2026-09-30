@@ -11,11 +11,9 @@ run Codex or Claude Code, and come back to the same session later.
 - **Local and SSH projects.** Remote servers only need SSH, a POSIX shell and tmux.
 - **Phone-friendly input.** Touch scrolling, Unicode input and a floating keyboard for key combinations.
 
-<details>
-<summary>Codex on mobile — watch the demo</summary>
-<br>
+**Codex on mobile**
+
 <a href="docs/media/mobile-codex.mp4"><img src="docs/media/mobile-codex.gif" width="300" alt="Mobile viewport demo: composing a Codex request, selecting terminal keys, switching sessions and reconnecting"></a>
-</details>
 
 ## Get started
 
