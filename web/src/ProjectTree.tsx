@@ -3,7 +3,7 @@ import { ChevronRight, Folder, Plus, Server, Trash2 } from 'lucide-react';
 import type { Project, Session } from './api';
 import './ProjectTree.css';
 
-const stateLabels = { running: '실행 중', exited: '종료됨', stopped: '종료됨', lost: '세션 없음', unreachable: '서버 연결 안 됨' };
+const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
 
 interface Props {
   projects: Project[];
@@ -45,14 +45,14 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
     return () => cancelAnimationFrame(frame);
   }, [projectId, sessionId, open]);
 
-  return <nav ref={tree} className="project-tree" aria-label="프로젝트와 세션">
+  return <nav ref={tree} className="project-tree" aria-label="Projects and sessions">
     <ul className="project-tree-list">
       {projects.map(project => {
         const expanded = !collapsed.has(project.id);
         const children = sessions.filter(session => session.projectId === project.id);
         return <li key={project.id} className="project-branch" data-project-id={project.id}>
           <div className={`project-heading ${project.id === projectId ? 'active' : ''}`}>
-            <button className="tree-toggle" aria-label={`${project.name} ${expanded ? '접기' : '펼치기'}`}
+            <button className="tree-toggle" aria-label={`${expanded ? 'Collapse' : 'Expand'} ${project.name}`}
               aria-expanded={expanded} aria-controls={`project-sessions-${project.id}`}
               onClick={() => setCollapsed(previous => {
                 const next = new Set(previous);
@@ -61,11 +61,11 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
               })}><ChevronRight size={14} /></button>
             <button className={`project-item ${project.id === projectId ? 'selected' : ''}`} title={project.name}
               onClick={() => { expand(project.id); onProject(project.id); }}>
-              <Folder size={16} /><span>{project.name}</span>{project.hostId && <Server size={13} aria-label="SSH 서버" />}
+              <Folder size={16} /><span>{project.name}</span>{project.hostId && <Server size={13} aria-label="SSH host" />}
             </button>
-            <button className="icon-button tree-add" aria-label={`${project.name} 새 세션`} onClick={() => onNewSession(project)}><Plus size={16} /></button>
+            <button className="icon-button tree-add" aria-label={`New session in ${project.name}`} onClick={() => onNewSession(project)}><Plus size={16} /></button>
           </div>
-          <ul id={`project-sessions-${project.id}`} className="project-children" aria-label={`${project.name} 세션`} hidden={!expanded}>
+          <ul id={`project-sessions-${project.id}`} className="project-children" aria-label={`${project.name} sessions`} hidden={!expanded}>
             {children.map(session => <li key={session.id} ref={session.id === sessionId ? activeRow : undefined}
               className={`session-row ${session.id === sessionId ? 'selected' : ''}`}>
               <button className="session-item" aria-current={session.id === sessionId ? 'true' : undefined}
@@ -74,13 +74,13 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
                 <span className={`session-dot ${session.status}`} /><span className="session-text"><strong>{session.name}</strong></span>
               </button>
               {session.status !== 'running' && session.status !== 'unreachable' && <button className="icon-button remove-session"
-                aria-label={`${session.name} 기록 삭제`} onClick={() => onRemoveSession(session)}><Trash2 size={14} /></button>}
+                aria-label={`Remove record for ${session.name}`} onClick={() => onRemoveSession(session)}><Trash2 size={14} /></button>}
             </li>)}
-            {!children.length && <li className="tree-empty">{loading ? '불러오는 중…' : '세션 없음'}</li>}
+            {!children.length && <li className="tree-empty">{loading ? 'Loading…' : 'No sessions'}</li>}
           </ul>
         </li>;
       })}
     </ul>
-    {!projects.length && <p className="sidebar-empty">{loading ? '불러오는 중…' : '프로젝트 없음'}</p>}
+    {!projects.length && <p className="sidebar-empty">{loading ? 'Loading…' : 'No projects'}</p>}
   </nav>;
 }

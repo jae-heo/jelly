@@ -28,10 +28,10 @@ export const TerminalControls = forwardRef<TerminalControlsHandle, {
     terminal.current?.paste(command);
     setCommand('');
   };
-  const keyboardButton = <button type="button" className={`dock-toggle ${keyboard ? 'active' : ''}`} aria-label={keyboard ? '가상 키보드 닫기' : '가상 키보드 열기'}
-    title="키 조합" aria-expanded={keyboard} aria-controls="terminal-virtual-keyboard" onClick={() => setKeyboard(!keyboard)}><Keyboard size={19} /></button>;
-  const composerButton = <button type="button" className={`dock-toggle ${composer ? 'active' : ''}`} aria-label={composer ? '입력창 숨기기' : '입력창 표시'}
-    title={composer ? '라이브 입력으로' : '문장 입력'} aria-expanded={composer} aria-controls="terminal-composer"
+  const keyboardButton = <button type="button" className={`dock-toggle ${keyboard ? 'active' : ''}`} aria-label={keyboard ? 'Close virtual keyboard' : 'Open virtual keyboard'}
+    title="Key combination" aria-expanded={keyboard} aria-controls="terminal-virtual-keyboard" onClick={() => setKeyboard(!keyboard)}><Keyboard size={19} /></button>;
+  const composerButton = <button type="button" className={`dock-toggle ${composer ? 'active' : ''}`} aria-label={composer ? 'Hide draft input' : 'Show draft input'}
+    title={composer ? 'Switch to live input' : 'Draft input'} aria-expanded={composer} aria-controls="terminal-composer"
     onClick={() => { if (composer) showComposer(false); else run(() => showComposer(true)); }}><PencilLine size={18} /></button>;
   return <div className="terminal-dock" onMouseDownCapture={event => {
     // Keep the native IME and its focus while selecting and sending virtual keys.
@@ -41,14 +41,14 @@ export const TerminalControls = forwardRef<TerminalControlsHandle, {
     {keyboard && <VirtualKeyboard enabled={enabled} onSend={(key, modifiers) => run(() => terminal.current?.chord(key, modifiers))} onPaste={() => run(onPaste)} />}
     <LiveInput ref={live} enabled={enabled} hidden={composer} terminal={terminal} actions={<>{keyboardButton}{composerButton}</>} />
     <form id="terminal-composer" className="terminal-composer" hidden={!composer} onSubmit={submit}>
-      <textarea ref={input} aria-label="명령어 또는 메시지" rows={1} value={command} onChange={event => setCommand(event.target.value)}
-        placeholder="명령어 또는 메시지" spellCheck={false} autoCorrect="off" autoComplete="off" autoCapitalize="off" enterKeyHint="send"
+      <textarea ref={input} aria-label="Command or message" rows={1} value={command} onChange={event => setCommand(event.target.value)}
+        placeholder="Command or message" spellCheck={false} autoCorrect="off" autoComplete="off" autoCapitalize="off" enterKeyHint="send"
         onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
         onKeyDown={event => {
           if (event.nativeEvent.isComposing || composing.current || event.keyCode === 229) return;
           if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
         }} />
-      <button type="submit" className="send-button" aria-label="입력 보내기" disabled={!enabled || !command}><Send size={17} /></button>
+      <button type="submit" className="send-button" aria-label="Send input" disabled={!enabled || !command}><Send size={17} /></button>
       {keyboardButton}{composerButton}
     </form>
   </div>;

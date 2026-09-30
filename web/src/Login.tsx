@@ -22,15 +22,15 @@ export function Login({ onLogin }: { onLogin: (token: string) => void }) {
   return <main className="login-page">
     <header className="login-brand"><img src="/jelly.svg" alt="" /><span>jelly<span className="brand-period">.</span></span></header>
     <section className="login-card" aria-labelledby="login-title">
-      <h1 id="login-title">서버 연결</h1>
+      <h1 id="login-title">Connect to server</h1>
       <form onSubmit={submit}>
-        <label htmlFor="token">연결 키</label>
-        <div className="secret-input"><KeyRound size={17} /><input id="token" type={show ? 'text' : 'password'} value={token} onChange={e => setToken(e.target.value)} placeholder="연결 키 붙여넣기" autoComplete="off" spellCheck={false} required /><button type="button" className="icon-button" aria-label={show ? '연결 키 숨기기' : '연결 키 보기'} onClick={() => setShow(!show)}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>
-        <label className="checkbox"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />이 기기에 연결 키 저장</label>
+        <label htmlFor="token">Connection key</label>
+        <div className="secret-input"><KeyRound size={17} /><input id="token" type={show ? 'text' : 'password'} value={token} onChange={e => setToken(e.target.value)} placeholder="Paste connection key" autoComplete="off" spellCheck={false} required /><button type="button" className="icon-button" aria-label={show ? 'Hide connection key' : 'Show connection key'} onClick={() => setShow(!show)}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>
+        <label className="checkbox"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />Remember on this device</label>
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="button primary wide" disabled={busy || !token.trim()}>{busy ? '연결 중…' : '연결'}</button>
+        <button className="button primary wide" disabled={busy || !token.trim()}>{busy ? 'Connecting…' : 'Connect'}</button>
       </form>
-      <details className="key-help"><summary>연결 키 확인</summary><p>줼리 서버에서 실행</p><code>cat ~/jelly/.data/token</code></details>
+      <details className="key-help"><summary>Find your connection key</summary><p>Run on the Jelly server</p><code>cat ~/jelly/.data/token</code></details>
     </section>
   </main>;
 }

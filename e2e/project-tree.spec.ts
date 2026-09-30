@@ -15,7 +15,7 @@ for (const mobile of [false, true]) test(`project tree: ${mobile ? 'mobile' : 'd
   let tickets = 0;
   page.on('request', request => { if (request.url().endsWith('/tickets')) tickets++; });
   const openTree = async () => {
-    if (mobile && !(await page.locator('.sidebar').isVisible())) await page.getByRole('button', { name: '프로젝트와 세션 열기' }).click();
+    if (mobile && !(await page.locator('.sidebar').isVisible())) await page.getByRole('button', { name: 'Open projects and sessions' }).click();
   };
   try {
     for (const [name, path] of [['Jelly', info.projectPath], ['API server', info.browseRoot], ['Other project with a very long name', `${info.browseRoot}/.hidden-folder`]]) {
@@ -32,43 +32,43 @@ for (const mobile of [false, true]) test(`project tree: ${mobile ? 'mobile' : 'd
       localStorage.setItem('jelly-session', sessionId);
     }, { token, projectId: projects[0]!.id, sessionId: first.id });
     await page.reload();
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     await openTree();
     const jelly = page.locator(`[data-project-id="${projects[0]!.id}"]`);
     const api = page.locator(`[data-project-id="${projects[1]!.id}"]`);
     await expect(jelly.locator('.session-text strong')).toHaveText(['Development', 'Finished']);
     await expect(api.locator('.session-text strong')).toHaveText(['Server logs']);
     const warmTickets = tickets;
-    await page.getByRole('button', { name: 'Jelly 접기', exact: true }).click();
+    await page.getByRole('button', { name: 'Collapse Jelly', exact: true }).click();
     await expect(jelly.getByRole('button', { name: /Development/ })).toBeHidden();
     await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', first.id);
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-    await expect(page.getByRole('button', { name: 'Jelly 펼치기', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('button', { name: 'Expand Jelly', exact: true })).toHaveAttribute('aria-expanded', 'false');
     expect(tickets).toBe(warmTickets);
-    await page.getByRole('button', { name: 'API server 접기', exact: true }).click();
+    await page.getByRole('button', { name: 'Collapse API server', exact: true }).click();
     // Previous wraps to the last project's session even when its group is folded.
     await page.keyboard.press('Meta+Shift+Comma');
     await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', second.id);
     await openTree();
-    await expect(page.getByRole('button', { name: 'API server 접기', exact: true })).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('button', { name: 'Collapse API server', exact: true })).toHaveAttribute('aria-expanded', 'true');
     await expect(api.locator('.session-row.selected strong')).toHaveText('Server logs');
 
     // Creating in another project must preserve the current selection on cancel.
-    await page.getByRole('button', { name: 'Jelly 새 세션', exact: true }).click();
+    await page.getByRole('button', { name: 'New session in Jelly', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.locator('.dialog-description')).toHaveText('Jelly');
-    await dialog.getByRole('button', { name: '취소', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', second.id);
-    await page.getByRole('button', { name: 'Jelly 새 세션', exact: true }).click();
-    await dialog.getByLabel('세션 이름').fill('New terminal with a very long session name');
-    await dialog.getByRole('button', { name: '세션 열기', exact: true }).click();
+    await page.getByRole('button', { name: 'New session in Jelly', exact: true }).click();
+    await dialog.getByLabel('Session name').fill('New terminal with a very long session name');
+    await dialog.getByRole('button', { name: 'Open session', exact: true }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     await openTree();
     await expect(jelly.locator('.session-row.selected strong')).toHaveText('New terminal with a very long session name');
     const state = await call('/sessions');
     expect(state.sessions.find((s: { name: string }) => s.name === 'New terminal with a very long session name').projectId).toBe(projects[0]!.id);
-    await jelly.getByRole('button', { name: 'Finished 기록 삭제', exact: true }).click();
+    await jelly.getByRole('button', { name: 'Remove record for Finished', exact: true }).click();
     await expect(jelly.getByRole('button', { name: /Finished/ })).toHaveCount(0);
     await expect(api.getByRole('button', { name: /Server logs/ })).toBeVisible();
     if (mobile) {

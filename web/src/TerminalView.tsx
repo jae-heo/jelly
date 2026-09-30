@@ -51,7 +51,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     term.open(container.current);
     const disposeTouchScroll = attachTouchScroll(term, () => callbacks.current.onTouchInput());
     if (matchMedia('(pointer: coarse)').matches && term.textarea) term.textarea.inputMode = 'none';
-    term.textarea?.setAttribute('aria-label', '터미널 입력');
+    term.textarea?.setAttribute('aria-label', 'Terminal input');
     termRef.current = term;
     let connection: ReturnType<typeof terminalConnection> | undefined;
     const geometry = terminalGeometry(term, fit, container.current, () => callbacks.current.active,

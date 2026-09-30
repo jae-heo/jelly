@@ -60,7 +60,7 @@ the server and reconnect when you open them again.
 On phones, tap the keyboard button beside live input to open terminal keys.
 Select a key and modifiers such as Ctrl or Alt, then tap **Send**. Selecting keys
 doesn't transmit them. You can also add Jelly to your home screen. The app's
-interface is currently in Korean.
+interface is in English. Terminal input supports Unicode, including Korean IME.
 Opening the keyboard keeps the terminal's row count unchanged and brings the
 cursor into view, so apps and scrollback aren't rearranged each time.
 

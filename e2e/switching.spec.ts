@@ -55,13 +55,13 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
       localStorage.setItem('jelly-session', sessionId);
     }, { token, projectId: project.id, sessionId: id });
     await target.reload();
-    await expect(target.locator('.connection-label')).toHaveText('연결됨');
+    await expect(target.locator('.connection-label')).toHaveText('Connected');
   };
   const choose = async (index: number, connected = true) => {
-    await page.getByRole('button', { name: '프로젝트와 세션 열기' }).tap();
+    await page.getByRole('button', { name: 'Open projects and sessions' }).tap();
     await page.getByRole('button', { name: new RegExp(sessions[index]!.name) }).tap();
     if (connected) {
-      await expect(page.locator('.connection-label')).toHaveText('연결됨').catch(error => {
+      await expect(page.locator('.connection-label')).toHaveText('Connected').catch(error => {
         expect(errors, 'Browser errors during session selection').toEqual([]);
         throw error;
       });
@@ -69,11 +69,11 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
   };
   const visibleTerminal = () => page.locator('.terminal-slot:visible .xterm-rows');
   const command = async (value: string) => {
-    await page.getByRole('button', { name: '입력창 표시', exact: true }).tap();
-    await page.getByLabel('명령어 또는 메시지').fill(value);
-    await page.getByRole('button', { name: '입력 보내기' }).tap();
+    await page.getByRole('button', { name: 'Show draft input', exact: true }).tap();
+    await page.getByLabel('Command or message').fill(value);
+    await page.getByRole('button', { name: 'Send input' }).tap();
     await sendVirtualKey(page, 'Enter');
-    await page.getByRole('button', { name: '입력창 숨기기', exact: true }).tap();
+    await page.getByRole('button', { name: 'Hide draft input', exact: true }).tap();
   };
   try {
     for (const name of ['전환 A', '전환 B', '전환 C', '전환 D']) sessions.push(await call(`/projects/${project.id}/sessions`, 'POST', { name }));
@@ -113,18 +113,18 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
     // must not seize it back or enter a reconnect loop; the button is explicit.
     await seed(peer, sessions[1]!.id);
     await choose(1, false);
-    await expect(page.getByRole('heading', { name: '다른 기기에서 접속 중', exact: true })).toBeVisible();
-    await expect(peer.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.getByRole('heading', { name: 'In use on another device', exact: true })).toBeVisible();
+    await expect(peer.locator('.connection-label')).toHaveText('Connected');
     await page.evaluate(() => {
       window.dispatchEvent(new Event('online'));
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
     });
-    await expect(page.getByRole('heading', { name: '다른 기기에서 접속 중', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'In use on another device', exact: true })).toBeVisible();
     expect(tickets).toBe(requested);
     blockTickets = false;
-    await page.locator('.connection-overlay').getByRole('button', { name: '다시 연결' }).tap();
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
-    await expect(peer.getByRole('heading', { name: '다른 기기에서 접속 중', exact: true })).toBeVisible();
+    await page.locator('.connection-overlay').getByRole('button', { name: 'Reconnect' }).tap();
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
+    await expect(peer.getByRole('heading', { name: 'In use on another device', exact: true })).toBeVisible();
     await other.close();
 
     // A hidden dropped socket waits until selected before reconnecting.
@@ -156,13 +156,13 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
     }
 
     // Disconnect affects the selected client, and logout closes every cached one.
-    await page.getByRole('button', { name: '더 보기', exact: true }).tap();
-    await page.getByRole('button', { name: '연결 끊기', exact: true }).tap();
-    await expect(page.getByRole('heading', { name: '연결 끊김', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'More', exact: true }).tap();
+    await page.getByRole('button', { name: 'Disconnect', exact: true }).tap();
+    await expect(page.getByRole('heading', { name: 'Disconnected', exact: true })).toBeVisible();
     await expect.poll(async () => (await call(`/sessions/${sessions[0]!.id}`)).connected).toBe(false);
     expect((await call(`/sessions/${sessions[3]!.id}`)).connected).toBe(true);
-    await page.locator('.connection-overlay').getByRole('button', { name: '다시 연결' }).tap();
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await page.locator('.connection-overlay').getByRole('button', { name: 'Reconnect' }).tap();
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     if (!remote) {
       // A desktop pointer restores direct typing when revealing a cached terminal.
       await page.evaluate(() => {
@@ -175,15 +175,15 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: recent se
       await expect(page.locator('.terminal-slot:visible .xterm-helper-textarea')).toBeFocused();
     }
     const beforeStop = sockets;
-    await page.getByRole('button', { name: '더 보기', exact: true }).tap();
-    await page.getByRole('button', { name: '세션 종료', exact: true }).tap();
-    await page.getByRole('dialog').getByRole('button', { name: '세션 종료', exact: true }).tap();
-    await expect(page.getByRole('heading', { name: '세션 종료됨' })).toBeVisible();
+    await page.getByRole('button', { name: 'More', exact: true }).tap();
+    await page.getByRole('button', { name: 'Stop session', exact: true }).tap();
+    await page.getByRole('dialog').getByRole('button', { name: 'Stop session', exact: true }).tap();
+    await expect(page.getByRole('heading', { name: 'Session ended' })).toBeVisible();
     await choose(3);
     expect(sockets).toBe(beforeStop);
-    await page.getByRole('button', { name: '더 보기', exact: true }).tap();
-    await page.getByRole('button', { name: '로그아웃', exact: true }).tap();
-    await expect(page.getByRole('heading', { name: '서버 연결', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'More', exact: true }).tap();
+    await page.getByRole('button', { name: 'Log out', exact: true }).tap();
+    await expect(page.getByRole('heading', { name: 'Connect to server', exact: true })).toBeVisible();
     await expect.poll(async () => (await call('/sessions')).sessions.filter((row: { projectId: string; connected: boolean }) => row.projectId === project.id && row.connected).length).toBe(0);
     expect(errors).toEqual([]);
   } finally {

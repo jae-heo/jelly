@@ -51,7 +51,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: rendering
       localStorage.setItem('jelly-project', project); localStorage.setItem('jelly-session', session);
     }, { token, project: project.id, session: session.id });
     await page.goto('/');
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     await page.evaluate(() => (window as any).flowCommand("head -c 2097152 /dev/zero | tr '\\000' x; printf '\\nBROWSER_FLOW_%s_한글😀\\n' DONE\r"));
     await expect.poll(() => page.evaluate(() => (window as any).flowOffset())).toBeGreaterThanOrEqual(128 * 1024);
     await page.waitForTimeout(200);

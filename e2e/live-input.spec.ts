@@ -11,7 +11,7 @@ test('live input: native composition, Korean fallback, ordered controls, edits a
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  const project = await call('/projects', 'POST', { name: '라이브 입력', path: info.projectPath });
+  const project = await call('/projects', 'POST', { name: 'Live input', path: info.projectPath });
   const session = await call(`/projects/${project.id}/sessions`, 'POST', { name: '입력 A' });
   const second = await call(`/projects/${project.id}/sessions`, 'POST', { name: '입력 B' });
   const log = join(info.projectPath, 'live-input.bin');
@@ -31,7 +31,7 @@ test('live input: native composition, Korean fallback, ordered controls, edits a
       if (event.type === 'input') inputFrames.push({ id, data: event.data });
     });
   });
-  const live = page.getByRole('textbox', { name: '라이브 입력', exact: true });
+  const live = page.getByRole('textbox', { name: 'Live input', exact: true });
   const compose = (text: string) => cdp.send('Input.imeSetComposition', { text, selectionStart: text.length, selectionEnd: text.length });
   const shellQuote = (value: string) => "'" + value.replaceAll("'", "'\\''") + "'";
   const expected = async (start: number, value: string) => {
@@ -47,7 +47,7 @@ test('live input: native composition, Korean fallback, ordered controls, edits a
       sessionStorage.setItem('jelly-token', token); localStorage.setItem('jelly-project', projectId); localStorage.setItem('jelly-session', sessionId);
     }, { token, projectId: project.id, sessionId: session.id });
     await page.reload();
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     await expect(live).toBeVisible();
     await expect(live).not.toBeFocused();
     await page.locator('.xterm-screen').tap();
@@ -122,23 +122,23 @@ test('live input: native composition, Korean fallback, ordered controls, edits a
     await live.fill('mobile');
     await live.evaluate(field => field.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertLineBreak' })));
     await expected(start, 'mobile\r');
-    await page.getByRole('button', { name: '키보드 닫기', exact: true }).tap();
+    await page.getByRole('button', { name: 'Dismiss keyboard', exact: true }).tap();
     await expect(live).not.toBeFocused();
     await expect(live).toBeVisible();
     await live.tap();
     await expect(live).toBeFocused();
     await page.setViewportSize({ width: 320, height: 520 });
     await expect(live).toBeInViewport();
-    await expect(page.getByRole('button', { name: '키보드 닫기', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Dismiss keyboard', exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     mkdirSync('.data/screenshots', { recursive: true });
     await page.screenshot({ path: '.data/screenshots/live-input-mobile.png', fullPage: true });
 
     // A settling syllable can never be sent to the next session by its timer.
     await fieldValue('미');
-    await page.getByRole('button', { name: '프로젝트와 세션 열기' }).tap();
+    await page.getByRole('button', { name: 'Open projects and sessions' }).tap();
     await page.getByRole('button', { name: /입력 B/ }).tap();
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     await page.waitForTimeout(360);
     // xterm can send terminal capability replies during attachment; none may
     // contain the pending text owned by the previous session.

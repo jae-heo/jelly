@@ -33,11 +33,11 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
       localStorage.setItem('jelly-session', sessionId);
     }, { token, projectId: project.id, sessionId: session.id });
     await page.goto('/');
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
-    await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
-    const input = page.getByLabel('명령어 또는 메시지');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
+    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
+    const input = page.getByLabel('Command or message');
     await input.fill('i=1; while [ "$i" -le 160 ]; do printf "KEYBOARD_%03d\\n" "$i"; i=$((i+1)); done');
-    await page.getByRole('button', { name: '입력 보내기' }).click();
+    await page.getByRole('button', { name: 'Send input' }).click();
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     // Let startup sizing finish before measuring a keyboard animation.
@@ -48,8 +48,8 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     const panelCycle = async () => {
       const screen = await page.locator('.xterm-rows').innerText();
       const bounds = await page.locator('.terminal-viewport').boundingBox();
-      await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
-      for (const group of ['문자', '이동', 'F1–F12']) {
+      await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
+      for (const group of ['Letters', 'Navigate', 'F1–F12']) {
         await page.getByRole('button', { name: group, exact: true }).tap();
         // Leave each panel open beyond the fit debounce: a quick send/close
         // would hide the unwanted terminal resize that users see when composing.
@@ -59,7 +59,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
         expect(await page.locator('.terminal-viewport').boundingBox(), 'The floating panel must leave terminal layout untouched').toEqual(bounds);
         expect(await page.locator('.xterm-rows').innerText()).toBe(screen);
       }
-      await page.getByRole('button', { name: '가상 키보드 닫기', exact: true }).tap();
+      await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
       await page.waitForTimeout(350);
       expect(sizes).toEqual([]);
       expect(await page.locator('.terminal-viewport').boundingBox()).toEqual(bounds);
@@ -67,7 +67,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
       await expect(input).toBeFocused();
     };
     await panelCycle();
-    await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
+    await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
     // Chromium cannot open an OS keyboard headlessly. Model visualViewport
     // events, including animation pauses longer than the old 120 ms fit timer.
     const clippedFrames = await page.evaluate(async () => {
@@ -96,7 +96,7 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     await expect(input).toBeFocused();
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_160');
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
-    await page.getByRole('button', { name: '가상 키보드 닫기', exact: true }).tap();
+    await page.getByRole('button', { name: 'Close virtual keyboard', exact: true }).tap();
     // The virtual panel and native keyboard can be open together.
     await panelCycle();
 
@@ -167,10 +167,10 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
     // A cleared shell has its cursor at the top of the unchanged grid. Keep
     // that prompt visible too, rather than always clipping to its bottom rows.
     await input.fill("printf '\\033[2J\\033[HKEYBOARD_TOP\\n'");
-    await page.getByRole('button', { name: '입력 보내기' }).click();
+    await page.getByRole('button', { name: 'Send input' }).click();
     await sendVirtualKey(page, 'Enter');
     await expect(page.locator('.xterm-rows')).toContainText('KEYBOARD_TOP');
-    await page.getByRole('button', { name: '가상 키보드 열기', exact: true }).tap();
+    await page.getByRole('button', { name: 'Open virtual keyboard', exact: true }).tap();
     await page.waitForTimeout(350);
     await expect.poll(() => page.locator('.terminal-viewport').evaluate(element => {
       const clip = element.getBoundingClientRect();

@@ -146,7 +146,8 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     assert.match(response.headers.get('content-type')!, /text\/html/);
     assert.ok(response.headers.get('content-security-policy')?.includes("frame-ancestors 'none'"));
     const html = await response.text();
-    assert.match(html, /줼리/);
+    assert.match(html, /<title>Jelly<\/title>/);
+    assert.match(html, /<html lang="en">/);
     const asset = /src="(\/assets\/[^"]+\.js)"/.exec(html)?.[1];
     assert.ok(asset);
     const script = await fetch(`http://127.0.0.1:${port}${asset}`);
@@ -158,8 +159,9 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     const manifestResponse = await fetch(`http://127.0.0.1:${port}${manifestPath}`);
     assert.equal(manifestResponse.status, 200);
     assert.match(manifestResponse.headers.get('content-type')!, /application\/manifest\+json/);
-    const manifest = await manifestResponse.json() as { name: string; icons: { src: string; sizes: string }[] };
-    assert.equal(manifest.name, '줼리');
+    const manifest = await manifestResponse.json() as { name: string; lang: string; icons: { src: string; sizes: string }[] };
+    assert.equal(manifest.name, 'Jelly');
+    assert.equal(manifest.lang, 'en');
     assert.ok(manifest.icons.length);
     // Home-screen installation fetches these files before login. Verify actual
     // PNG dimensions, content type, HEAD support and refreshable named assets.

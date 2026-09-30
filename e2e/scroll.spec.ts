@@ -32,9 +32,9 @@ for (const remote of [false, true]) {
     };
     const host = remote ? await call('/hosts', 'POST', { name: 'Scroll SSH', target: 'jelly-remote' }) : null;
     const project = await call('/projects', 'POST', {
-      name: '프로젝트 이름이 길어도 한 줄 헤더에서 터미널을 넓게 쓰는 작업 공간', path: remote ? info.remoteRoot + '/remote-project' : info.projectPath, hostId: host?.id,
+      name: 'A project with a long name that should fit the compact workspace header', path: remote ? info.remoteRoot + '/remote-project' : info.projectPath, hostId: host?.id,
     });
-    const session = await call(`/projects/${project.id}/sessions`, 'POST', { name: '길게 실행 중인 세션 이름도 메뉴를 밀어내지 않는 터미널 작업' });
+    const session = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'A running terminal with a long session name that must not push the menu offscreen' });
     // EDITOR can select vi bindings, where Esc normally only clears a selection.
     if (!remote) execFileSync('tmux', ['-S', join(dirname(info.tokenFile), 'tmux.sock'),
       'set-window-option', '-t', `jelly-${session.id}`, 'mode-keys', 'vi']);
@@ -49,22 +49,22 @@ for (const remote of [false, true]) {
         localStorage.setItem('jelly-session', sessionId);
       }, { projectId: project.id, sessionId: session.id });
       await page.reload();
-      await page.getByLabel('연결 키', { exact: true }).fill(token);
-      await page.getByRole('button', { name: '연결', exact: true }).click();
-      await expect(page.locator('.connection-label')).toHaveText('연결됨');
+      await page.getByLabel('Connection key', { exact: true }).fill(token);
+      await page.getByRole('button', { name: 'Connect', exact: true }).click();
+      await expect(page.locator('.connection-label')).toHaveText('Connected');
       await page.setViewportSize({ width: 320, height: 568 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await expect(page.getByRole('button', { name: '기록', exact: true })).toBeInViewport();
-      await expect(page.getByRole('button', { name: '더 보기', exact: true })).toBeInViewport();
+      await expect(page.getByRole('button', { name: 'History', exact: true })).toBeInViewport();
+      await expect(page.getByRole('button', { name: 'More', exact: true })).toBeInViewport();
       await page.setViewportSize({ width: 390, height: 844 });
       const rows = page.locator('.xterm-rows');
       const firstLine = async () => {
         const values = (await rows.innerText()).match(/SCROLL_\d{3}/g) ?? [];
         return Math.min(...values.map(value => Number(value.slice(7))));
       };
-      await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
-      await page.getByLabel('명령어 또는 메시지').fill('i=1; while [ "$i" -le 120 ]; do printf "SCROLL_%03d\\n" "$i"; i=$((i+1)); done');
-      await page.getByRole('button', { name: '입력 보내기' }).click();
+      await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
+      await page.getByLabel('Command or message').fill('i=1; while [ "$i" -le 120 ]; do printf "SCROLL_%03d\\n" "$i"; i=$((i+1)); done');
+      await page.getByRole('button', { name: 'Send input' }).click();
       await sendVirtualKey(page, 'Enter');
       await expect(rows).toContainText('SCROLL_120');
       const latest = await firstLine();
@@ -78,12 +78,12 @@ for (const remote of [false, true]) {
       await expect.poll(firstLine).toBeGreaterThan(older);
       // Scrolling down to the live screen leaves copy mode; ordinary input works again.
       await swipe(page, 'newer');
-      await page.getByLabel('명령어 또는 메시지').fill("printf 'AFTER_SCROLL_%s\\n' OK");
-      await page.getByRole('button', { name: '입력 보내기' }).click();
+      await page.getByLabel('Command or message').fill("printf 'AFTER_SCROLL_%s\\n' OK");
+      await page.getByRole('button', { name: 'Send input' }).click();
       await sendVirtualKey(page, 'Enter');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.reload();
-      await expect(page.locator('.connection-label')).toHaveText('연결됨');
+      await expect(page.locator('.connection-label')).toHaveText('Connected');
       const reconnected = await firstLine();
       await swipe(page, 'older');
       await expect.poll(firstLine).toBeLessThan(reconnected - 3);
@@ -97,7 +97,7 @@ for (const remote of [false, true]) {
       await sendVirtualKey(page, 'Esc');
       await expect(rows).toContainText('AFTER_SCROLL_OK');
       await page.locator('.xterm-screen').tap();
-      await expect(page.getByRole('textbox', { name: '라이브 입력', exact: true })).toBeFocused();
+      await expect(page.getByRole('textbox', { name: 'Live input', exact: true })).toBeFocused();
       expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
       expect(errors).toEqual([]);
     } finally {

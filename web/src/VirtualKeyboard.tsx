@@ -6,7 +6,7 @@ interface Props { enabled: boolean; onSend: (key: string, modifiers: KeyModifier
 const letterRows = ['1234567890', 'qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 const navigation = ['ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete'];
 const labels: Record<string, string> = { Escape: 'Esc', Backspace: '⌫', ArrowLeft: '←', ArrowUp: '↑', ArrowDown: '↓', ArrowRight: '→', PageUp: 'PgUp', PageDown: 'PgDn', Space: 'Space' };
-const names: Record<string, string> = { ArrowLeft: '왼쪽 화살표', ArrowUp: '위 화살표', ArrowDown: '아래 화살표', ArrowRight: '오른쪽 화살표', PageUp: 'Page Up', PageDown: 'Page Down', Escape: 'Esc' };
+const names: Record<string, string> = { ArrowLeft: 'Left arrow', ArrowUp: 'Up arrow', ArrowDown: 'Down arrow', ArrowRight: 'Right arrow', PageUp: 'Page Up', PageDown: 'Page Down', Escape: 'Esc' };
 
 export function VirtualKeyboard({ enabled, onSend, onPaste }: Props) {
   const [group, setGroup] = useState('letters');
@@ -18,12 +18,12 @@ export function VirtualKeyboard({ enabled, onSend, onPaste }: Props) {
   const preview = [...(modifiers.ctrl ? ['Ctrl'] : []), ...(modifiers.alt ? ['Alt'] : []), ...(modifiers.shift ? ['Shift'] : []), ...(key ? [key.length === 1 ? key.toUpperCase() : labels[key] ?? key] : [])].join(' + ');
   const button = (value: string) => <button key={value} type="button" className="virtual-key" disabled={!enabled} aria-label={names[value] ?? (value.length === 1 ? value.toUpperCase() : value)}
     aria-pressed={key === value} onClick={() => setKey(value)}>{value.length === 1 ? value.toUpperCase() : labels[value] ?? value}</button>;
-  return <section id="terminal-virtual-keyboard" className="virtual-keyboard" aria-label="가상 키보드">
+  return <section id="terminal-virtual-keyboard" className="virtual-keyboard" aria-label="Virtual keyboard">
     <div className="virtual-heading">
-      <div className="dock-key-groups" role="group" aria-label="키 종류">
-        {[['letters', '문자'], ['navigation', '이동'], ['function', 'F1–F12']].map(([value, label]) => <button key={value} type="button" aria-pressed={group === value} onClick={() => setGroup(value!)}>{label}</button>)}
+      <div className="dock-key-groups" role="group" aria-label="Key groups">
+        {[['letters', 'Letters'], ['navigation', 'Navigate'], ['function', 'F1–F12']].map(([value, label]) => <button key={value} type="button" aria-pressed={group === value} onClick={() => setGroup(value!)}>{label}</button>)}
       </div>
-      <button type="button" className="dock-toggle" aria-label="텍스트 붙여넣기" disabled={!enabled} onClick={onPaste}><ClipboardPaste size={17} /></button>
+      <button type="button" className="dock-toggle" aria-label="Paste text" disabled={!enabled} onClick={onPaste}><ClipboardPaste size={17} /></button>
     </div>
     <div className="virtual-keys">
       <div className="virtual-row">{['Escape', 'Tab', 'Enter', 'Backspace', 'Space'].map(button)}</div>
@@ -31,14 +31,14 @@ export function VirtualKeyboard({ enabled, onSend, onPaste }: Props) {
       {group === 'navigation' && <div className="virtual-grid">{navigation.map(button)}</div>}
       {group === 'function' && <div className="virtual-grid">{Array.from({ length: 12 }, (_, i) => `F${i + 1}`).map(button)}</div>}
     </div>
-    <div className="virtual-modifiers" role="group" aria-label="조합 키">
+    <div className="virtual-modifiers" role="group" aria-label="Modifiers">
       {(['ctrl', 'alt', 'shift'] as const).map(value => <button key={value} type="button" className="virtual-key" disabled={!enabled} aria-pressed={modifiers[value]}
         onClick={() => setModifiers(previous => ({ ...previous, [value]: !previous[value] }))}>{value[0]!.toUpperCase() + value.slice(1)}</button>)}
-      <button type="button" className="text-button" onClick={clear} disabled={!key && !Object.values(modifiers).some(Boolean)}>초기화</button>
+      <button type="button" className="text-button" onClick={clear} disabled={!key && !Object.values(modifiers).some(Boolean)}>Clear</button>
     </div>
     <div className="virtual-send-row">
-      <output aria-label="선택한 키 조합">{key && !valid ? '지원하지 않는 키 조합' : preview || '키 선택'}</output>
-      <button type="button" className="button primary" aria-label="키 조합 보내기" disabled={!enabled || !valid} onClick={() => { if (key && valid) { onSend(key, modifiers); clear(); } }}><Send size={14} />보내기</button>
+      <output aria-label="Selected key combination">{key && !valid ? 'Unsupported key combination' : preview || 'Select a key'}</output>
+      <button type="button" className="button primary" aria-label="Send key combination" disabled={!enabled || !valid} onClick={() => { if (key && valid) { onSend(key, modifiers); clear(); } }}><Send size={14} />Send</button>
     </div>
   </section>;
 }

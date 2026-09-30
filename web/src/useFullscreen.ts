@@ -24,7 +24,7 @@ export function useFullscreen(active: boolean, onError: (message: string) => voi
       if (document.fullscreenElement) await document.exitFullscreen();
       else await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
     } catch {
-      onError('전체 화면 전환 실패. 다시 시도하세요.');
+      onError('Could not switch fullscreen. Try again.');
     } finally { pending.current = false; }
   }
   return { available, fullscreen, toggle };

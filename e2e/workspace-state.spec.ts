@@ -45,16 +45,16 @@ const refresh = (page: Page) => page.evaluate(() => document.dispatchEvent(new E
 
 test('a late list response cannot remove a newly created and selected terminal', async ({ page }) => {
   const state = await fixture(page);
-  await expect(page.locator('.connection-label')).toHaveText('연결됨');
+  await expect(page.locator('.connection-label')).toHaveText('Connected');
   state.hold = true;
   await refresh(page);
   await expect.poll(() => !!state.held).toBe(true);
-  await page.getByRole('button', { name: '더 보기', exact: true }).click();
-  await page.getByRole('button', { name: '새 세션', exact: true }).click();
-  await page.getByLabel('세션 이름', { exact: true }).fill(latest.name);
-  await page.getByRole('button', { name: '세션 열기', exact: true }).click();
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'New session', exact: true }).click();
+  await page.getByLabel('Session name', { exact: true }).fill(latest.name);
+  await page.getByRole('button', { name: 'Open session', exact: true }).click();
   await expect(page.locator('.workspace-current strong')).toHaveText(latest.name);
-  await expect(page.locator('.connection-label')).toHaveText('연결됨');
+  await expect(page.locator('.connection-label')).toHaveText('Connected');
   await state.held!.fulfill({ json: { sessions: [first] } }).catch(() => {});
   await page.waitForTimeout(200);
   await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', latest.id);
@@ -64,12 +64,12 @@ test('a late list response cannot remove a newly created and selected terminal',
 
 test('failed SSH status polling preserves live terminal input; explicit stop removes it', async ({ page }) => {
   const state = await fixture(page);
-  await expect(page.locator('.connection-label')).toHaveText('연결됨');
+  await expect(page.locator('.connection-label')).toHaveText('Connected');
   state.sessions[0]!.status = 'unreachable';
   await refresh(page);
-  await expect(page.getByRole('button', { name: 'First session · 서버 연결 안 됨', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'First session · Server unreachable', exact: true })).toBeVisible();
   await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', first.id);
-  await expect(page.locator('.connection-label')).toHaveText('연결됨');
+  await expect(page.locator('.connection-label')).toHaveText('Connected');
   await sendVirtualKey(page, 'Enter');
   await expect.poll(() => state.input).toContain('\r');
   expect(state.opened).toBe(1);
@@ -82,11 +82,11 @@ test('failed SSH status polling preserves live terminal input; explicit stop rem
 
 test('an unreachable session without a cached terminal does not attempt attachment', async ({ page }) => {
   const state = await fixture(page, 'unreachable');
-  await expect(page.getByRole('heading', { name: 'SSH 서버 연결 실패' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'SSH host unreachable' })).toBeVisible();
   await expect(page.locator('.terminal-slot')).toHaveCount(0);
   expect(state.opened).toBe(0);
   state.sessions[0]!.status = 'running';
-  await page.getByRole('button', { name: '다시 확인' }).click();
-  await expect(page.locator('.connection-label')).toHaveText('연결됨');
+  await page.getByRole('button', { name: 'Check again' }).click();
+  await expect(page.locator('.connection-label')).toHaveText('Connected');
   expect(state.opened).toBe(1);
 });

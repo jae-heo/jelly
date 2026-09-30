@@ -17,8 +17,8 @@ import type { Connection, TerminalHandle } from './TerminalView';
 const TerminalCache = lazy(() => import('./TerminalCache').then(module => ({ default: module.TerminalCache })));
 
 type Dialog = 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | null;
-const stateLabels = { running: '실행 중', exited: '종료됨', stopped: '종료됨', lost: '세션 없음', unreachable: '서버 연결 안 됨' };
-const connectionLabels: Record<Connection, string> = { connecting: '연결 중', connected: '연결됨', retrying: '다시 연결 중', disconnected: '연결 해제', taken: '다른 기기에서 접속 중', ended: '세션 연결 종료' };
+const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
+const connectionLabels: Record<Connection, string> = { connecting: 'Connecting', connected: 'Connected', retrying: 'Reconnecting', disconnected: 'Disconnected', taken: 'In use on another device', ended: 'Connection ended' };
 
 export function App() {
   const [token, setToken] = useState(storedToken);
@@ -93,8 +93,8 @@ export function App() {
   function nextSessionName(id: string) {
     const names = new Set(sessions.filter(s => s.projectId === id).map(s => s.name));
     let number = 1;
-    while (names.has(`작업 ${number}`)) number++;
-    return `작업 ${number}`;
+    while (names.has(`Session ${number}`)) number++;
+    return `Session ${number}`;
   }
   async function quickCreateSession(p: Project) {
     if (creatingSession.current) return;
@@ -157,8 +157,8 @@ export function App() {
 
   if (!token) return <Login onLogin={setToken} />;
   return <div className="workspace">
-    <WorkspaceHeader project={project} session={session} hostName={hosts.find(host => host.id === project?.hostId)?.target ?? '이 서버'}
-      status={session ? (hasTerminal && (session.status === 'running' || connection === 'connected') ? connectionLabels[connection] : stateLabels[session.status]) : online ? '서버 연결됨' : '서버 연결 확인 중'}
+    <WorkspaceHeader project={project} session={session} hostName={hosts.find(host => host.id === project?.hostId)?.target ?? 'This server'}
+      status={session ? (hasTerminal && (session.status === 'running' || connection === 'connected') ? connectionLabels[connection] : stateLabels[session.status]) : online ? 'Server connected' : 'Checking connection'}
       live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} historyOpen={historyOpen}
       fullscreenAvailable={screen.available} fullscreen={screen.fullscreen} onFullscreen={() => void screen.toggle()}
       canDeleteProject={!!project && projectSessions.length === 0} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
@@ -167,47 +167,47 @@ export function App() {
       onNewSession={() => openSession()} onStop={() => openDialog('stop')} onDeleteProject={() => openDialog('delete-project')}
       onHosts={() => openDialog('hosts')} onHelp={() => openDialog('help')} onLogout={logout} />
     <div className="workspace-body">
-      {sidebar && <button className="sidebar-backdrop" aria-label="목록 닫기" onClick={() => setSidebar(false)} />}
+      {sidebar && <button className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebar(false)} />}
       <aside id="workspace-sidebar" className={`sidebar ${sidebar ? 'open' : ''}`}>
-        <div className="section-title"><span>프로젝트 <small>{projects.length}</small></span><button className="icon-button" aria-label="프로젝트 추가" onClick={() => openDialog('project')}><Plus size={18} /></button></div>
+        <div className="section-title"><span>Projects <small>{projects.length}</small></span><button className="icon-button" aria-label="Add project" onClick={() => openDialog('project')}><Plus size={18} /></button></div>
         <ProjectTree projects={projects} sessions={sessions} projectId={projectId} sessionId={session?.id ?? null}
           loading={loading} open={sidebar} onProject={chooseProject} onSession={chooseSession}
           onNewSession={openSession} onRemoveSession={s => void removeSession(s)} />
       </aside>
       <main className="main-panel">
-        {!online && <div className="network-banner" role="alert">서버 연결 실패. Tailscale 연결을 확인하세요.<button className="text-button" onClick={() => void refresh()}>다시 시도</button></div>}
-        {loading && !projects.length ? <div className="empty-state"><div className="spinner" /><p>불러오는 중…</p></div> : !session ? <div className="empty-state">
-          <h1>{project ? '세션 선택' : '프로젝트 없음'}</h1>
-          <button className="button primary" onClick={() => project ? openSession(project) : openDialog('project')}><Plus size={17} />{project ? '새 세션 열기' : '프로젝트 추가'}</button>
+        {!online && <div className="network-banner" role="alert">Cannot reach the server. Check your Tailscale connection.<button className="text-button" onClick={() => void refresh()}>Retry</button></div>}
+        {loading && !projects.length ? <div className="empty-state"><div className="spinner" /><p>Loading…</p></div> : !session ? <div className="empty-state">
+          <h1>{project ? 'Select a session' : 'No projects'}</h1>
+          <button className="button primary" onClick={() => project ? openSession(project) : openDialog('project')}><Plus size={17} />{project ? 'New session' : 'Add project'}</button>
         </div> : null}
           <div className="terminal-stage" hidden={!session}>
-            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>터미널 연결 중…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} /></Suspense>
-            {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH 서버 연결 실패</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />다시 확인</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>세션 종료됨</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />새 세션</button></div>}
-            {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? '다른 기기에서 접속 중' : '연결 끊김'}</h2><p>세션 실행 중</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />다시 연결</button></div></div>}
+            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} /></Suspense>
+            {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH host unreachable</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />Check again</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>Session ended</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />New session</button></div>}
+            {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? 'In use on another device' : 'Disconnected'}</h2><p>Session running</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />Reconnect</button></div></div>}
           </div>
           {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput} terminal={terminal} onPaste={() => openDialog('paste')} />}
       </main>
     </div>
-    {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="알림 닫기" onClick={() => setNotice('')}><X size={14} /></button></div>}
+    {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}
     {dialog === 'hosts' && <HostManager token={token} hosts={hosts} projects={projects} onChanged={() => void refresh()} onClose={() => setDialog(null)} />}
     {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={addHost} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
-    {dialog === 'session' && <Modal title="새 세션" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">세션 이름</label><input id="session-name" name="name" defaultValue={newSessionProjectId ? nextSessionName(newSessionProjectId) : '작업 1'} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? '여는 중…' : '세션 열기'}</button></div></form></Modal>}
-    {dialog === 'stop' && <Modal title="세션 종료" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{session?.name}’에서 실행 중인 프로그램도 종료됩니다.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>취소</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />세션 종료</button></div></Modal>}
-    {dialog === 'delete-project' && <Modal title="프로젝트 삭제" onClose={() => !busy && setDialog(null)}><p className="dialog-description">서버의 폴더와 파일은 삭제하지 않습니다.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)}>취소</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>목록에서 삭제</button></div></Modal>}
-    {dialog === 'paste' && <Modal title="터미널에 붙여넣기" onClose={() => setDialog(null)}><form onSubmit={e => { e.preventDefault(); terminal.current?.paste(String(new FormData(e.currentTarget).get('text') ?? '')); setDialog(null); }}><textarea aria-label="붙여넣을 텍스트" name="text" className="paste-area" rows={7} required autoFocus /><div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)}>취소</button><button className="button primary">터미널로 보내기</button></div></form></Modal>}
-    {dialog === 'help' && <Modal title="사용 안내" onClose={() => setDialog(null)}><dl className="help-items">
-      <div><dt>연결 끊기</dt><dd>접속만 해제. 세션은 서버에서 계속 실행.</dd></div>
-      <div><dt>세션 종료</dt><dd>실행 중인 프로그램까지 종료.</dd></div>
-      <div><dt>기기 전환</dt><dd>같은 세션을 열면 이전 기기의 접속 해제.</dd></div>
-      <div><dt>세션 전환</dt><dd>⌘⇧, 이전 세션 · ⌘⇧. 다음 세션. 프로젝트·세션 목록 순서로 순환.</dd></div>
-      <div><dt>새 세션</dt><dd>⌘⇧Enter. 현재 프로젝트에 바로 생성.</dd></div>
-      <div><dt>키 조합</dt><dd>입력줄의 키보드 버튼 → 키 선택 → 보내기.</dd></div>
-      <div><dt>라이브 입력</dt><dd>타이핑 즉시 전달. 한글은 조합 후 전달. Enter로 실행. Shift+Enter는 줄바꿈 키.</dd></div>
-      <div><dt>문장 입력</dt><dd>연필 버튼으로 열기. 보내기는 내용만 전송. 실행은 Enter 키. Shift+Enter로 줄바꿈.</dd></div>
-      <div><dt>스크롤</dt><dd>터미널 스와이프. Esc로 입력 복귀. ‘기록’에서 출력 복사.</dd></div>
-      <div><dt>글씨 크기</dt><dd>상단 더 보기 메뉴에서 조절.</dd></div>
-      <div><dt>주소창 숨기기</dt><dd>{screen.available ? '상단 더 보기 → 전체 화면.' : 'iPhone: 브라우저 공유 → 홈 화면에 추가. 추가한 아이콘으로 실행.'}</dd></div>
+    {dialog === 'session' && <Modal title="New session" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">Session name</label><input id="session-name" name="name" defaultValue={newSessionProjectId ? nextSessionName(newSessionProjectId) : 'Session 1'} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? 'Opening…' : 'Open session'}</button></div></form></Modal>}
+    {dialog === 'stop' && <Modal title="Stop session" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{session?.name}’ and its running programs will stop.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />Stop session</button></div></Modal>}
+    {dialog === 'delete-project' && <Modal title="Remove project" onClose={() => !busy && setDialog(null)}><p className="dialog-description">Files and folders on the server will be kept.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>Remove from list</button></div></Modal>}
+    {dialog === 'paste' && <Modal title="Paste into terminal" onClose={() => setDialog(null)}><form onSubmit={e => { e.preventDefault(); terminal.current?.paste(String(new FormData(e.currentTarget).get('text') ?? '')); setDialog(null); }}><textarea aria-label="Text to paste" name="text" className="paste-area" rows={7} required autoFocus /><div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="button primary">Send to terminal</button></div></form></Modal>}
+    {dialog === 'help' && <Modal title="Help" onClose={() => setDialog(null)}><dl className="help-items">
+      <div><dt>Disconnect</dt><dd>Disconnects this browser. The session keeps running.</dd></div>
+      <div><dt>Stop session</dt><dd>Stops the shell and its running programs.</dd></div>
+      <div><dt>Switch devices</dt><dd>Opening a session disconnects the previous device.</dd></div>
+      <div><dt>Switch sessions</dt><dd>⌘⇧, previous · ⌘⇧. next. Cycles through sessions in project order.</dd></div>
+      <div><dt>New session</dt><dd>⌘⇧Enter creates a session in the current project.</dd></div>
+      <div><dt>Key combination</dt><dd>Keyboard button → select a key and modifiers → Send.</dd></div>
+      <div><dt>Live input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
+      <div><dt>Draft input</dt><dd>Open with the pencil button. Send pastes the draft. Shift+Enter adds a newline. Use the terminal Enter key to submit.</dd></div>
+      <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns to input. Copy output from History.</dd></div>
+      <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>
+      <div><dt>Hide browser chrome</dt><dd>{screen.available ? 'More → Fullscreen.' : 'iPhone: Share → Add to Home Screen. Open Jelly from that icon.'}</dd></div>
     </dl></Modal>}
-    {historyOpen && <Modal title="출력 기록" className="history-dialog" onClose={() => { setHistoryOpen(false); historyGeneration.current++; }}><div className="history-caption"><span>최근 출력 · 읽기 전용</span><button className="text-button" disabled={historyBusy} onClick={() => void showHistory()}><RefreshCw size={14} />새로고침</button></div>{historyError ? <p className="form-error" role="alert">{historyError}</p> : <pre ref={historyContent} className="history-content" tabIndex={0}>{historyBusy ? '기록을 불러오는 중…' : history || '출력 기록 없음'}</pre>}</Modal>}
+    {historyOpen && <Modal title="Output history" className="history-dialog" onClose={() => { setHistoryOpen(false); historyGeneration.current++; }}><div className="history-caption"><span>Recent output · Read-only</span><button className="text-button" disabled={historyBusy} onClick={() => void showHistory()}><RefreshCw size={14} />Refresh</button></div>{historyError ? <p className="form-error" role="alert">{historyError}</p> : <pre ref={historyContent} className="history-content" tabIndex={0}>{historyBusy ? 'Loading history…' : history || 'No output yet'}</pre>}</Modal>}
   </div>;
 }

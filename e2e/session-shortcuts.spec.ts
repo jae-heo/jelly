@@ -32,7 +32,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH to local' : 'local to 
     await expect(page.locator('.workspace-location > span').first()).toHaveText(project.name);
     await expect(page.locator('.workspace-current > strong')).toHaveText(sessions[index]!.name);
     await expect(page.locator('.terminal-slot:visible')).toHaveAttribute('data-session-id', sessions[index]!.id);
-    await expect(page.locator('.connection-label')).toHaveText('연결됨');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
     await expect(page.locator('.terminal-slot:visible .xterm-helper-textarea')).toBeFocused();
   };
   const readyForInput = async () => {
@@ -86,8 +86,8 @@ for (const remote of [false, true]) test(`${remote ? 'SSH to local' : 'local to 
     expect(input).toEqual([]);
 
     // A focused text composer must not receive punctuation or block switching.
-    await page.getByRole('button', { name: '입력창 표시', exact: true }).click();
-    const composer = page.getByLabel('명령어 또는 메시지');
+    await page.getByRole('button', { name: 'Show draft input', exact: true }).click();
+    const composer = page.getByLabel('Command or message');
     await composer.fill('draft stays out of the terminal');
     // The old bracket shortcuts are no longer claimed by Jelly.
     for (const code of ['BracketLeft', 'BracketRight']) {
@@ -108,14 +108,14 @@ for (const remote of [false, true]) test(`${remote ? 'SSH to local' : 'local to 
     expect(input).toEqual([]);
 
     // Modal editing must keep its target session and draft intact.
-    await page.getByRole('button', { name: 'Shortcut project 새 세션', exact: true }).click();
+    await page.getByRole('button', { name: 'New session in Shortcut project', exact: true }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByLabel('세션 이름').fill('unfinished session');
+    await dialog.getByLabel('Session name').fill('unfinished session');
     await page.keyboard.press('Meta+Shift+Period');
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel('세션 이름')).toHaveValue('unfinished session');
+    await expect(dialog.getByLabel('Session name')).toHaveValue('unfinished session');
     await expect(page.locator('.session-row.selected strong')).toHaveText(sessions[0]!.name);
-    await dialog.getByRole('button', { name: '취소', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     // Manually selecting even an empty project keeps cached terminals mounted.
     await page.locator('.project-item').filter({ hasText: projects[1]!.name }).click();
@@ -168,9 +168,9 @@ for (const remote of [false, true]) test(`${remote ? 'SSH to local' : 'local to 
       expect(state.status).toBe('running');
     }
     // Logout closes cached connections belonging to every project.
-    await page.getByRole('button', { name: '더 보기', exact: true }).click();
-    await page.getByRole('button', { name: '로그아웃', exact: true }).click();
-    await expect(page.getByRole('heading', { name: '서버 연결', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Log out', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Connect to server', exact: true })).toBeVisible();
     await expect.poll(async () => (await call('/sessions')).sessions.filter((session: { connected: boolean }) => session.connected).length).toBe(0);
     expect(errors).toEqual([]);
   } finally {

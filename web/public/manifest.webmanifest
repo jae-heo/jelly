@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "줼리",
-  "short_name": "줼리",
-  "lang": "ko",
+  "name": "Jelly",
+  "short_name": "Jelly",
+  "lang": "en",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

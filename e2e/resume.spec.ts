@@ -58,8 +58,8 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: resume ve
     });
   });
   const visibility = (hidden: boolean) => page.evaluate(value => (window as any).resumeTestVisibility(value), hidden);
-  const live = page.getByRole('textbox', { name: '라이브 입력', exact: true });
-  const connected = () => expect(page.locator('.connection-label')).toHaveText('연결됨');
+  const live = page.getByRole('textbox', { name: 'Live input', exact: true });
+  const connected = () => expect(page.locator('.connection-label')).toHaveText('Connected');
   const command = async (suffix: string) => {
     await live.fill(`printf '\\nRESUME_%s\\n' ${suffix}`);
     await sendVirtualKey(page, 'Enter');
@@ -107,18 +107,18 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: resume ve
     expect((await call(`/sessions/${session.id}`)).pid).toBe(session.pid);
     console.log(`${remote ? 'SSH' : 'local'} simulated stale OPEN → ready: ${elapsed} ms`);
 
-    await page.getByRole('button', { name: '더 보기', exact: true }).tap();
-    await page.getByRole('button', { name: '연결 끊기', exact: true }).tap();
-    await expect(page.getByRole('heading', { name: '연결 끊김', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'More', exact: true }).tap();
+    await page.getByRole('button', { name: 'Disconnect', exact: true }).tap();
+    await expect(page.getByRole('heading', { name: 'Disconnected', exact: true })).toBeVisible();
     const disconnectedTickets = tickets;
     await visibility(true);
     await visibility(false);
     expect(tickets).toBe(disconnectedTickets);
-    await expect(page.getByRole('heading', { name: '연결 끊김', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Disconnected', exact: true })).toBeVisible();
 
     // A pending HTTP ticket request must not block a fresh connection on resume.
     holdNextTicket = true;
-    await page.locator('.connection-overlay').getByRole('button', { name: '다시 연결' }).tap();
+    await page.locator('.connection-overlay').getByRole('button', { name: 'Reconnect' }).tap();
     await expect.poll(() => !!heldTicket).toBe(true);
     await visibility(true);
     await visibility(false);

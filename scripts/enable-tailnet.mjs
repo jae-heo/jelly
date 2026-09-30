@@ -60,7 +60,7 @@ async function main() {
   const unauthenticated = await fetch(origin + '/api/projects', { signal: AbortSignal.timeout(5000) });
   if (unauthenticated.status !== 401) throw new Error('Unauthenticated API was not rejected');
   const projects = (await api('/api/projects')).projects;
-  const project = projects.find(p => p.path === root) ?? await api('/api/projects', 'POST', { name: '줼리', path: root });
+  const project = projects.find(p => p.path === root) ?? await api('/api/projects', 'POST', { name: 'Jelly', path: root });
   const session = await api(`/api/projects/${project.id}/sessions`, 'POST', { name: 'tailnet-verification' });
   try {
     await new Promise((resolve, reject) => {

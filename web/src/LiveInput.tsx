@@ -143,9 +143,9 @@ export const LiveInput = forwardRef<LiveInputHandle, Props>(function LiveInput(p
 
   return <div className="terminal-live-input" hidden={props.hidden}>
     <span className="live-indicator" aria-hidden="true" />
-    <textarea ref={field} aria-label="라이브 입력" placeholder="라이브 입력" rows={1} maxLength={16384} disabled={!props.enabled}
+    <textarea ref={field} aria-label="Live input" placeholder="Live input" rows={1} maxLength={16384} disabled={!props.enabled}
       autoCorrect="off" autoCapitalize="off" autoComplete="off" spellCheck={false} enterKeyHint="enter" />
     {props.actions}
-    <button type="button" className="dock-toggle" aria-label="키보드 닫기" onClick={() => actions.current.run(() => field.current?.blur())}><KeyboardOff size={18} /></button>
+    <button type="button" className="dock-toggle" aria-label="Dismiss keyboard" onClick={() => actions.current.run(() => field.current?.blur())}><KeyboardOff size={18} /></button>
   </div>;
 });

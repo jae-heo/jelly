@@ -1,6 +1,18 @@
-# 검증 기록
+# Verification record
 
-최종 자동 검증일: 2026-09-30.
+Last automated verification: 2026-09-30.
+
+## English interface (2026-09-30)
+
+- Jelly uses one English interface, independent of browser locale. UI labels,
+  accessible names, help, errors, page metadata and the home-screen manifest are
+  English. New sessions default to `Session N`; existing names are not migrated.
+- Backend asset checks verify the English document language, title and manifest.
+  Browser workflows use the English UI while retaining Korean composition,
+  Unicode paths, terminal output and user-supplied names in their fixtures.
+- Setup and API docs were already English. The original goal and historical
+  verification record have been translated; Korean examples remain where they
+  document the input tests.
 
 ## Floating virtual keyboard (2026-09-30)
 
@@ -107,370 +119,385 @@
 - Browser keyboard movement is simulated. Physical iPhone Chrome and home-screen
   behavior still need device verification.
 
-## 최초 공개 준비 (2026-09-23)
+## Initial public release preparation (2026-09-23)
 
-- `npm test`: 실제 로컬 tmux를 사용하는 통합 검증 포함 18개 통과.
-- `npm run check`: 서버·웹 TypeScript 검사 통과.
-- `npm run test:ssh`: 임시 Docker SSH 서버에서 6개 통과.
-- `npm run test:web`: Chromium 로컬·SSH 및 모바일 화면 시나리오 8개 통과.
-- Git에 포함할 파일의 자격 증명 패턴을 검사하고, 실행 중인 서버의 토큰이 포함되지 않은
-  것을 확인했다. 데이터·DB·소켓·빌드·테스트 출력은 제외한다.
-- 실제 iPhone 검증은 포함하지 않는다.
+- `npm test`: 18 passed, including integration coverage with real local tmux.
+- `npm run check`: server and web TypeScript checks passed.
+- `npm run test:ssh`: 6 passed using a disposable Docker SSH server.
+- `npm run test:web`: 8 Chromium scenarios passed for local/SSH and mobile views.
+- Credential-pattern scanning found no running-server token in files intended for
+  Git. Runtime data, databases, sockets, builds and test output remain excluded.
+- Physical iPhone testing was not included.
 
-## 완료
+## Initial backend completion
 
-- Node.js 24.18.0 / tmux 3.2a / Linux에서 실행.
-- `npm test`: 18개 테스트 통과 (상위 통합 테스트 1개 + 세부 시나리오 14개 + 네트워크 정책 2개 + DB 전환 1개).
-- `npm run check`: 서버와 웹 클라이언트 TypeScript 검사 통과.
-- `npm run test:web`: Chromium에서 로컬·SSH 데스크톱·모바일 통합 시나리오 5개 통과.
-- `npm run test:ssh`: 실제 OpenSSH와 tmux를 사용하는 테스트 5개 통과 (상위 1개 + 세부 4개).
-- 실제 node-pty와 tmux를 사용한 검증:
-  - 인증·Origin 거부, 잘못된 경로·크기 거부, 실제 경로 중복 거부.
-  - 공백·한글·셸 특수문자가 있는 프로젝트 경로에서 셸 실행.
-  - WebSocket 연결 직후 입력을 보내도 tmux 초기화 중 유실되지 않는 것을 확인.
-  - Unicode 출력, 크기 변경, 연결 종료 후 백그라운드 작업 지속.
-  - 재접속 화면 복구와 별도 스크롤백 조회.
-  - 새 연결의 제어권 인계, 잘못된 WS 메시지는 연결만 종료.
-  - 브라우저 연결 티켓의 1회 사용 및 세션 범위 검증.
-  - 정상 종료 및 SIGKILL 후 API 재시작 시 **동일 셸 PID** 유지.
-  - 읽기를 멈춘 클라이언트에 16 MiB 출력을 발생시킨 뒤 API 응답·재접속 확인.
-  - 실제 `top` 실행, 연결 해제·재접속·크기 변경, 종료 후 셸 복귀.
-  - CLI를 실제 PTY 안에서 실행하여 명령 입력 및 Ctrl+] 연결 해제 확인.
-  - 자연 종료(exit 7), 명시적 종료, 삭제, 사라진 세션 상태 구분.
-  - 프로젝트 삭제 후 원본 디렉터리 유지.
-- 테스트 DB·tmux는 `.data/test-*`에 분리했고 테스트 종료 시 정리함.
-- `systemd-analyze --user verify`: Jelly 서비스 파일 검증 통과.
-- 사용자 `jelly.service` 설치·활성화, 계정 linger 활성화 상태 확인.
-- **실제 배포 서비스**를 재시작해 동일 셸 PID와 이전 출력 유지 확인.
-- 로컬 개발 모드의 loopback HTTP 테스트와 실제 배포의 Tailscale IP 직접 접속 확인.
-- Jelly 프로젝트를 API에 등록했고 배포 확인용 세션은 삭제함.
-- 토큰·DB·의존성·빌드 출력이 Git ignore 대상인 것을 확인.
+- Ran on Node.js 24.18.0, tmux 3.2a and Linux.
+- `npm test`: 18 passed: one parent integration test, 14 scenarios, two network
+  policy tests and one database migration test.
+- Server/web type checks passed; Chromium passed five local/SSH desktop/mobile
+  scenarios. SSH tests passed five cases using real OpenSSH and tmux.
+- Real node-pty and tmux checks covered:
+  - Authentication and Origin rejection, invalid paths/sizes and duplicate real paths.
+  - Shells in project paths containing spaces, Korean and shell metacharacters.
+  - Input sent immediately after WebSocket connection surviving tmux initialization.
+  - Unicode output, resizing and background work after detachment.
+  - Restored screens and separate scrollback retrieval after reconnecting.
+  - Connection handoff and malformed messages closing only the attachment.
+  - Single-use, session-scoped browser tickets.
+  - The same shell PID after normal shutdown, SIGKILL and API restart.
+  - API responsiveness and reconnecting after sending 16 MiB to a stalled reader.
+  - Real `top`, detachment, reconnection, resizing and return to the shell.
+  - The CLI inside a real PTY, including commands and Ctrl+] detachment.
+  - Natural exit (code 7), explicit stop, deletion and missing-session states.
+  - Project removal preserving the original directory.
+- Test databases and tmux servers were isolated under `.data/test-*` and cleaned up.
+- `systemd-analyze --user verify` passed. The user service was installed and enabled;
+  account lingering was checked. Restarting the deployed service preserved the
+  shell PID and previous output.
+- Loopback development HTTP and direct access to the deployment's Tailscale IP
+  worked. The Jelly project was registered through the API; verification sessions
+  were removed. Tokens, databases, dependencies and builds were ignored by Git.
 
-## Tailscale 직접 연결
+## Direct Tailscale access
 
-사용자 요구에 맞춰 Serve/HTTPS 활성화 의존성을 제거했다. `JELLY_HOST=tailscale`은
-연결된 Tailscale 데몬에서 서버 자신의 IPv4 주소를 확인하고 그 주소에만 바인딩한다.
-네트워크 정책 테스트에서 wildcard·LAN·공인 IP 바인딩 거부를 검증했다.
+`JELLY_HOST=tailscale` queries the connected Tailscale daemon for this machine's
+IPv4 address and binds only there, removing the Serve/HTTPS prerequisite. Network
+policy tests reject wildcard, LAN and public bind addresses.
 
-`scripts/enable-tailnet.mjs`를 실제 실행해 다음을 확인했다.
+Running `scripts/enable-tailnet.mjs` verified:
 
-- Jelly systemd 서비스가 Tailscale IP의 47821 포트에서 실행됨.
-- `ss`에서 해당 주소만 리스닝하고 wildcard·loopback·LAN 주소 리스너가 없는 것을 확인.
-- 해당 IP의 `/healthz` HTTP 200, 미인증 API HTTP 401, 인증된 프로젝트 API 성공.
-- HTTP Origin을 포함한 WebSocket으로 명령 입력·출력 왕복 성공.
-- 검증용 세션 생성·종료·삭제 성공, 현재 주소를 자동 읽는 CLI의 API 조회 성공.
-- `tailscale serve status --json`은 빈 설정이며 Serve를 사용하거나 변경하지 않음.
-- 상세 실행 결과는 Git에서 제외한 `.data/tailnet-check.json`에 저장됨.
+- The systemd service listening on port 47821 of its Tailscale address, with no
+  wildcard, loopback or LAN listener in that deployment.
+- HTTP 200 from `/healthz`, HTTP 401 without credentials and authenticated project access.
+- WebSocket command/output round trips with an HTTP Origin.
+- Creation, termination and deletion of a verification session, plus CLI discovery
+  of the active endpoint.
+- An empty `tailscale serve status --json` configuration; Serve was not modified.
+- Detailed results saved in the ignored `.data/tailnet-check.json`.
 
-자동 배포 검증은 서버 자신에서 자신의 Tailscale IP에 접속한 결과다.
-이후 사용자가 다른 Tailscale 컴퓨터에서 접속 거부를 보고했고, 서버의 firewalld에서
-줼리 포트를 허용한 후 접속에 성공했다고 확인했다. 원격 HTTP 접근은 사용자 확인으로
-검증됐으며, 원격 기기의 WebSocket 터미널 조작과 실제 휴대폰 사용감은 아직 별도 검증하지 않았다.
-다른 서비스와 기본 tmux 서버는 변경하지 않았다.
+These automated checks originated on the server itself. A user later reported
+connection refusal from another tailnet computer, then confirmed access after
+allowing Jelly's port in firewalld. Remote HTTP access was user-confirmed; terminal
+interaction from that remote device and physical phone usability were not separately
+verified. Other services and the default tmux server were untouched.
 
-## 웹 화면
+## Initial web client
 
-React + TypeScript + Vite, xterm.js 웹 클라이언트를 같은 서버의 `/`에 추가했다.
-실제 HTTP/WebSocket과 tmux를 사용하는 Playwright 테스트에서 다음을 검증했다.
+React, TypeScript, Vite and xterm.js were added at `/` on the existing server.
+Playwright checks used real HTTP/WebSocket and tmux to verify:
 
-- 잘못된 연결 키 거부, 올바른 키 로그인, 새로고침 후 인증 유지.
-- 프로젝트 폴더 등록, 세션 생성, 명령 실행 결과를 실제 tmux 출력 기록에서 확인.
-- 연결 해제·재접속과 페이지 새로고침 후 같은 세션 복구.
-- 별도 모바일 브라우저 컨텍스트가 접속하면 이전 데스크톱 연결을 해제하고 안내 표시.
-- 한글 문자열을 입력창으로 전송하고 결과 확인, 붙여넣기와 Enter 입력.
-- 390×844 화면에서 가로 넘침 없음, 390×520으로 축소해도 입력창·보조 키 표시.
-- 확인 창을 통한 세션 종료, 브라우저 JavaScript 예외 없음.
-- 공개 HTML·빌드 자산 제공, CSP 헤더, 인증 없는 API·토큰 파일·소스 접근 거부.
+- Invalid-key rejection, valid login and authentication after refresh.
+- Project registration, session creation and command results in tmux history.
+- Disconnect/reconnect and restoring the selected session after page reload.
+- A separate mobile context taking control and notifying the previous desktop client.
+- Korean text, paste and Enter input.
+- No horizontal overflow at 390×844; input and terminal keys remaining visible at 390×520.
+- Confirmed session termination and no browser JavaScript errors.
+- Public HTML/assets and CSP headers, with unauthenticated API, token-file and source access denied.
 
-브라우저 테스트의 서버·DB·tmux는 `.data/browser-test-*`에 격리하고 종료 시 정리했다.
-데스크톱과 모바일 화면 캡처도 직접 확인했다. 테스트는 실제 휴대폰 OS 키보드를 사용하지 않는다.
+Browser servers, databases and tmux were isolated in `.data/browser-test-*` and
+cleaned up. Desktop/mobile screenshots were inspected. Tests did not open a real
+phone OS keyboard.
 
-배포된 `jelly.service`를 재시작한 뒤 Tailscale 주소에서 HTML·자산·상태 조회 HTTP 200,
-인증 없는 API HTTP 401을 확인했다. 배포 주소를 Chromium으로 열어 실제 연결 키로
-로그인, 기존 줼리 프로젝트 조회, 로그아웃 및 저장 키 삭제를 검증했다. 이 확인은 서버 자신에서
-실행했으며 기존 프로젝트에 테스트 세션을 만들지 않았다.
+After restarting the deployed service, HTML/assets/health returned HTTP 200 and
+unauthenticated API requests returned 401. Chromium opened the deployment from the
+server, logged in with the real key, listed the existing Jelly project, then logged
+out and removed the stored key. No test session was created in existing projects.
 
-## 서버 폴더 선택 (2026-09-22)
+## Server folder picker (2026-09-22)
 
-- 인증된 `/api/directories`에서 홈·상위·루트 탐색, 숨김 폴더, 한글·특수문자 경로,
-  디렉터리 심볼릭 링크를 검증했다. 일반 파일·파일 링크·깨진 링크는 목록에서 제외된다.
-- 인증 없는 요청, 잘못된 Origin, 상대 경로·NUL 포함 경로, 없는 폴더, 파일 경로,
-  권한 없는 폴더의 요청이 거부되는 것을 확인했다.
-- 데스크톱·390px 모바일 브라우저에서 폴더 찾기, 경로 이동, 이름 검색, 숨김 폴더 표시,
-  빈 폴더 선택, 기존 선택 위치로 다시 열기, 이동 실패·취소 후 입력 보존을 확인했다.
-- 폴더 선택으로 프로젝트 경로가 채워지고, 이름이 비어 있을 때만 자동 입력되는 것을 확인했다.
-- 배포 주소에서도 홈의 `jelly` 폴더를 선택해 실제 폼에 경로가 채워지는 것을 확인했다.
-  이 배포 확인은 프로젝트 등록 전에 취소했다.
-- 기존 토큰 인증과 토큰 값은 유지했다. 서비스 반영 전후 실행 중인 세션 1개의
-  동일 셸 PID·상태 유지도 확인했다.
+- Authenticated `/api/directories` covered home, parent and root navigation,
+  hidden directories, Korean/metacharacter paths and directory symlinks. Regular
+  files, file symlinks and broken links were excluded.
+- Missing authentication, invalid Origin, relative/NUL paths, absent folders,
+  file paths and inaccessible folders were rejected.
+- Desktop and 390px mobile checks covered browsing, path entry, filtering, hidden
+  folders, empty-folder selection, reopening the previous location and preserving
+  form input after navigation failure or cancellation.
+- Selecting a folder populated its path and filled the project name only if empty.
+  The deployed form was also checked with the home directory's `jelly` folder,
+  cancelling before registration.
+- Token authentication and value were unchanged. The existing session retained
+  its shell PID and status after deployment.
 
-## 별도 설치 없는 SSH 프로젝트 (2026-09-22)
+## Agentless SSH projects (2026-09-22)
 
-`test/ssh-container/Dockerfile`의 임시 Alpine 컨테이너에 OpenSSH와 tmux만 준비했다.
-컨테이너의 SSH 포트는 loopback에만 노출하고 임시 키·별칭·known_hosts를 사용했다.
-줼리·Node.js·Python 또는 원격 에이전트를 설치하지 않고 다음을 검증했다.
+The disposable Alpine image in `test/ssh-container/Dockerfile` installed only
+OpenSSH and tmux. Its SSH port was loopback-only, using temporary keys, aliases and
+known_hosts. No Jelly, Node.js, Python or remote agent was installed. Checks covered:
 
-- SSH 설정의 여러 Host 이름, 따옴표로 감싼 별칭, Include 파일을 읽고 와일드카드 패턴 제외.
-- 인증 없는 별칭 API 거부, SSH 플래그를 포함한 접속 대상 거부, 호스트 키 미확인 시 접속 거부.
-- SSH 연결 확인, 등록 중복 처리, 프로젝트가 남은 서버 삭제 거부.
-- 원격에만 있는 폴더, 숨김 폴더, 한글·따옴표·셸 특수문자·개행을 포함한 경로 탐색.
-- SSH PTY 연결 직후 입력 보존, 한글 출력, 화면 크기 변경, 새 연결로 제어권 인계.
-- 연결 종료 후 백그라운드 작업 지속, 재접속 시 화면·출력 기록 복구.
-- 줼리 재시작 후 동일 원격 셸 PID 유지.
-- 원격 호스트가 응답하지 않을 때 `unreachable` 표시, 종료 완료로 기록하지 않음.
-  호스트 복구 후 동일 셸 PID와 이전 출력 유지.
-- 명시적인 세션 종료·삭제 후 프로젝트 폴더와 별도의 기존 tmux 서버 유지.
-- 기존 SQLite 프로젝트·세션 관계를 유지한 채 로컬/원격별 경로 중복 정책으로 전환.
-  전환 전 DB 백업 생성, 전환 후 외래 키 무결성과 재시작 검증.
-- 모바일 크기 Chromium에서 SSH 별칭 전체 목록, 연결 확인, 별칭 선택, 원격 폴더 선택,
-  원격 명령 실행·기록·새로고침 후 재접속·종료·등록 정리까지 검증.
+- Multiple Host names, quoted aliases and Include files, excluding wildcard patterns.
+- Authentication on the alias API, rejection of SSH flags in targets and refusal of
+  unverified host keys.
+- Connection checks, duplicate registrations and refusal to remove hosts with projects.
+- Remote-only and hidden folders, including Korean, quotes, shell metacharacters and newlines.
+- Immediate PTY input, Korean output, resizing and connection handoff.
+- Background work after detachment and restored screen/history after reconnecting.
+- The same remote shell PID after restarting Jelly.
+- `unreachable` for an unresponsive host, without recording termination; recovery
+  preserved the shell PID and output.
+- Explicit stop/delete preserving project folders and unrelated tmux servers.
+- Migration of SQLite project/session relationships to local/remote path uniqueness,
+  with a pre-migration backup, foreign-key checks and restart verification.
+- Mobile Chromium: alias listing/checking/selection, remote folder selection,
+  commands, history, refresh/reconnect, stop and registration cleanup.
 
-테스트 컨테이너·키·DB는 종료 시 정리했다. 실제 줼리 노드의 설정에서는 구체적인 SSH 별칭
-3개를 발견했다. 사용자의 실제 SSH 대상에 접속하거나 원격 작업을 실행하는 확인은 수행하지 않았다.
-운영 서비스에 적용한 뒤 기존 프로젝트 1개와 실행 중인 세션 1개의 ID·셸 PID·상태,
-기존 토큰 값이 유지되는 것을 확인했다. 운영 주소의 모바일 크기 브라우저에서 별칭 3개 표시,
-별칭 폼 채우기, 프로젝트 서버 선택 목록을 확인했으며 브라우저 오류는 없었다.
+Temporary containers, keys and databases were cleaned up. Three concrete SSH aliases
+were found in the real server's configuration; no connection or command was made to
+those targets. Deployment preserved the existing project and session IDs, shell PID,
+status and token. Mobile browser checks on the deployment verified the three aliases,
+form population and host options without browser errors.
 
-## 모바일 터미널 스크롤 (2026-09-22)
+## Mobile terminal scrolling (2026-09-22)
 
-- 수정 전 모바일 터치 스와이프를 보내도 표시되는 출력 줄이 그대로인 것을 회귀 테스트로 재현했다.
-- tmux 마우스 지원을 켜고, 한 손가락 스와이프를 xterm의 마우스 프로토콜로 전달한다.
-  로컬·SSH 모두 접속 시 기존 세션의 설정을 갱신하므로 세션을 새로 만들 필요가 없다.
-- Chromium의 모바일 터치 에뮬레이션에서 120줄 출력 후 양방향 스와이프,
-  최신 화면까지 내려온 후 명령 실행, 새로고침 후 이전 출력 탐색을 검증했다.
-- 스와이프가 터미널 입력 포커스나 바깥 페이지 스크롤을 바꾸지 않고,
-  일반 탭은 터미널 입력에 포커스하는 것을 확인했다. 마우스 휠도 검증했다.
-- vi 모드와 기본 모드에서 하단 `Esc`로 기록 탐색을 끝내는 것을 검증했다.
-- 로컬·SSH 통합 테스트에서 `mouse off`인 기존 세션이 재접속 시 스크롤 가능한 상태로 바뀌고,
-  초기 입력·기존 셸 PID·재접속 동작이 유지되는 것을 확인했다.
-- `npm test` 18개, `npm run test:ssh` 5개, `npm run test:web` 4개 및 TypeScript 검사를 통과했다.
+- A regression test reproduced swipes leaving output unchanged before the fix.
+- tmux mouse support and one-finger swipe forwarding use xterm's mouse protocol.
+  Attachment updates existing local/SSH sessions, so users need not recreate them.
+- Chromium touch emulation checked bidirectional swipes after 120 lines of output,
+  commands after returning to the latest screen and history after reload.
+- Swiping preserved input focus and outer-page position; tapping focused input.
+  Mouse-wheel behavior and Esc leaving history in default/vi modes were checked.
+- Local/SSH tests covered upgrading existing `mouse off` sessions on reattachment,
+  initial input, unchanged shell PID and reconnection.
+- Type checks, 18 backend tests, 5 SSH tests and 4 browser tests passed.
 
-## 상단 한 줄 통합 (2026-09-22)
+## Single workspace header (2026-09-22)
 
-- 서비스·프로젝트·터미널 상단 바 3개를 하나로 통합했다. 모바일에서 144px → 56px로 줄여
-  터미널 영역을 88px 확보했다. 데스크톱에서는 브랜드와 프로젝트·세션을 한 바에 표시한다.
-- 기록은 바로 누를 수 있고 SSH 서버 관리·연결 끊기·종료·전체 서버 경로는 더보기로 옮겼다.
-- 320px/390px 화면, 긴 프로젝트·세션 이름, 390×520 키보드 크기 화면에서 가로 넘침과 메뉴 접근을 확인했다.
-- 메뉴의 키보드 열기, Escape 닫기와 포커스 복귀, 바깥 클릭 닫기를 검증했다.
-- 로컬·SSH 프로젝트 작업, 연결 해제·재접속·종료, 모바일 양방향 터치 스크롤을 포함한
-  브라우저 테스트 4개와 서버·웹 TypeScript 검사를 통과했다. 데스크톱·모바일 화면 캡처를 직접 확인했다.
-- 웹 정적 자산 변경이며 API나 tmux 재시작 없이 반영된다.
+- Three header bars became one. Mobile height fell from 144px to 56px, adding 88px
+  of terminal space. Desktop shows brand, project and session in one bar.
+- History remains directly accessible; SSH management, disconnect, stop and full
+  server paths moved into More.
+- 320px/390px widths, long names and a 390×520 keyboard-sized viewport had no
+  horizontal overflow and kept the menu accessible.
+- Keyboard opening, Escape dismissal/focus return and outside-click dismissal passed.
+- Four browser scenarios and type checks passed, including local/SSH workflows and
+  bidirectional touch scrolling. Desktop/mobile screenshots were inspected.
+- This historical deployment updated static files without API or tmux restart.
 
-## 글씨 크기와 하단 축소 (2026-09-22)
+## Font size and compact input (2026-09-22)
 
-- 상단 더보기에 10~24px 글씨 크기 조절과 14px 기본값 복원을 추가했다. 브라우저 저장소를
-  사용할 수 없거나 저장된 값이 유효하지 않으면 기본값으로 동작한다.
-- 실제 xterm 렌더링의 14→18→17→14px 변경, PTY 열 수 변경, 새로고침 후 18px 복원을 확인했다.
-  글씨 크기를 변경하는 동안 WebSocket을 새로 만들지 않고 같은 셸 PID를 유지했다.
-- 하단은 기본 44px 한 줄이며 중복 상태줄을 제거했다. 입력창과 추가 보조 키는 별도로 펼친다.
-- 입력창 열기 시 포커스, 접기·펼치기 후 한글 명령 초안 보존, 전송 결과를 확인했다.
-- 320×520 화면에서 입력창·추가 키를 모두 열어도 가로 넘침이 없고 보내기·Esc 버튼을 사용할 수 있었다.
-- 로컬·SSH 터치 스크롤, 재접속, 기록·붙여넣기·종료를 포함한 브라우저 테스트 5개와
-  서버·웹 TypeScript 검사가 통과했다. 모바일 기본 화면·확장 입력·글씨 조절 화면을 직접 확인했다.
+- More gained a 10–24px font-size control and 14px reset. Invalid values or unavailable
+  browser storage fall back to the default.
+- xterm rendering changed 14→18→17→14px, PTY columns changed and reload restored
+  18px. Changes preserved the WebSocket connection and shell PID.
+- The footer became a 44px row without a duplicate status bar, with optional draft
+  input and extra keys. Focus and Korean drafts survived hiding/reopening input.
+- At 320×520, expanded input/keys had no horizontal overflow; Send and Esc remained
+  accessible. Five browser scenarios and type checks passed; screenshots were inspected.
 
-## 모바일 키보드 상호작용 (2026-09-22)
+## Mobile keyboard interaction (2026-09-22)
 
-- 수정 전 보내기 버튼 클릭 후 입력창 포커스가 빠지는 현상을 브라우저 테스트로 재현했다.
-- 보내기·Esc·보조 키 펼치기를 눌러도 포커스를 유지하고, 닫기는 입력창을 숨기기 전에 blur한다.
-  열기에는 `preventScroll`을 사용하고, 열림/닫힘 아이콘과 모바일 전송 키 힌트를 구분했다.
-- 작업 화면은 visual viewport의 높이와 offsetTop에 맞춘다. resize/scroll 변경을 프레임 단위로
-  모으고, 확대 상태에서는 브라우저의 기본 확대·이동을 유지한다. 로그아웃 시 스타일을 정리한다.
-- xterm 크기 재계산은 연속 크기 변경이 120ms 멎은 뒤 수행하고, 같은 PTY 크기를 중복 전송하지 않는다.
-- Chromium에서 보내기·터치 Esc·추가 키 버튼의 포커스 보존, 닫기 후 포커스 해제,
-  기존 글씨 크기·입력·로컬/SSH 스크롤·재접속 테스트를 통과했다.
-- visual viewport 높이/offsetTop 변경을 모델링해 5단계 크기 변경 후 상단·입력 도구의 위치,
-  resize 메시지 합치기, 확대 중 화면 크기 유지와 복원을 확인했다.
-  이 검증은 OS 키보드를 실제로 띄우는 테스트가 아니며 실제 기기에서의 애니메이션 품질은 미확인이다.
-- 참고: [Chrome의 키보드와 viewport 동작 설명](https://developer.chrome.com/blog/viewport-resize-behavior),
+- A regression reproduced Send losing input focus. Sending, Esc and key expansion
+  now retain focus; closing input blurs it before hiding. Opening uses `preventScroll`.
+- The workspace follows visual viewport height and offsetTop, coalescing resize/scroll
+  events per frame. Pinch zoom retains native zoom/panning; logout removes styles.
+- The original sizing implementation waited for a 120ms quiet period and avoided
+  duplicate PTY sizes. Later geometry changes above supersede this behavior.
+- Chromium covered Send, touch Esc, key expansion, focus dismissal, font settings,
+  local/SSH scroll and reconnect behavior.
+- Five-step simulated viewport animations checked header/input position, resize
+  coalescing and zoom behavior. This was not a real OS keyboard animation test.
+- References: [Chrome viewport behavior](https://developer.chrome.com/blog/viewport-resize-behavior),
   [VisualViewport API](https://developer.mozilla.org/en-US/docs/Web/API/VisualViewport).
 
-## 화면 문구 정리 (2026-09-22)
+## Shorter UI copy (2026-09-22)
 
-- 로그인은 연결 키 입력·저장·확인만 남기고 소개 문구와 장식 블록을 제거했다.
-- 빈 화면, 상태, SSH·폴더 오류를 짧은 문구로 통일했다. 반복 안내와 생성·종료 성공 알림을 제거했다.
-- 세션 종료의 영향, 파일 보존 안내, 오류 해결 방법은 유지했다. 사용 안내는 기능별 설명으로 정리했다.
-- `npm run check`, `npm run build:web`, `npm run test:web` 통과 (브라우저 테스트 5개).
-- 데스크톱·390px 모바일 화면을 확인했다. 실행 중인 서비스에서 로그인·안내·로그아웃을 확인했고,
-  기존 세션 1개의 PID·상태가 유지됐다. 정적 파일만 반영했으며 서비스 재시작은 없었다.
+- Login retained key entry, storage and lookup while removing introductory decoration.
+  Empty states, status and SSH/folder errors became shorter; redundant hints and
+  routine creation/termination notifications were removed.
+- Stop consequences, file preservation and actionable errors remained. Help was
+  organized by feature.
+- Type checks, web build and five browser scenarios passed. Desktop/390px screenshots
+  and deployed login/help/logout were checked. The existing session kept its PID
+  and status; static files were updated without a service restart.
 
-## 주소창 없는 화면 (2026-09-22)
+## Fullscreen and home-screen mode (2026-09-22)
 
-- Fullscreen API를 지원할 때만 더보기 메뉴에 전체 화면 전환 버튼을 표시한다.
-  문서 전체를 전환해 모달·알림을 유지하고 브라우저의 종료 동작과 로그아웃을 반영한다.
-- 화면 전환 시 viewport를 다시 맞추며, 노치 영역에는 safe-area 여백을 적용한다.
-  아이폰 홈 화면 실행을 위한 웹 앱 메타 태그와 사용 안내를 추가했다.
-- `npm run check`, `npm run build:web`, `npm run test:web` 통과 (5개).
-  Chromium 실제 Fullscreen API로 진입·종료·모달 표시·세션 PID와 WebSocket 유지·로그아웃을 확인했다.
-  거부 상황은 API 실패를 모델링해 알림과 재시도를 확인했다.
-- 현재 HTTP 서비스에서 전체 화면 진입·로그아웃, 지원 불가를 모델링한 메뉴·안내를 확인했다.
-  기존 세션 1개의 PID·상태는 유지됐으며 서비스 재시작은 없었다.
-- 실제 Android Chrome의 주소창·키보드 전환과 iPhone 홈 화면 실행은 직접 검증하지 않았다.
-- 참고: [Fullscreen API](https://fullscreen.spec.whatwg.org/),
-  [Chrome 전체 화면 안내](https://web.dev/articles/fullscreen),
-  [WebKit 홈 화면 웹 앱](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/).
+- Fullscreen controls appear only when supported. The whole document enters
+  fullscreen so dialogs and notifications remain visible. Browser exits and logout
+  update state; viewport and safe-area handling follow the change.
+- Home-screen web-app metadata and iPhone instructions were added.
+- Type checks, web build and five browser scenarios passed. Chromium exercised the
+  real Fullscreen API, dialogs, unchanged PID/WebSocket and logout. Simulated API
+  rejection checked the error and retry path.
+- Deployed HTTP fullscreen/logout and simulated unsupported-browser UI were checked.
+  The existing session remained unchanged without a service restart.
+- Physical Android Chrome browser/keyboard transitions and iPhone home-screen launch
+  were not tested.
+- References: [Fullscreen API](https://fullscreen.spec.whatwg.org/),
+  [Chrome fullscreen guide](https://web.dev/articles/fullscreen),
+  [WebKit home-screen apps](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/).
 
-## 도마뱀 로고와 키보드 하단 여백 (2026-09-22)
+## Lizard logo and keyboard safe area (2026-09-22)
 
-- 기존 SVG를 네 발·말린 꼬리가 있는 도마뱀으로 변경했다. 로그인·데스크톱·파비콘에 적용했고,
-  모바일에서는 기존 목록 버튼에 30px 로고를 표시한다. 터치 영역 44px와 상단 높이 56px를 유지한다.
-- 키보드 표시를 입력 포커스와 화면 높이 감소로 판단해 하단 안전 여백을 제거한다.
-  닫히면 여백을 복원하며, 포커스만 있는 외장 키보드·핀치 확대는 여백을 그대로 둔다.
-  폭 변경 시 기준 높이를 초기화하고 로그아웃 시 관련 스타일을 정리한다.
-- 수정 전 Chromium의 safe-area-inset-bottom을 34px로 설정하고 키보드 viewport 축소를
-  모델링했을 때 여백이 남는 현상을 재현했다. 수정 후 34→0→34px 전환과
-  키보드 닫기 후 포커스가 남는 경우의 여백 복원, 기존 입력·전체 화면·스크롤 테스트를 통과했다.
-- `npm run check`, `npm run build:web`, 브라우저 테스트 5개 통과.
-  입력창 자동 교정 비활성화와 CSS 정리 후 타입 검사·빌드·입력 테스트 1개도 통과했다.
-- 실행 중인 서비스에서 SVG 반영, 320/390/1440px 로고 표시, 모바일 로고의 목록 열기·닫기를 확인했다.
-  기존 세션 1개의 PID·상태는 유지했다. 서비스 재시작은 없었다.
-- iPhone 실제 키보드·브라우저 보조줄은 직접 확인하지 않았다. 줼리 입력창은 autocorrect=off를
-  추가했지만, iOS의 화살표·완료 입력 보조줄 자체를 숨기는 기능은 구현하지 않았다.
-- 참고: [WebKit 안전 여백 문제](https://bugs.webkit.org/show_bug.cgi?id=217754),
-  [iOS 입력 보조줄 제어에 관한 W3C 논의](https://lists.w3.org/Archives/Public/public-webapps-github/2026Sep/0121.html).
+- The SVG became a four-legged lizard with a curled tail, used on login, desktop
+  and the favicon. Mobile shows a 30px logo in the existing list toggle, keeping
+  its 44px touch target and 56px header.
+- Input focus plus substantial viewport height reduction identifies a keyboard.
+  Bottom safe-area padding disappears while open and returns on dismissal. Focus
+  alone with a hardware keyboard, or pinch zoom, leaves it intact. Width changes
+  reset the baseline; logout cleans up styles.
+- Chromium reproduced a stale 34px bottom inset before the fix. Tests then verified
+  34→0→34px, restoration while input stayed focused, and existing input/fullscreen/scroll.
+- Type checks, web build and five browser scenarios passed. After disabling input
+  autocorrection and CSS cleanup, checks/build and one input scenario passed again.
+- Deployed SVG, 320/390/1440px layouts and mobile list toggling were inspected.
+  The existing session retained PID/status without service restart.
+- Physical iPhone keyboards were not inspected. `autocorrect=off` was added, but
+  hiding the iOS arrows/Done accessory bar was not implemented.
+- References: [WebKit safe-area issue](https://bugs.webkit.org/show_bug.cgi?id=217754),
+  [W3C discussion of iOS input accessories](https://lists.w3.org/Archives/Public/public-webapps-github/2026Sep/0121.html).
 
-## 모바일 보조 키 확장 (2026-09-22)
+## Additional mobile terminal keys (2026-09-22)
 
-- 기본 44px 줄을 Esc·Tab·Ctrl C·붙여넣기·Enter·Ctrl R로 구성했다. 키 영역만 가로로 스크롤하며,
-  입력창·펼치기 버튼은 고정한다. 펼친 영역은 이동·Ctrl·F1–F12별 두 줄 격자다.
-- 방향키·Home/End는 xterm의 application cursor mode를 반영한다. 함수 키는 xterm과 같은
-  시퀀스를 보낸다. 사용자 Ctrl 조합은 영문 한 글자만 허용한다.
-- 임시 tmux 세션의 실제 raw 입력 프로그램에서 화면 버튼과 물리 키보드의 전달 바이트를 비교했다.
-  일반·application 모드 방향키·Home/End, 페이지 이동·삭제·Shift+Tab, Ctrl 단축키와 F키가 일치했다.
-- 붙여넣기에 Enter가 추가되지 않는 것, 사용자 Ctrl 조합, 입력 포커스와 셸 PID 유지,
-  320×520 화면의 격자·입력창·고정 버튼 접근을 확인했다. 세 종류의 모바일 화면을 직접 확인했다.
-- `npm run check`, `npm run build:web`, 브라우저 테스트 6개 통과. 로컬·SSH 스크롤과
-  기존 키보드 여백·전체 화면 검증도 포함한다. 실제 iPhone 키보드 검증을 대체하지 않는다.
+- The original 44px accessory row contained Esc, Tab, Ctrl+C, paste, Enter and Ctrl+R;
+  only the keys scrolled horizontally. Expanded navigation, Ctrl and function keys
+  used a two-row grid. The later virtual keyboard replaces this layout.
+- Arrows and Home/End respect xterm application cursor mode. Function keys match
+  xterm sequences. The original custom Ctrl input accepted one Latin letter.
+- A raw-input program in temporary tmux compared virtual/physical key bytes for
+  normal/application cursor modes, paging, delete, Shift+Tab, Ctrl and function keys.
+- Paste added no Enter. Custom Ctrl input, focus, PID preservation and 320×520 access
+  were checked; screenshots of all three key groups were inspected.
+- Type checks, web build and six browser scenarios passed, including local/SSH scroll,
+  keyboard safe area and fullscreen. These do not replace physical iPhone testing.
 
-## 입력창 전송과 실행 분리 (2026-09-22)
+## Separate draft sending from submission (2026-09-22)
 
-- 입력창 전송 시 자동으로 추가하던 Enter를 제거했다. 보내기 버튼과 입력창 Enter는
-  작성한 내용만 붙여넣고, 하단 Enter 보조 키로 실행한다. 사용 안내와 README도 수정했다.
-- 임시 tmux의 raw 입력 프로그램에서 한글 보내기·입력창 Enter로 전달되는 바이트에
-  추가 Enter가 없음을 확인했다. 후속 제어 문자까지 수신해 지연 전송도 함께 검사했다.
-  하단 Enter는 CR 한 바이트를 전달하며 입력창 포커스를 유지한다.
-- `npm run check`, `npm run build:web` 통과. 브라우저 검증은 첫 실행 4개 통과 후
-  SSH 테스트의 터치 미지원 컨텍스트에서 tap을 click으로 수정했고, SSH·작업 공간 2개를 재실행해 통과했다.
-- 실행 중인 서비스의 HTML·JS·CSS가 새 빌드와 일치함을 확인했다. 서비스 재시작은 없었다.
+- Send and Enter in the draft input paste only the draft; the terminal Enter key
+  submits it. Help and README were updated.
+- A raw-input probe checked Korean drafts and keyboard submission without an appended
+  Enter, including a trailing control-character marker to detect delayed input.
+  Terminal Enter sent one CR and kept draft focus.
+- Type checks and web build passed. Four browser scenarios passed initially; a tap
+  in an SSH context without touch support was corrected to click, then SSH/workspace
+  scenarios passed again.
+- Deployed HTML/JS/CSS matched the new build without a service restart.
 
-## 한국어 이름 통일 (2026-09-22)
+## Korean product naming (2026-09-22)
 
-- 한국어 이름을 줼리로 통일했다. 화면·접근성 라벨·브라우저 제목·홈 화면 제목,
-  문서·설정 스크립트·테스트의 표기를 수정하고 AGENTS.md에도 이름을 명시했다.
-- 등록된 로컬 `/path/to/jelly` 프로젝트 이름을 줼리로 변경했다. 트랜잭션에서
-  프로젝트 ID·경로·기존 세션 레코드가 유지되는지 확인했고 API 조회에도 반영됐다.
-- `npm run check`, `npm test` 18개, 작업 공간 브라우저 테스트 1개 통과.
-  소스·빌드 결과의 이전 표기 잔존 여부와 현재 서비스의 HTML·JS·CSS 반영을 확인했다.
-- 모바일 크기의 브라우저에서 제목·홈 화면 메타·로고·연결 키 안내·등록 프로젝트·서버 선택의
-  한국어 이름을 확인했다. 실제 사용자 세션에 접속하거나 서비스를 재시작하지 않았다.
+- The Korean product name was standardized as 줼리 in UI, accessibility labels,
+  browser/home-screen titles, docs, setup scripts, tests and AGENTS.md.
+- The registered `/path/to/jelly` project was renamed in a transaction, preserving
+  its ID, path and session records. The API reflected the change.
+- Type checks, 18 backend tests and one workspace browser scenario passed. Source
+  and builds were checked for old spellings, and deployed assets were verified.
+- Mobile browser checks covered titles, logo, key help, registered project and host
+  selector. No real user session was attached and the service was not restarted.
 
-## 홈 화면 도마뱀 아이콘 (2026-09-22)
+## Home-screen lizard icons (2026-09-22)
 
-- 기존 SVG에서 불투명 배경과 여백을 둔 180·192·512px PNG를 생성했다.
-  아이폰용 apple-touch-icon과 줼리 이름·standalone 표시·아이콘을 담은 manifest를 추가했다.
-  `npm run build:icons`로 원본에서 다시 생성할 수 있다.
-- 정적 파일 허용 목록에 아이콘 3개와 manifest만 추가했다. 로그인 전 GET·HEAD,
-  MIME·PNG 실제 크기·캐시 정책과 다른 파일의 비공개 유지를 통합 테스트로 확인했다.
-- `npm run check`, `npm test` 18개 통과. 아이콘을 직접 확인했고, 실제 서비스의
-  로그인 화면에서 메타 정보 조회와 PNG 3개의 브라우저 디코딩을 확인했다.
-- 서버 재시작 뒤 기존 실행 세션 1개의 PID·상태를 유지했고 공개 파일이 새 빌드와 일치했다.
-  아이폰의 실제 홈 화면 추가는 직접 검증하지 않았다. 기존 글자 아이콘은 다시 추가해 확인한다.
-- 참고: [Apple 홈 화면 아이콘 설정](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html),
-  [WebKit 홈 화면 웹 앱 아이콘](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/).
+- The SVG generated opaque, padded PNGs at 180, 192 and 512px. Apple touch metadata
+  and a manifest with the product name, standalone display and icons were added.
+  `npm run build:icons` regenerates them.
+- Only those three icons and the manifest joined the public asset allowlist.
+  Integration checks covered unauthenticated GET/HEAD, MIME types, actual PNG sizes,
+  cache policy and continued privacy of other files.
+- Type checks and 18 backend tests passed. Icons were inspected; the deployment's
+  login page metadata and browser decoding of all three PNGs were verified.
+- Restart preserved the existing session's PID/status; public assets matched the build.
+  Actual iPhone installation was not checked; older installed icons may need re-adding.
+- References: [Apple home-screen icons](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html),
+  [WebKit home-screen icons](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/).
 
-## SSH 세션 전환 지연 (2026-09-22)
+## SSH switching latency (2026-09-22)
 
-- 전환 시 티켓 발급·WebSocket 검증·PTY 연결이 각각 새 SSH 연결을 만들고 있었다.
-  읽기 작업과 터미널 연결에 OpenSSH 연결 재사용을 적용했다. 호스트·포트·키·설정별로
-  줼리 비공개 데이터 폴더에 전용 소켓을 두고 유휴 연결은 60초 뒤 종료한다.
-- 명시적인 연결 확인은 새 연결에서 호스트 키·인증을 검증한다. 세션 생성·종료 역시
-  새 연결로 처리한다. 응답하지 않는 공유 연결에 종료 요청이 남아 복구 후 실행되는 문제를
-  임시 SSH 서버 일시 중지 테스트로 발견했고, 수정 후 기존 셸 PID 유지를 확인했다.
-- 동일 서버에서 두 세션을 여섯 번 번갈아 연결하며 티켓 요청부터 ready까지 측정했다.
-  SSH 중앙값은 약 427→35ms, 로컬은 17→13ms였다. SSH에는 이미 인증된 연결을 사용했다.
-  임시 Docker SSH 서버·loopback 측정이며 실제 아이폰·Tailscale 지연과 첫 SSH 인증은 포함하지 않는다.
-- `npm run check`, `npm test` 18개, `npm run test:ssh` 6개, `npm run test:web` 6개 통과.
-  두 원격 세션의 연결 재사용·독립 입력·한쪽 접속 해제 후 다른 쪽 유지·공유 연결 종료 후 재접속,
-  서버 일시 중지·API 재시작·호스트 키 거부·로컬/SSH 스크롤을 확인했다.
-- 현재 서비스에 반영한 뒤 기존 실행 세션 2개의 PID·상태가 유지됐다.
-- 참고: [OpenSSH 연결 재사용 설정](https://man.openbsd.org/ssh_config#ControlMaster).
+- Ticket issuance, WebSocket validation and PTY attachment previously opened separate
+  SSH connections. Read operations and attachments now reuse OpenSSH transports,
+  with private sockets keyed by host, port, identity and configuration. The original
+  idle timeout was 60 seconds.
+- Explicit checks use fresh connections for host-key/authentication verification;
+  mutations also use separate connections. Pausing a disposable SSH server exposed
+  queued stop requests executing after recovery; the fix preserved the existing PID.
+- Alternating two sessions six times measured ticket-to-ready medians of about
+  427→35ms for warm SSH and 17→13ms locally. This was a loopback Docker fixture,
+  excluding physical iPhone/Tailscale latency and first-time SSH authentication.
+- Type checks, 18 backend, 6 SSH and 6 browser tests passed. Coverage included shared
+  transport, independent input, detach isolation, master loss/recovery, server pause,
+  API restart, host-key rejection and local/SSH scrolling.
+- Deployment preserved two running session PIDs and statuses.
+- Reference: [OpenSSH connection reuse](https://man.openbsd.org/ssh_config#ControlMaster).
 
-## 브라우저 세션 전환 캐시 (2026-09-23)
+## Browser session cache (2026-09-23)
 
-- 기존에는 세션을 선택할 때마다 xterm과 WebSocket을 폐기하고 다시 만들었다.
-  같은 프로젝트에서 최근 방문한 3개 세션의 화면과 연결을 메모리에 유지하도록 변경했다.
-  현재 세션을 다시 선택해도 재접속하지 않는다. 별도 화면이나 설정은 추가하지 않았다.
-- 숨긴 터미널에는 입력·크기 변경·자동 재접속을 보내지 않는다. 돌아올 때 현재 화면 크기를
-  적용하고, 연결이 끊겼다면 다시 접속한다. 다른 기기가 접속을 가져간 경우에는 명시적인
-  ‘다시 연결’ 전까지 기다린다. 데스크톱에서는 다시 보인 터미널로 입력 포커스를 옮긴다.
-- 로컬·임시 SSH 서버에서 두 세션을 번갈아 열 때 새 티켓 요청을 차단해도 연결과 출력이
-  유지됐으며 추가 티켓·WebSocket 생성이 없었다. 입력 대상 분리, 숨긴 터미널 크기 유지,
-  두 번째 기기 접속, 숨긴 연결 중단 뒤 선택 시 복구를 확인했다.
-- 네 번째 세션 방문 시 캐시가 3개로 제한되고 오래된 접속만 해제된다. 다시 접속한 셸의
-  PID와 출력이 유지됐다. 선택한 세션의 접속 해제·종료가 다른 캐시를 재접속시키지 않고,
-  로그아웃 시 모든 캐시 접속이 닫히는 것도 확인했다.
-- `npm run check`, `npm run build:web`, 브라우저 테스트 8개 통과. 이후 데스크톱 포커스
-  보완 후 SSH 전환 테스트와 로컬 전환·포커스 테스트를 각각 통과했다.
-  데스크톱 포인터 검증은 모바일 Chromium 컨텍스트의 matchMedia 결과를 모델링했다.
-- 실행 중인 서비스의 HTML·정적 빌드 반영을 확인했다. 서버 재시작이나 사용자 세션 접속은 없었다.
-- 실제 iPhone 홈 화면 웹 앱에서 Chrome보다 느린 현상 자체는 재현하지 못했다.
-  검증한 개선은 캐시된 세션 전환 시 연결 요청과 터미널 재생성을 없앤 것이며,
-  첫 방문·캐시 밖 세션·프로젝트 변경·페이지 재시작은 여전히 연결 과정을 거친다.
+- Instead of rebuilding xterm/WebSocket on every selection, the original cache kept
+  the three most recent sessions in a project. Selecting the active session does
+  not reconnect. Later work extends the cache across projects.
+- Hidden terminals send no input, resize or automatic reconnect. Returning applies
+  current dimensions and reconnects if needed; a takeover waits for explicit
+  Reconnect. Desktop focus moves to the visible terminal.
+- Local/disposable SSH tests blocked new tickets while switching and observed no
+  added tickets/WebSockets. Input isolation, hidden sizes, takeover and recovery
+  after hidden transport loss passed.
+- Visiting a fourth session evicts only the oldest attachment. Reopening preserves
+  its shell PID/output. Disconnecting or stopping one session leaves other cached
+  connections intact; logout closes all attachments.
+- Type checks, web build and eight browser scenarios passed. Desktop focus changes
+  were followed by separate SSH and local switching/focus checks. Desktop pointer
+  behavior was modeled through matchMedia in a mobile Chromium context.
+- Deployed assets were verified without restarting the service or attaching user sessions.
+- Slower iPhone home-screen behavior than Chrome was not reproduced directly.
+  These checks establish removal of connection/render setup for cached switches;
+  first visits, cache misses and page restarts still require a connection.
 
-## 라이브 입력과 한글 조합 (2026-09-23)
+## Live input and Korean composition (2026-09-23)
 
-- 하단에 44px 라이브 입력줄을 기본으로 표시한다. 별도 전송 버튼 없이 입력을 전달하며,
-  휴대폰 터미널 탭도 이 입력창에 포커스를 준다. 스와이프는 기존 스크롤 동작을 유지한다.
-  키보드를 닫아도 입력줄은 남는다. 연필 버튼은 기존 문장 입력 방식으로 전환한다.
-- 브라우저의 입력값은 React가 다시 쓰지 않도록 하고, 조합 이벤트가 진행 중이면 마지막
-  한글을 보류한다. 확정된 부분만 순서대로 전송한다. 조합 이벤트 없는 키보드 업데이트는
-  마지막 한글을 300ms 보류하고 이후 수정은 삭제·교체로 반영한다.
-- Enter·Ctrl·방향키·붙여넣기 전에 남은 조합을 먼저 확정한다. 붙여넣기에 자동 Enter를
-  추가하지 않는다. 포커스 이동 뒤에는 이전 입력값으로 새 터미널 내용을 지우지 않도록
-  입력 추적을 초기화하며, 접속 해제·세션 변경·언마운트 시 타이머를 취소한다.
-- 임시 tmux의 raw 입력 프로그램으로 실제 수신 바이트를 확인했다. Chromium의 IME API로
-  `ㅎ→하→한`, `한글`, `간→가나`를 조합했고, 360ms 멈춰도 조합 중 자모가 전송되지 않았다.
-  조합 중 Enter/Ctrl+C의 순서·중복, 이벤트 없는 한글 입력·수정, ASCII/이모지 삭제,
-  붙여넣기 후 입력, keydown 없는 모바일 Enter, 세션 간 입력 유출 방지를 검증했다.
-- SSH 컨테이너에서도 브라우저 IME로 한글을 입력한 명령의 실행 결과를 확인했다.
-  기존 키·스크롤·글씨 크기·키보드 여백·전체 화면·세션 캐시 검증도 통과했다.
-  `npm run check`, `npm run build:web` 통과. 전체 브라우저 실행은 8개 통과 후
-  테두리를 제외한 보조 키 줄 높이 기대값을 수정했고, 입력 UI·SSH 2개를 다시 통과했다.
-  총 9개 시나리오가 검증됐다. 320×520 모바일 화면도 직접 확인했다.
-- 실제 iPhone 키보드에서의 IME 이벤트·키보드 재표시는 직접 검증하지 않았다.
-  테스트는 Chromium의 네이티브 조합과 별도의 이벤트 시뮬레이션이며 iOS 검증을 대체하지 않는다.
-- 동작 참고: 로컬 Orca 모바일 소스와
-  [Orca의 라이브 입력·한글 수정](https://github.com/stablyai/orca/pull/7273).
-  웹용 입력 처리는 줼리 컴포넌트로 구현했고 원격 서버에 추가 설치는 없다.
+- A default 44px live-input row sends typing without a separate Send button. Mobile
+  terminal taps focus it; swipes retain scrolling. Dismissing the keyboard leaves
+  the row visible. The pencil switches to draft input.
+- React does not rewrite the native capture value. During composition, the final
+  Korean character is withheld while committed text is sent in order. Keyboard
+  updates without composition events hold the final character for 300ms and send
+  subsequent edits as deletion/replacement.
+- Pending composition commits before Enter, Ctrl, arrows or paste. Paste adds no
+  Enter. Focus changes reset tracking so stale input cannot erase new terminal
+  content; disconnect, session switch and unmount cancel timers.
+- A raw tmux probe inspected received bytes. Chromium's IME API composed
+  `ㅎ→하→한`, `한글` and `간→가나`; pending Jamo stayed unsent after a 360ms pause.
+  Tests covered Enter/Ctrl+C ordering and duplication, eventless composition/edits,
+  ASCII/emoji deletion, input after paste, mobile Enter without keydown and session isolation.
+- SSH tests executed a command entered through browser IME. Existing key, scroll,
+  font, safe-area, fullscreen and cache coverage passed. Type checks/build passed;
+  eight browser scenarios passed initially, then the accessory-row height assertion
+  was corrected to exclude its border and input/SSH checks passed again. Nine
+  scenarios were verified, with a 320×520 screenshot inspected.
+- Actual iPhone IME events and keyboard reopening were not tested. Native Chromium
+  composition and simulated events do not substitute for iOS device testing.
+- References included local Orca mobile source and
+  [Orca live input and Korean edits](https://github.com/stablyai/orca/pull/7273).
+  Jelly's browser component requires no additional remote installation.
 
-## 백그라운드 복귀 연결 지연 (2026-09-23)
+## Returning from the background (2026-09-23)
 
-- 최근 세션 3개의 메모리 보관에는 시간 제한이 없다. 이번 변경은 화면 저장이 아닌
-  앱 복귀 후 다시 입력할 수 있을 때까지의 연결 대기를 줄인다.
-- 복귀 시 브라우저가 열린 것으로 표시하는 연결을 고유 nonce로 확인한다. 정상 연결은
-  유지하고 1.2초 안에 응답하지 않으면 교체한다. 연결 도중 멈춘 요청은 취소하고 즉시
-  다시 시작한다. 티켓 발급·WebSocket 연결·터미널 준비 전체 시도는 12초로 제한한다.
-- 정상 연결 확인 중에는 입력창 상태·포커스를 유지하며 입력은 응답 뒤 전달한다.
-  이전 연결 이벤트는 새 연결에 영향을 주지 않는다. 숨긴 세션은 선택할 때 확인하며,
-  명시적 접속 해제나 다른 기기로의 인계는 자동으로 되돌리지 않는다.
-- SSH 유휴 연결 유지 시간을 60초에서 20분으로 늘렸다. OpenSSH가 해석한 실제 옵션을
-  `ssh -G`로 확인했다. 기존 60초 설정의 master를 재사용하지 않도록 소켓 식별자에 정책
-  버전을 포함했다. 생성·종료 등 상태를 바꾸는 SSH 명령의 별도 연결은 유지한다.
-- 실제 로컬·컨테이너 SSH 터미널에 연결한 Chromium에서 이전 소켓만 OPEN으로 남고
-  응답하지 않는 상태를 모의했다. 복귀 후 ready까지 로컬 1,862ms, SSH 1,863ms였다.
-  정상 복귀의 연결 재사용·입력값/포커스 유지, 반복 복귀 이벤트의 중복 연결 방지,
-  중단된 티켓 요청의 교체, 명시적 접속 해제·기기 인계 유지, 같은 셸 PID와 입력을 검증했다.
-- `npm run check`, `npm test` 19개, `npm run test:ssh` 6개,
-  `npm run test:web` 11개가 모두 통과했다. API의 probe 응답·잘못된 nonce 거부 및
-  probe가 터미널 입력으로 유출되지 않는 것도 확인했다.
-- 실제 서비스 재시작 뒤 실행 중인 셸 1개의 PID와 상태가 유지됐고 공개 웹 파일이
-  빌드 결과와 일치했다. 사용자 터미널에 접속하거나 입력하지 않았다.
-- 측정은 로컬 테스트 환경의 복귀 이벤트·고장 모의 결과다. 실제 iPhone에서 10분 동안
-  앱을 중단했다 돌아오는 시간이나 20분 유휴 만료 자체를 실시간으로 측정한 결과는 아니다.
+- The three cached terminals have no time limit. This change reduces the wait until
+  input works after app resume, rather than adding screen storage.
+- Resume probes apparently open connections with a unique nonce, retaining healthy
+  transports and replacing those without a response within 1.2 seconds. Stalled
+  connection attempts are cancelled/restarted; ticket, WebSocket and terminal-ready
+  setup has an overall 12-second deadline.
+- Healthy probes preserve input state/focus, delivering queued input after response.
+  Stale events cannot affect replacements. Hidden sessions probe when selected;
+  explicit disconnects and device takeovers remain respected.
+- SSH idle reuse increased from 60 seconds to 20 minutes, verified with `ssh -G`.
+  A policy version in socket names avoids reuse of masters with the old timeout.
+  Mutating commands continue to use separate connections.
+- Chromium simulated stale OPEN sockets against real local/container SSH terminals.
+  Resume-to-ready measured 1,862ms locally and 1,863ms over SSH. Healthy reuse,
+  input/focus preservation, deduplicated wake events, stalled tickets, detach/takeover
+  semantics, unchanged PIDs and input were checked.
+- Type checks, 19 backend tests, 6 SSH tests and 11 browser scenarios passed. API
+  probes, invalid nonce rejection and probes never reaching terminal input were checked.
+- Deployment restart preserved the running shell's PID/status and matched public
+  assets to the build, without attaching or typing into the user's terminal.
+- Measurements used simulated local resume/failure events, not a physical iPhone
+  suspended for ten minutes or a real-time measurement of the 20-minute idle expiry.
 
-## 검증 범위의 한계
+## Limits
 
-- 실제 휴대폰의 한글 IME, 가상 키보드·회전, 터치 스크롤은 아직 검증하지 않았다.
-- Codex/Claude Code 실계정·유료 작업은 실행하지 않았다. 셸과 실제 전체 화면 TUI(`top`)까지 확인했다.
-- 느린 소비자 테스트는 기본 스트레스 시나리오이며 장시간 부하·엄밀한 메모리 상한 증명은 아니다.
-- 서버 재부팅 시 실행 중인 프로세스가 유지되는 것은 지원하지 않는다.
-- 토큰을 가진 개인 사용자 한 명을 위한 서비스이며, 사용자를 격리하는 샌드박스는 아니다.
+- Physical phone Korean IME, keyboards, rotation and touch scrolling remain unverified.
+- No real-account or paid Codex/Claude Code tasks were run. Shells and a real fullscreen
+  TUI (`top`) were tested.
+- Slow-consumer and soak tests cover specific scenarios and durations; they do not
+  prove a strict memory bound for all workloads.
+- Running processes do not survive a reboot of their host.
+- Jelly serves one trusted token holder. It is not a sandbox that isolates users.
