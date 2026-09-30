@@ -3,6 +3,34 @@
 For the first run, see the [README](../README.md#get-started).
 Run the commands below from the repository root unless noted otherwise.
 
+## Connect from another device
+
+Connect the server and your device to the same Tailscale network. Stop a standalone
+Jelly process, then restart it from the repository root with:
+
+```bash
+JELLY_HOST=tailscale npm start
+```
+
+Open `http://<server-tailscale-ip>:47821` on your device. To get the connection key,
+run this on the Jelly server from the repository root:
+
+```bash
+cat .data/token
+```
+
+Jelly serves the app and API on the same port. Tailscale Serve, Funnel and a separate
+web server are not required. For systemd, use the service configuration below.
+
+Jelly is for personal use on localhost or a private tailnet. Anyone with the
+connection key can run commands as the server account, including over its configured
+SSH connections. Keep the key private. This is not a multi-user sandbox.
+
+## Installation dependencies
+
+If `npm ci` needs to build `node-pty`, install Python 3, make and a C++ compiler.
+For terminal controls and session behavior, see the [usage guide](GUIDE.md).
+
 ## Configuration
 
 Jelly reads environment variables at startup.
@@ -172,7 +200,25 @@ thresholds for the tested duration, not a proof that all workloads have bounded 
 SSH and browser tests also need Docker; they create disposable SSH servers and
 temporary credentials. Tests use their own data directories and tmux sockets.
 
-Chromium runs the full browser suite. WebKit covers keyboard geometry, warm
-session switching, and workspace response races. GitHub Actions runs both engines
+Chromium runs the full browser suite. WebKit covers keyboard geometry, virtual
+keys, quick session creation, output flow, warm switching and workspace response
+races. GitHub Actions runs both engines
 with the backend and SSH suites. Mobile viewport and input simulations do not
 replace testing on a physical iPhone.
+
+## README media
+
+To refresh the demo and screenshots, install FFmpeg with GIF and H.264 encoding
+support, then run:
+
+```bash
+npm run build:test
+npx playwright install chromium
+node scripts/capture-demo.mjs
+```
+
+Set `FFMPEG=/path/to/ffmpeg` if it is not on your PATH. The script captures the real
+app with disposable example projects on loopback, using its own data directory
+and tmux socket. It writes desktop and mobile viewport screenshots, a GIF and an
+MP4 to `docs/media/`, then removes its temporary sessions and files. Review the
+generated media before committing it.

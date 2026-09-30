@@ -1,0 +1,63 @@
+# Using Jelly
+
+For installation and remote access, see [Setup](SETUP.md).
+
+## Projects and sessions
+
+Add an existing folder on the Jelly server, or select an SSH host and browse its
+folders. Sessions appear beneath their project. Use **+** to create a session,
+and the arrow beside a project to fold its session list.
+
+A session is a persistent shell. Run your usual tools, including Codex or Claude
+Code. Closing the browser or choosing **Disconnect** detaches your connection;
+**Stop session** ends the shell and its running programs.
+
+Opening a session on another device takes control and disconnects the previous
+client. Jelly keeps the three most recently visited terminals connected across
+projects. Older sessions keep running and reconnect when selected.
+
+Sessions survive Jelly restarts, but not a reboot of the machine running the shell.
+Jelly uses private tmux sockets and leaves unrelated tmux sessions alone.
+
+## Input
+
+**Live input** sends text as you type, after IME composition. Enter submits to the
+terminal. Unicode input, including Korean, is supported.
+
+The **pencil button** opens draft input. Its Send button or Enter key pastes the
+text without submitting it to the terminal; Shift+Enter adds a line to the draft.
+Use the virtual keyboard's Enter key to submit the pasted text.
+
+In the terminal and live input, **Shift+Enter** is delivered as a separate key.
+Applications can use it for newlines; the running program determines its behavior.
+
+The **keyboard button** opens a compact floating panel. Select a key and modifiers
+such as Ctrl, Alt or Shift, then press **Send**. Selection alone sends nothing.
+Opening the panel does not resize or rearrange the terminal. Switching sessions
+clears the selected combination.
+
+## On your phone
+
+Swipe the terminal to browse output. Send **Esc** to return from tmux history to
+live input. Use **History** to read and copy recent output; it opens at the bottom.
+History is bounded tmux scrollback, not a permanent log.
+
+The native keyboard clips the visible terminal without changing its row count.
+Tap the keyboard-dismiss button to hide it while keeping live input available.
+
+On iPhone, use **Share → Add to Home Screen** and launch the saved icon. On browsers
+that support fullscreen, use **More → Fullscreen**. Font size is also in **More**.
+
+Jelly's interface is English regardless of browser language. Project names,
+session names and terminal output retain their original text.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| ⌘⇧Enter | Create and open a session in the current project. |
+| ⌘⇧, | Previous session. |
+| ⌘⇧. | Next session. |
+
+Session navigation follows project/list order, skips empty projects and wraps at
+the ends. New sessions receive an unused `Session N` name.
