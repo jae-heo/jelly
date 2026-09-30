@@ -113,6 +113,10 @@ for (const remote of [false, true]) test(`keyboard viewport: ${remote ? 'SSH' : 
       }
     });
     await expect(page.locator('.xterm-rows')).not.toContainText('KEYBOARD_160');
+    // The first wheel report enters tmux copy mode; the next seven move five
+    // rows each. Wait for the final repaint, including the SSH round trip,
+    // before taking the baseline used to detect movement caused by the panel.
+    await expect(page.locator('.xterm-rows')).toContainText(/\[35\/\d+\]/);
     const historyLines = () => page.locator('.terminal-viewport').evaluate(element => {
       const clip = element.getBoundingClientRect();
       return [...element.querySelectorAll('.xterm-rows > div')].filter(line => {
