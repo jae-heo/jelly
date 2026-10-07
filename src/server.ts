@@ -14,6 +14,7 @@ import { serveWeb } from './web-static.js';
 
 const NewProject = z.object({ name: Name, path: z.string().min(1).max(4096), hostId: Id.nullable().default(null) }).strict();
 const NewSession = Size.extend({ name: Name.default('Terminal') }).strict();
+const Rename = z.object({ name: Name }).strict();
 const NewHost = z.object({
   name: Name,
   target: z.string().trim().regex(sshTargetPattern),
@@ -112,6 +113,14 @@ export async function startServer(config: Config) {
       const id = projectMatch[1]!;
       if (!projectMatch[2]) {
         if (method === 'GET') return json(res, 200, project(id));
+        if (method === 'PATCH') {
+          const input = Rename.parse(await body(req));
+          return mutate(hostKey(project(id).hostId), async () => {
+            project(id);
+            store.renameProject(id, input.name);
+            json(res, 200, project(id));
+          });
+        }
         if (method === 'DELETE') return mutate(hostKey(project(id).hostId), async () => {
           project(id);
           if (store.sessions(id).length) throw new ApiError(409, 'Delete project sessions first');
@@ -152,6 +161,16 @@ export async function startServer(config: Config) {
     if (sessionMatch) {
       const id = sessionMatch[1]!;
       const action = sessionMatch[2];
+      if (method === 'PATCH' && !action) {
+        const input = Rename.parse(await body(req));
+        return mutate(hostKey(project(session(id).projectId).hostId), async () => {
+          session(id);
+          store.renameSession(id, input.name);
+          // Renaming metadata does not query or reconnect the shell, including
+          // when its SSH host is currently unreachable.
+          json(res, 200, session(id));
+        });
+      }
       if (method === 'GET' && !action) return json(res, 200, view(session(id), await tmux.states([session(id)])));
       if ((method === 'DELETE' && !action) || (method === 'POST' && action === 'stop')) {
         return mutate(hostKey(project(session(id).projectId).hostId), async () => {

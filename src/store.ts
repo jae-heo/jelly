@@ -66,6 +66,7 @@ export class Store {
     return project;
   }
   deleteProject(id: string): void { this.db.prepare('DELETE FROM projects WHERE id = ?').run(id); }
+  renameProject(id: string, name: string): void { this.db.prepare('UPDATE projects SET name = ? WHERE id = ?').run(name, id); }
   sessions(projectId?: string): Session[] {
     return (projectId
       ? this.db.prepare('SELECT * FROM sessions WHERE projectId = ? ORDER BY createdAt, id').all(projectId)
@@ -81,5 +82,6 @@ export class Store {
     this.db.prepare('UPDATE sessions SET stoppedAt = COALESCE(stoppedAt, ?) WHERE id = ?').run(new Date().toISOString(), id);
   }
   deleteSession(id: string): void { this.db.prepare('DELETE FROM sessions WHERE id = ?').run(id); }
+  renameSession(id: string, name: string): void { this.db.prepare('UPDATE sessions SET name = ? WHERE id = ?').run(name, id); }
   close(): void { this.db.close(); }
 }

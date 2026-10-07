@@ -28,11 +28,13 @@ localStorage (explicit remember-device selection). WebSockets use the short-live
 | GET | `/api/projects` | `{projects:[...]}` |
 | POST | `/api/projects` | `{name,path,hostId?}` → project (201); existing absolute directory on that server only; missing/null hostId means local |
 | GET | `/api/projects/:id` | project |
+| PATCH | `/api/projects/:id` | `{name}` → updated project; display name only |
 | DELETE | `/api/projects/:id` | metadata only; 409 if any session records remain |
 | GET | `/api/projects/:id/sessions` | `{sessions:[...]}` |
 | POST | `/api/projects/:id/sessions` | `{name?,cols?,rows?}` → session (201) |
 | GET | `/api/sessions` | all session records and current tmux state |
 | GET | `/api/sessions/:id` | session with current state |
+| PATCH | `/api/sessions/:id` | `{name}` → updated session metadata (`id,projectId,name,createdAt,stoppedAt`); no shell status query |
 | POST | `/api/sessions/:id/stop` | terminate session processes, keep stopped record; idempotent |
 | DELETE | `/api/sessions/:id` | terminate session and delete record |
 | GET | `/api/sessions/:id/history?lines=1000` | `{text,format:"plain",lines}`; requested history plus current screen |
@@ -60,6 +62,8 @@ IDs are UUIDs. `status` is `running`, `exited`, `stopped`, `lost`, or `unreachab
 The last means an SSH host could not be queried; it never marks the metadata stopped or deletes work.
 `pid` is the tmux pane's shell PID; it is not necessarily the foreground agent PID.
 Names: 1–100 characters. Terminal: 2–500 columns, 2–200 rows; defaults 80×24.
+Renaming trims surrounding whitespace and preserves IDs, paths and running shells.
+It works for ended sessions and unreachable SSH hosts too. Only `name` may be patched.
 Maximum 100 session records; delete old records to create more. Registration never creates/deletes source directories.
 An exited session keeps its screen until explicitly deleted/stopped; attachment requires a running shell.
 Stopping/deleting terminates work, and its in-memory tmux history becomes unavailable.

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CircleHelp, History, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
+import { CircleHelp, History, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
 import type { Project, Session } from './api';
 import { FONT_SIZE } from './terminalSettings';
 
@@ -10,6 +10,7 @@ interface Props {
   fullscreenAvailable: boolean; fullscreen: boolean; onFullscreen: () => void;
   onSidebar: () => void; onHistory: () => void; onFontSize: (size: number) => void;
   onConnection: () => void; onNewSession: () => void; onStop: () => void;
+  onRenameProject: () => void; onRenameSession: () => void;
   onDeleteProject: () => void; onHosts: () => void; onHelp: () => void; onLogout: () => void;
 }
 
@@ -67,6 +68,8 @@ export function WorkspaceHeader(props: Props) {
           </div>
           {props.project && <div className="workspace-menu-group">
             <button onClick={act(props.onNewSession)}><Plus size={17} /><span>New session</span></button>
+            <button onClick={act(props.onRenameProject)}><Pencil size={17} /><span>Rename project</span></button>
+            {props.session && <button onClick={act(props.onRenameSession)}><Pencil size={17} /><span>Rename session</span></button>}
             {(props.session?.status === 'running' || (props.session?.status === 'unreachable' && props.live)) && <>
               <button aria-label={props.canDisconnect ? 'Disconnect' : 'Reconnect'} onClick={act(props.onConnection)}>{props.canDisconnect ? <Unplug size={17} /> : <RefreshCw size={17} />}<span>{props.canDisconnect ? 'Disconnect' : 'Reconnect'}</span></button>
               <button className="menu-danger" onClick={act(props.onStop)}><Square size={15} /><span>Stop session</span></button>

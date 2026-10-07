@@ -268,6 +268,32 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     c.ws.close();
     await once(c.ws, 'close');
   });
+  await t.test('rename metadata validates input and preserves an attached shell', async () => {
+    const c = await connect(sessionId);
+    for (const path of [`/api/projects/${projectId}`, `/api/sessions/${sessionId}`]) {
+      await api(path, 'PATCH', { name: 'denied' }, 401, { Authorization: '' });
+      await api(path, 'PATCH', { name: 'denied' }, 403, { Origin: 'https://evil.test' });
+      for (const input of [{}, { name: '   ' }, { name: 'x'.repeat(101) }, { name: 'valid', path: '/different' }]) {
+        await api(path, 'PATCH', input, 400);
+      }
+    }
+    for (const kind of ['projects', 'sessions']) {
+      await api(`/api/${kind}/11111111-1111-4111-8111-111111111111`, 'PATCH', { name: 'Missing' }, 404);
+    }
+    const p = await api(`/api/projects/${projectId}`, 'PATCH', { name: '  Renamed 프로젝트  ' });
+    assert.equal(p.name, 'Renamed 프로젝트');
+    assert.equal(p.path, projectPath);
+    const s = await api(`/api/sessions/${sessionId}`, 'PATCH', { name: '  Renamed 세션  ' });
+    assert.equal(s.name, 'Renamed 세션');
+    assert.equal(s.projectId, projectId);
+    const current = await api(`/api/sessions/${sessionId}`);
+    assert.equal(current.pid, shellPid);
+    assert.equal(current.connected, true);
+    assert.equal(c.ws.readyState, WebSocket.OPEN);
+    c.send("printf '\\nRENAME_%s\\n' OK\r");
+    await c.wait('RENAME_OK');
+    c.ws.close(); await once(c.ws, 'close');
+  });
   await t.test('resume probes echo a nonce without sending text to the terminal', async () => {
     const c = await connect(sessionId);
     assert.equal(c.heartbeat, true);
@@ -329,6 +355,8 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     assert.equal((await closed)[0], 1012);
     await boot();
     assert.equal(token, previousToken);
+    assert.equal((await api(`/api/projects/${projectId}`)).name, 'Renamed 프로젝트');
+    assert.equal((await api(`/api/sessions/${sessionId}`)).name, 'Renamed 세션');
     assert.equal((await api(`/api/sessions/${sessionId}`)).pid, shellPid);
     const resumed = await connect(sessionId);
     await resumed.wait('TAKEOVER_OK');

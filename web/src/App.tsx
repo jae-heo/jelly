@@ -5,6 +5,7 @@ import { useWorkspaceData } from './useWorkspaceData';
 import { Login } from './Login';
 import { Modal } from './Modal';
 import { ProjectDialog } from './ProjectDialog';
+import { RenameDialog } from './RenameDialog';
 import { ProjectTree } from './ProjectTree';
 import { HostManager } from './Hosts';
 import { WorkspaceHeader } from './WorkspaceHeader';
@@ -16,7 +17,7 @@ import { useSessionShortcuts } from './useSessionShortcuts';
 import type { Connection, TerminalHandle } from './TerminalView';
 const TerminalCache = lazy(() => import('./TerminalCache').then(module => ({ default: module.TerminalCache })));
 
-type Dialog = 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | null;
+type Dialog = 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | 'rename' | null;
 const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
 const connectionLabels: Record<Connection, string> = { connecting: 'Connecting', connected: 'Connected', retrying: 'Reconnecting', disconnected: 'Disconnected', taken: 'In use on another device', ended: 'Connection ended' };
 
@@ -26,6 +27,7 @@ export function App() {
   const [sessionId, setSessionId] = useState<string | null>(() => localStorage.getItem('jelly-session'));
   const [sidebar, setSidebar] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [renameTarget, setRenameTarget] = useState<{ kind: 'project' | 'session'; id: string; name: string } | null>(null);
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
@@ -49,7 +51,7 @@ export function App() {
   const screen = useFullscreen(!!token, setNotice);
 
   const logout = useCallback(() => { selectionVersion.current++; currentToken.current = ''; forgetToken(); setToken(''); setSessionId(null); }, []);
-  const { hosts, projects, sessions, loading, online, refresh, addSession, addHost } = useWorkspaceData(token, logout, snapshot => {
+  const { hosts, projects, sessions, loading, online, refresh, addSession, addHost, updateName } = useWorkspaceData(token, logout, snapshot => {
     setProjectId(current => snapshot.projects.some(p => p.id === current) ? current : snapshot.projects[0]?.id ?? null);
     setSessionId(current => snapshot.sessions.some(s => s.id === current) ? current : null);
   });
@@ -72,6 +74,11 @@ export function App() {
   const hasTerminal = session?.status === 'running' || session?.status === 'unreachable';
   const canInput = hasTerminal && attached && connection === 'connected';
   const openDialog = (value: Dialog) => { setFormError(''); setDialog(value); };
+  function openRename(kind: 'project' | 'session') {
+    const target = kind === 'project' ? project : session;
+    if (!target) return;
+    setRenameTarget({ kind, id: target.id, name: target.name }); openDialog('rename');
+  }
   function openSession(p = project) {
     if (!p) return;
     setNewSessionProjectId(p.id); openDialog('session');
@@ -165,6 +172,7 @@ export function App() {
       onSidebar={() => setSidebar(!sidebar)} onHistory={() => void showHistory()} onFontSize={setFontSize}
       onConnection={() => { if (attached && !['taken', 'ended'].includes(connection)) setAttached(false); else { setAttached(true); setRevision(r => r + 1); } }}
       onNewSession={() => openSession()} onStop={() => openDialog('stop')} onDeleteProject={() => openDialog('delete-project')}
+      onRenameProject={() => openRename('project')} onRenameSession={() => openRename('session')}
       onHosts={() => openDialog('hosts')} onHelp={() => openDialog('help')} onLogout={logout} />
     <div className="workspace-body">
       {sidebar && <button className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebar(false)} />}
@@ -191,6 +199,10 @@ export function App() {
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}
     {dialog === 'hosts' && <HostManager token={token} hosts={hosts} projects={projects} onChanged={() => void refresh()} onClose={() => setDialog(null)} />}
     {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={addHost} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
+    {dialog === 'rename' && renameTarget && <RenameDialog kind={renameTarget.kind} name={renameTarget.name} onClose={() => setDialog(null)} onSave={async name => {
+      const result = await api<{ id: string; name: string }>(token, `/${renameTarget.kind}s/${renameTarget.id}`, 'PATCH', { name });
+      if (currentToken.current === token) updateName(renameTarget.kind, result.id, result.name);
+    }} />}
     {dialog === 'session' && <Modal title="New session" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">Session name</label><input id="session-name" name="name" defaultValue={newSessionProjectId ? nextSessionName(newSessionProjectId) : 'Session 1'} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? 'Opening…' : 'Open session'}</button></div></form></Modal>}
     {dialog === 'stop' && <Modal title="Stop session" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{session?.name}’ and its running programs will stop.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />Stop session</button></div></Modal>}
     {dialog === 'delete-project' && <Modal title="Remove project" onClose={() => !busy && setDialog(null)}><p className="dialog-description">Files and folders on the server will be kept.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>Remove from list</button></div></Modal>}

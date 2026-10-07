@@ -194,6 +194,8 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
     await fixture.stop();
     try {
       assert.equal((await request(`/api/sessions/${session.id}`)).status, 'unreachable');
+      assert.equal((await request(`/api/projects/${project.id}`, 'PATCH', { name: 'Offline project' })).name, 'Offline project');
+      assert.equal((await request(`/api/sessions/${session.id}`, 'PATCH', { name: 'Offline session' })).name, 'Offline session');
       await request(`/api/sessions/${session.id}/tickets`, 'POST', undefined, 502);
       await request(`/api/sessions/${session.id}/stop`, 'POST', undefined, 502);
       assert.equal(app.store.session(session.id)?.stoppedAt, null);
@@ -205,6 +207,9 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
   await t.test('explicit remote stop and deletion leave unrelated tmux untouched', async () => {
     await fixture.command('tmux', '-L', `jelly-${config.instanceId}`, 'set-option', '-s', 'exit-empty', 'off');
     assert.equal((await request(`/api/sessions/${session.id}/stop`, 'POST')).status, 'stopped');
+    const renamed = await request(`/api/sessions/${session.id}`, 'PATCH', { name: 'Stopped session' });
+    assert.equal(renamed.name, 'Stopped session');
+    assert.ok(renamed.stoppedAt);
     await request(`/api/sessions/${session.id}`, 'DELETE');
     await request(`/api/projects/${project.id}`, 'DELETE');
     await request(`/api/hosts/${host.id}`, 'DELETE');
