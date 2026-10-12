@@ -72,7 +72,9 @@ clears the selected combination.
 
 ## On your phone
 
-Swipe the terminal to browse output. Send **Esc** to return from tmux history to
+Swipe the terminal to browse output. A quick swipe keeps scrolling briefly;
+touch again to stop. Holding before lifting your finger stops without momentum.
+Send **Esc** to return from tmux history to
 input. Use **History** to read and copy recent output; it opens at the bottom.
 History is bounded tmux scrollback, not a permanent log.
 

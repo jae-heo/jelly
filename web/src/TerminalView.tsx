@@ -21,16 +21,18 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
   const sendRef = useRef<(data: string) => void>(() => {});
   const fitRef = useRef<() => void>(() => {});
   const wakeRef = useRef<() => void>(() => {});
+  const stopScroll = useRef<() => void>(() => {});
   const callbacks = useRef(props);
   callbacks.current = props;
   useImperativeHandle(ref, () => ({
-    send: data => sendRef.current(data),
+    send: data => { stopScroll.current(); sendRef.current(data); },
     chord: (key, modifiers) => {
+      stopScroll.current();
       const sequence = terminalChordSequence(key, modifiers, termRef.current?.modes.applicationCursorKeysMode ?? false);
       if (sequence !== undefined) sendRef.current(sequence);
     },
-    pressKey: key => sendRef.current(terminalKeySequence(key, termRef.current?.modes.applicationCursorKeysMode ?? false)),
-    paste: data => { if (callbacks.current.active) termRef.current?.paste(data); },
+    pressKey: key => { stopScroll.current(); sendRef.current(terminalKeySequence(key, termRef.current?.modes.applicationCursorKeysMode ?? false)); },
+    paste: data => { stopScroll.current(); if (callbacks.current.active) termRef.current?.paste(data); },
     focus: () => { if (callbacks.current.active) termRef.current?.focus(); },
   }), []);
 
@@ -49,7 +51,8 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(container.current);
-    const disposeTouchScroll = attachTouchScroll(term, () => callbacks.current.onTouchInput());
+    const touchScroll = attachTouchScroll(term, () => callbacks.current.onTouchInput(), () => callbacks.current.active);
+    stopScroll.current = touchScroll.stop;
     if (matchMedia('(pointer: coarse)').matches && term.textarea) term.textarea.inputMode = 'none';
     term.textarea?.setAttribute('aria-label', 'Terminal input');
     termRef.current = term;
@@ -70,7 +73,8 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     fitRef.current = geometry.schedule;
     wakeRef.current = connection.wake;
     return () => {
-      connection?.dispose(); geometry.dispose(); disposeTouchScroll(); term.dispose();
+      connection?.dispose(); geometry.dispose(); touchScroll.dispose(); term.dispose();
+      stopScroll.current = () => {};
       termRef.current = null; sendRef.current = () => {}; fitRef.current = () => {}; wakeRef.current = () => {};
     };
   }, [props.token, props.sessionId, props.revision]);
@@ -80,7 +84,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       fitRef.current();
       wakeRef.current();
       if (matchMedia('(pointer: fine)').matches) termRef.current?.focus();
-    } else termRef.current?.blur();
+    } else { stopScroll.current(); termRef.current?.blur(); }
   }, [props.active]);
 
   // Update the existing renderer and PTY size without replacing the WebSocket or terminal.
