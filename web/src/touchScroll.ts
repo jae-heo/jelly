@@ -38,7 +38,8 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
     return true;
   };
   const coast = (state: Gesture) => {
-    let velocity = Math.max(-2, Math.min(2, state.velocity)); // CSS pixels / ms.
+    // Preserve slow gestures while allowing fast flicks to cover longer output.
+    let velocity = Math.max(-6, Math.min(6, state.velocity)); // CSS pixels / ms.
     if (Math.abs(velocity) < 0.25 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let previous = performance.now();
     const started = previous;
