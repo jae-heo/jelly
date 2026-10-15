@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react';
-import { CircleHelp, History, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
+import { CircleHelp, TextSelect, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
 import type { Project, Session } from './api';
 import { FONT_SIZE } from './terminalSettings';
 
 interface Props {
   project?: Project; session?: Session; hostName: string; status: string;
-  live: boolean; online: boolean; sidebar: boolean; historyOpen: boolean; fontSize: number;
+  live: boolean; online: boolean; sidebar: boolean; selecting: boolean; canSelect: boolean; fontSize: number;
   canDeleteProject: boolean; canDisconnect: boolean;
   fullscreenAvailable: boolean; fullscreen: boolean; onFullscreen: () => void;
-  onSidebar: () => void; onHistory: () => void; onFontSize: (size: number) => void;
+  onSidebar: () => void; onSelectText: () => void; onFontSize: (size: number) => void;
   onConnection: () => void; onNewSession: () => void; onStop: () => void;
   onRenameProject: () => void; onRenameSession: () => void;
   onDeleteProject: () => void; onHosts: () => void; onHelp: () => void; onLogout: () => void;
@@ -51,7 +51,7 @@ export function WorkspaceHeader(props: Props) {
     </div>
     <div className="workspace-actions">
       {props.session && <>
-        <button className={`header-action history-action ${props.historyOpen ? 'active' : ''}`} onClick={props.onHistory} disabled={['stopped', 'lost', 'unreachable'].includes(props.session.status)} title="Output history" aria-label="History"><History size={19} /><span>History</span></button>
+        <button className={`header-action select-text-action ${props.selecting ? 'active' : ''}`} onClick={props.onSelectText} disabled={!props.canSelect} title="Select text" aria-label="Select text" aria-pressed={props.selecting}><TextSelect size={19} /><span>Select text</span></button>
       </>}
       <details className="workspace-menu" ref={menu}>
         <summary className="header-action" aria-label="More" title="More" role="button" ref={trigger}><MoreHorizontal size={22} /></summary>

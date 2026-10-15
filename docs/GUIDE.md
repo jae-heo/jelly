@@ -75,8 +75,20 @@ clears the selected combination.
 Swipe the terminal to browse output. A quick swipe keeps scrolling briefly;
 touch again to stop. Holding before lifting your finger stops without momentum.
 Send **Esc** to return from tmux history to
-input. Use **History** to read and copy recent output; it opens at the bottom.
-History is bounded tmux scrollback, not a permanent log.
+input.
+
+Use **Select text** to freeze the visible screen, then hold or drag to select text
+and choose **Copy**. **Select all** selects the frozen screen. Close selection to
+return to the live terminal; output continues while you select. To copy older
+output, scroll to it first. This works with the screen shown by Claude Code and
+other terminal apps, without relying on tmux history.
+
+On desktop, **Option-drag** on Mac or **Shift-drag** on Windows/Linux selects
+directly in the terminal, even when an app handles the mouse. Use **⌘C** on Mac, **Ctrl+C** on Windows/Linux, or
+the browser's **Copy** menu. Without a selection, Ctrl+C still interrupts the app. Paste normally into **Input** or the terminal;
+**Shortcuts → Paste text** lets you review text before sending it. Copy buttons
+work over HTTP where supported; if the browser blocks them, use its native Copy
+menu on the selected text.
 
 The native keyboard clips the visible terminal without changing its row count.
 Tap the **down arrow** to hide the native keyboard while keeping Input available.

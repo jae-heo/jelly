@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-09-30.
+Last automated verification: 2026-10-15.
 
 ## Verification sources
 
@@ -10,6 +10,29 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Terminal selection and clipboard (2026-10-15)
+
+- Removed the History button and dialog. Select text freezes only the currently
+  visible terminal rows in a native selectable overlay, including a TUI's screen
+  or tmux copy-mode position. It does not fetch scrollback, resize the grid, or
+  stop output. The bounded scrollback API remains available to API clients.
+- Desktop Option-drag on Mac and Shift-drag elsewhere bypass application mouse
+  capture. Copy shortcuts use the browser clipboard when text is selected;
+  Ctrl+C without selection still reaches the terminal. Ctrl+V now reaches the
+  browser paste handler instead of sending a control character.
+- The overlay supports native text selection, Select all and Copy over HTTP.
+  Clipboard rejection leaves text selectable with an actionable error. Clipboard
+  contents are never read programmatically, and nothing is saved to the server.
+- Type checks and the production test build passed. Twelve Chromium and eight
+  WebKit scenarios passed, covering actual clipboard copy/paste round trips,
+  Unicode and HTML-like text, mobile taps, the HTTP fallback, bracketed paste,
+  unchanged grid/PID/connection, live output during selection, IME, local/SSH
+  scrolling and keyboard geometry.
+- Mobile range selection was modeled with DOM Range followed by real taps and
+  browser clipboard gestures. Mac selection used a platform override on Linux.
+  These checks do not substitute for native iPhone selection-handle or macOS
+  keyboard testing of this change.
 
 ## Single input row (2026-09-30)
 

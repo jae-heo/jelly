@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 
-test('desktop and mobile: login, projects, terminal input, history, reconnect and stop', async ({ page, browser }) => {
+test('desktop and mobile: login, projects, terminal input, selection, reconnect and stop', async ({ page, browser }) => {
   const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
   const token = readFileSync(info.tokenFile, 'utf8').trim();
   mkdirSync('.data/screenshots', { recursive: true });
@@ -63,9 +63,10 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
   await page.getByRole('textbox', { name: 'Input', exact: true }).fill("printf '\\nJELLY_%s\\n' WEB_OK");
   await sendVirtualKey(page, 'Enter');
-  await page.getByRole('button', { name: 'History', exact: true }).click();
-  await expect(page.locator('.history-content')).toContainText('JELLY_WEB_OK');
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.locator('.xterm-rows')).toContainText('JELLY_WEB_OK');
+  await page.getByRole('button', { name: 'Select text', exact: true }).click();
+  await expect(page.locator('.selection-text')).toContainText('JELLY_WEB_OK');
+  await page.getByRole('button', { name: 'Close selection', exact: true }).click();
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Disconnected', exact: true })).toBeVisible();
@@ -108,18 +109,20 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   const command = mobile.getByRole('textbox', { name: 'Input', exact: true });
   await command.fill("printf '\\n%s%s\\n' '한글' '입력확인'");
   await sendVirtualKey(mobile, 'Enter');
-  await mobile.getByRole('button', { name: 'History', exact: true }).click();
-  await expect(mobile.locator('.history-content')).toContainText('한글입력확인');
-  await mobile.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(mobile.locator('.xterm-rows')).toContainText('한글입력확인');
+  await mobile.getByRole('button', { name: 'Select text', exact: true }).click();
+  await expect(mobile.locator('.selection-text')).toContainText('한글입력확인');
+  await mobile.getByRole('button', { name: 'Close selection', exact: true }).click();
   await mobile.getByRole('button', { name: 'Open shortcuts', exact: true }).click();
   await mobile.getByLabel('Paste text').click();
   await mobile.getByLabel('Text to paste').fill("printf '\\nPASTE_%s\\n' OK");
   await mobile.getByRole('button', { name: 'Send to terminal' }).click();
   // An explicit Enter after paste preserves the terminal's normal bracketed paste behavior.
   await mobile.getByLabel('Terminal input', { exact: true }).press('Enter');
-  await mobile.getByRole('button', { name: 'History', exact: true }).click();
-  await expect(mobile.locator('.history-content')).toContainText('PASTE_OK');
-  await mobile.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(mobile.locator('.xterm-rows')).toContainText('PASTE_OK');
+  await mobile.getByRole('button', { name: 'Select text', exact: true }).click();
+  await expect(mobile.locator('.selection-text')).toContainText('PASTE_OK');
+  await mobile.getByRole('button', { name: 'Close selection', exact: true }).click();
   await mobile.getByRole('button', { name: 'Close shortcuts', exact: true }).click();
   await mobile.getByRole('button', { name: 'Hide keyboard', exact: true }).click();
   await mobile.screenshot({ path: '.data/screenshots/terminal-mobile.png', fullPage: true });
@@ -142,7 +145,7 @@ test('desktop and mobile: login, projects, terminal input, history, reconnect an
   expect(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await mobile.setViewportSize({ width: 320, height: 568 });
   await expect(mobile.getByRole('button', { name: 'More', exact: true })).toBeInViewport();
-  await expect(mobile.getByRole('button', { name: 'History', exact: true })).toBeInViewport();
+  await expect(mobile.getByRole('button', { name: 'Select text', exact: true })).toBeInViewport();
   expect(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await mobile.setViewportSize({ width: 390, height: 520 });
   await mobile.getByRole('textbox', { name: 'Input', exact: true }).focus();

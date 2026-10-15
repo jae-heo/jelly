@@ -8,7 +8,7 @@ import './TerminalViewport.css';
 import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
 export type Connection = 'connecting' | 'connected' | 'retrying' | 'disconnected' | 'taken' | 'ended';
-export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void }
+export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void; visibleText: () => string | undefined }
 interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
@@ -34,6 +34,26 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     pressKey: key => { stopScroll.current(); sendRef.current(terminalKeySequence(key, termRef.current?.modes.applicationCursorKeysMode ?? false)); },
     paste: data => { stopScroll.current(); if (callbacks.current.active) termRef.current?.paste(data); },
     focus: () => { if (callbacks.current.active) termRef.current?.focus(); },
+    visibleText: () => {
+      stopScroll.current();
+      const term = termRef.current;
+      const clip = container.current?.getBoundingClientRect();
+      const screen = term?.element?.querySelector('.xterm-screen')?.getBoundingClientRect();
+      if (!callbacks.current.active || !term || !clip || !screen?.height) return;
+      // The mobile keyboard can clip the grid. Copy only the rows on screen,
+      // including the current tmux/TUI scroll position, without a server fetch.
+      const height = screen.height / term.rows;
+      const first = Math.max(0, Math.floor((clip.top - screen.top) / height));
+      const end = Math.min(term.rows, Math.ceil((clip.bottom - screen.top) / height));
+      const buffer = term.buffer.active;
+      let text = '';
+      for (let row = first; row < end; row++) {
+        const line = buffer.getLine(buffer.viewportY + row);
+        const wraps = row + 1 < end && buffer.getLine(buffer.viewportY + row + 1)?.isWrapped;
+        text += (line?.translateToString(!wraps) ?? '') + (wraps ? '' : '\n');
+      }
+      return text.replace(/\n+$/, '');
+    },
   }), []);
 
   useEffect(() => {
@@ -41,7 +61,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     const term = new Terminal({
       cursorBlink: true, cursorStyle: 'bar', fontSize: callbacks.current.fontSize, lineHeight: 1.3,
       fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace',
-      scrollback: 2000, allowProposedApi: false,
+      scrollback: 2000, allowProposedApi: false, macOptionClickForcesSelection: true,
       theme: {
         background: '#0b1110', foreground: '#d6e3dd', cursor: '#b6eed1', selectionBackground: '#2d5141',
         black: '#26332d', red: '#ef9a94', green: '#b6eed1', yellow: '#e7cf92', blue: '#95bce7', magenta: '#c7addb', cyan: '#8bd3cd', white: '#e5eee9',
@@ -61,6 +81,11 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
       (cols, rows) => connection?.resize(cols, rows));
     connection = terminalConnection(term, props.token, props.sessionId, callbacks, geometry.schedule);
     term.attachCustomKeyEventHandler(event => {
+      // Let the browser deliver its paste event instead of sending Ctrl+V to
+      // the shell. xterm's paste handler preserves bracketed-paste mode.
+      if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey) && !event.altKey) return false;
+      // Ctrl+C still interrupts the program when no browser selection exists.
+      if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey && term.hasSelection()) return false;
       if (event.key !== 'Enter' || !event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || event.keyCode === 229) return true;
       // xterm's legacy encoding otherwise makes Shift+Enter indistinguishable from Enter.
       if (event.type === 'keydown') {

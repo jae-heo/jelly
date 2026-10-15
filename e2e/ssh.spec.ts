@@ -47,10 +47,12 @@ test('SSH config aliases, remote folders and terminal from a mobile browser', as
   await page.getByRole('textbox', { name: 'Input', exact: true }).focus();
   await page.getByRole('textbox', { name: 'Input', exact: true }).fill("printf '\\nBROWSER_SSH_%s\\n' OK; pwd");
   await sendVirtualKey(page, 'Enter');
-  await page.getByRole('button', { name: 'History', exact: true }).click();
-  await expect(page.locator('.history-content')).toContainText('BROWSER_SSH_OK');
-  await expect(page.locator('.history-content')).toContainText('/workspaces/remote-project');
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(page.locator('.xterm-rows')).toContainText('BROWSER_SSH_OK');
+  await expect(page.locator('.xterm-rows')).toContainText('/workspaces/remote-project');
+  await page.getByRole('button', { name: 'Select text', exact: true }).click();
+  await expect(page.locator('.selection-text')).toContainText('BROWSER_SSH_OK');
+  await expect(page.locator('.selection-text')).toContainText('/workspaces/remote-project');
+  await page.getByRole('button', { name: 'Close selection', exact: true }).click();
   await page.screenshot({ path: '.data/screenshots/ssh-terminal-mobile.png', fullPage: true });
   await page.reload();
   await expect(page.locator('.connection-label')).toHaveText('Connected', { timeout: 15_000 });

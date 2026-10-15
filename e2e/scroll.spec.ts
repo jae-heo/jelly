@@ -64,7 +64,7 @@ for (const remote of [false, true]) {
       await expect(page.locator('.connection-label')).toHaveText('Connected');
       await page.setViewportSize({ width: 320, height: 568 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await expect(page.getByRole('button', { name: 'History', exact: true })).toBeInViewport();
+      await expect(page.getByRole('button', { name: 'Select text', exact: true })).toBeInViewport();
       await expect(page.getByRole('button', { name: 'More', exact: true })).toBeInViewport();
       await page.setViewportSize({ width: 390, height: 844 });
       const rows = page.locator('.xterm-rows');

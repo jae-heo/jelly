@@ -10,6 +10,7 @@ import { ProjectTree } from './ProjectTree';
 import { HostManager } from './Hosts';
 import { WorkspaceHeader } from './WorkspaceHeader';
 import { TerminalControls, type TerminalControlsHandle } from './TerminalControls';
+import { TerminalSelection } from './TerminalSelection';
 import { FONT_SIZE_KEY, storedFontSize } from './terminalSettings';
 import { useWorkspaceViewport } from './useWorkspaceViewport';
 import { useFullscreen } from './useFullscreen';
@@ -36,18 +37,13 @@ export function App() {
   const [revision, setRevision] = useState(0);
   const [connection, setConnection] = useState<Connection>('connecting');
   const [fontSize, setFontSize] = useState(storedFontSize);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [history, setHistory] = useState('');
-  const [historyBusy, setHistoryBusy] = useState(false);
-  const [historyError, setHistoryError] = useState('');
+  const [selection, setSelection] = useState<{ sessionId: string; text: string } | null>(null);
   const terminal = useRef<TerminalHandle>(null);
   const creatingSession = useRef(false);
   const selectionVersion = useRef(0);
   const currentToken = useRef(token);
   currentToken.current = token;
   const controls = useRef<TerminalControlsHandle>(null);
-  const historyGeneration = useRef(0);
-  const historyContent = useRef<HTMLPreElement>(null);
   const screen = useFullscreen(!!token, setNotice);
 
   const logout = useCallback(() => { selectionVersion.current++; currentToken.current = ''; forgetToken(); setToken(''); setSessionId(null); }, []);
@@ -61,10 +57,7 @@ export function App() {
   useEffect(() => {
     try { localStorage.setItem(FONT_SIZE_KEY, String(fontSize)); } catch { /* Keep the in-memory preference. */ }
   }, [fontSize]);
-  useEffect(() => {
-    const content = historyContent.current;
-    if (historyOpen && !historyBusy && !historyError && content) content.scrollTop = content.scrollHeight;
-  }, [historyOpen, historyBusy, historyError, history]);
+  useEffect(() => { setSelection(null); }, [sessionId, token, attached, revision]);
   useWorkspaceViewport(!!token);
 
   const project = projects.find(p => p.id === projectId);
@@ -73,7 +66,7 @@ export function App() {
   const newSessionProject = projects.find(p => p.id === newSessionProjectId);
   const hasTerminal = session?.status === 'running' || session?.status === 'unreachable';
   const canInput = hasTerminal && attached && connection === 'connected';
-  const openDialog = (value: Dialog) => { setFormError(''); setDialog(value); };
+  const openDialog = (value: Dialog) => { setSelection(null); setFormError(''); setDialog(value); };
   function openRename(kind: 'project' | 'session') {
     const target = kind === 'project' ? project : session;
     if (!target) return;
@@ -86,16 +79,15 @@ export function App() {
   function chooseProject(id: string) {
     if (id === projectId) return;
     selectionVersion.current++;
-    historyGeneration.current++;
-    setProjectId(id); setSessionId(null); setHistoryOpen(false);
+    setSelection(null);
+    setProjectId(id); setSessionId(null);
     // Leave the list open on phones so the user can choose a session next.
   }
   function chooseSession(s: Session) {
     selectionVersion.current++;
-    historyGeneration.current++;
+    setSelection(null);
     if (s.id !== sessionId || !attached) setConnection('connecting');
     setSessionId(s.id); setProjectId(s.projectId); setSidebar(false); setAttached(true);
-    setHistoryOpen(false); setHistory('');
   }
   function nextSessionName(id: string) {
     const names = new Set(sessions.filter(s => s.projectId === id).map(s => s.name));
@@ -118,7 +110,7 @@ export function App() {
     } catch (error) { if (currentToken.current === token) setNotice(errorMessage(error)); }
     finally { creatingSession.current = false; }
   }
-  useSessionShortcuts({ enabled: !!token && !dialog && !historyOpen, projects, sessions, projectId, sessionId,
+  useSessionShortcuts({ enabled: !!token && !dialog && !selection, projects, sessions, projectId, sessionId,
     onSelect: chooseSession, onCreate: p => { void quickCreateSession(p); } });
   async function submitProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setFormError('');
@@ -151,25 +143,20 @@ export function App() {
     try { await api(token, `/projects/${project.id}`, 'DELETE'); await refresh(); setDialog(null); }
     catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
-  async function showHistory() {
-    if (!session) return;
-    const generation = ++historyGeneration.current;
-    setHistoryOpen(true); setHistoryBusy(true); setHistoryError('');
-    try {
-      const result = await api<{ text: string }>(token, `/sessions/${session.id}/history?lines=2000`);
-      if (generation === historyGeneration.current) setHistory(result.text);
-    } catch (error) { if (generation === historyGeneration.current) setHistoryError(errorMessage(error)); }
-    finally { if (generation === historyGeneration.current) setHistoryBusy(false); }
+  function selectText() {
+    if (selection) { setSelection(null); return; }
+    const text = terminal.current?.visibleText();
+    if (session && text !== undefined) setSelection({ sessionId: session.id, text });
   }
 
   if (!token) return <Login onLogin={setToken} />;
   return <div className="workspace">
     <WorkspaceHeader project={project} session={session} hostName={hosts.find(host => host.id === project?.hostId)?.target ?? 'This server'}
       status={session ? (hasTerminal && (session.status === 'running' || connection === 'connected') ? connectionLabels[connection] : stateLabels[session.status]) : online ? 'Server connected' : 'Checking connection'}
-      live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} historyOpen={historyOpen}
+      live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} selecting={!!selection} canSelect={canInput}
       fullscreenAvailable={screen.available} fullscreen={screen.fullscreen} onFullscreen={() => void screen.toggle()}
       canDeleteProject={!!project && projectSessions.length === 0} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
-      onSidebar={() => setSidebar(!sidebar)} onHistory={() => void showHistory()} onFontSize={setFontSize}
+      onSidebar={() => setSidebar(!sidebar)} onSelectText={selectText} onFontSize={setFontSize}
       onConnection={() => { if (attached && !['taken', 'ended'].includes(connection)) setAttached(false); else { setAttached(true); setRevision(r => r + 1); } }}
       onNewSession={() => openSession()} onStop={() => openDialog('stop')} onDeleteProject={() => openDialog('delete-project')}
       onRenameProject={() => openRename('project')} onRenameSession={() => openRename('session')}
@@ -192,8 +179,9 @@ export function App() {
             <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} /></Suspense>
             {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH host unreachable</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />Check again</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>Session ended</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />New session</button></div>}
             {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? 'In use on another device' : 'Disconnected'}</h2><p>Session running</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />Reconnect</button></div></div>}
+            {selection && selection.sessionId === session?.id && <TerminalSelection key={selection.sessionId} text={selection.text} fontSize={fontSize} onClose={() => setSelection(null)} />}
           </div>
-          {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput} terminal={terminal} onPaste={() => openDialog('paste')} />}
+          {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput && !selection} terminal={terminal} onPaste={() => openDialog('paste')} />}
       </main>
     </div>
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}
@@ -215,10 +203,11 @@ export function App() {
       <div><dt>New session</dt><dd>⌘⇧Enter creates a session in the current project.</dd></div>
       <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
       <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
-      <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns to input. Copy output from History.</dd></div>
+      <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns from tmux scrollback to input.</dd></div>
+      <div><dt>Copy</dt><dd>Select text freezes the visible screen for selection. On phones, hold text to select it. On desktop, Option-drag (Mac) or Shift-drag selects directly in the terminal.</dd></div>
+      <div><dt>Paste</dt><dd>Paste into Input or the terminal. Shortcuts → Paste text lets you review text before sending.</dd></div>
       <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>
       <div><dt>Hide browser chrome</dt><dd>{screen.available ? 'More → Fullscreen.' : 'iPhone: Share → Add to Home Screen. Open Jelly from that icon.'}</dd></div>
     </dl></Modal>}
-    {historyOpen && <Modal title="Output history" className="history-dialog" onClose={() => { setHistoryOpen(false); historyGeneration.current++; }}><div className="history-caption"><span>Recent output · Read-only</span><button className="text-button" disabled={historyBusy} onClick={() => void showHistory()}><RefreshCw size={14} />Refresh</button></div>{historyError ? <p className="form-error" role="alert">{historyError}</p> : <pre ref={historyContent} className="history-content" tabIndex={0}>{historyBusy ? 'Loading history…' : history || 'No output yet'}</pre>}</Modal>}
   </div>;
 }
