@@ -34,7 +34,7 @@ For phone access, follow the [Tailscale setup](docs/SETUP.md#connect-from-anothe
 
 ## Guides
 
-- [Using Jelly](docs/GUIDE.md) — projects, sessions, input and shortcuts.
+- [Using Jelly](docs/GUIDE.md) — projects, files, input and shortcuts.
 - [Setup and development](docs/SETUP.md) — remote access, SSH, configuration and tests.
 - [API reference](docs/API.md) — HTTP and WebSocket.
 

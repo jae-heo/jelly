@@ -5,6 +5,7 @@ import { useWorkspaceData } from './useWorkspaceData';
 import { Login } from './Login';
 import { Modal } from './Modal';
 import { ProjectDialog } from './ProjectDialog';
+import { ProjectFiles } from './ProjectFiles';
 import { RenameDialog } from './RenameDialog';
 import { ProjectTree } from './ProjectTree';
 import { HostManager } from './Hosts';
@@ -18,7 +19,7 @@ import { useSessionShortcuts } from './useSessionShortcuts';
 import type { Connection, TerminalHandle } from './TerminalView';
 const TerminalCache = lazy(() => import('./TerminalCache').then(module => ({ default: module.TerminalCache })));
 
-type Dialog = 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | 'rename' | null;
+type Dialog = 'files' | 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | 'rename' | null;
 const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
 const connectionLabels: Record<Connection, string> = { connecting: 'Connecting', connected: 'Connected', retrying: 'Reconnecting', disconnected: 'Disconnected', taken: 'In use on another device', ended: 'Connection ended' };
 
@@ -160,7 +161,7 @@ export function App() {
       onConnection={() => { if (attached && !['taken', 'ended'].includes(connection)) setAttached(false); else { setAttached(true); setRevision(r => r + 1); } }}
       onNewSession={() => openSession()} onStop={() => openDialog('stop')} onDeleteProject={() => openDialog('delete-project')}
       onRenameProject={() => openRename('project')} onRenameSession={() => openRename('session')}
-      onHosts={() => openDialog('hosts')} onHelp={() => openDialog('help')} onLogout={logout} />
+      onFiles={() => openDialog('files')} onHosts={() => openDialog('hosts')} onHelp={() => openDialog('help')} onLogout={logout} />
     <div className="workspace-body">
       {sidebar && <button className="sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebar(false)} />}
       <aside id="workspace-sidebar" className={`sidebar ${sidebar ? 'open' : ''}`}>
@@ -185,6 +186,7 @@ export function App() {
       </main>
     </div>
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}
+    {dialog === 'files' && project && <ProjectFiles key={project.id} token={token} project={project} onClose={() => setDialog(null)} />}
     {dialog === 'hosts' && <HostManager token={token} hosts={hosts} projects={projects} onChanged={() => void refresh()} onClose={() => setDialog(null)} />}
     {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={addHost} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
     {dialog === 'rename' && renameTarget && <RenameDialog kind={renameTarget.kind} name={renameTarget.name} onClose={() => setDialog(null)} onSave={async name => {

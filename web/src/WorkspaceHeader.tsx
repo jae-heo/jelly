@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CircleHelp, TextSelect, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
+import { CircleHelp, FolderOpen, TextSelect, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
 import type { Project, Session } from './api';
 import { FONT_SIZE } from './terminalSettings';
 
@@ -11,7 +11,7 @@ interface Props {
   onSidebar: () => void; onSelectText: () => void; onFontSize: (size: number) => void;
   onConnection: () => void; onNewSession: () => void; onStop: () => void;
   onRenameProject: () => void; onRenameSession: () => void;
-  onDeleteProject: () => void; onHosts: () => void; onHelp: () => void; onLogout: () => void;
+  onFiles: () => void; onDeleteProject: () => void; onHosts: () => void; onHelp: () => void; onLogout: () => void;
 }
 
 export function WorkspaceHeader(props: Props) {
@@ -67,6 +67,7 @@ export function WorkspaceHeader(props: Props) {
             <div className="font-stepper"><button aria-label="Decrease font size" disabled={props.fontSize <= FONT_SIZE.min} onClick={() => props.onFontSize(props.fontSize - 1)}><Minus size={16} /></button><output aria-label="Current font size">{props.fontSize}<small>px</small></output><button aria-label="Increase font size" disabled={props.fontSize >= FONT_SIZE.max} onClick={() => props.onFontSize(props.fontSize + 1)}><Plus size={16} /></button></div>
           </div>
           {props.project && <div className="workspace-menu-group">
+            <button onClick={act(props.onFiles)}><FolderOpen size={17} /><span>Files</span></button>
             <button onClick={act(props.onNewSession)}><Plus size={17} /><span>New session</span></button>
             <button onClick={act(props.onRenameProject)}><Pencil size={17} /><span>Rename project</span></button>
             {props.session && <button onClick={act(props.onRenameSession)}><Pencil size={17} /><span>Rename session</span></button>}

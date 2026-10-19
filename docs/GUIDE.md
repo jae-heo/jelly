@@ -22,6 +22,21 @@ projects. Older sessions keep running and reconnect when selected.
 Sessions survive Jelly restarts, but not a reboot of the machine running the shell.
 Jelly uses private tmux sockets and leaves unrelated tmux sessions alone.
 
+## Files
+
+Select a project, then open **More → Files**. Open a folder to browse its contents,
+or a file to preview it. Use **Download** to save the original file to your device.
+This works for local and SSH projects, including projects without a running session.
+
+Text and code are shown as plain text; images and PDFs open in the viewer.
+Other formats can be downloaded. Text previews are limited to 1 MiB, images and
+PDFs to 20 MiB. Larger files can still be downloaded. PDF display uses your browser's
+built-in viewer; use Download if your browser cannot display it.
+
+The viewer is read-only and stays within the project folder. Symbolic links are
+not shown or followed. Enable **Hidden files** to include dotfiles. Search filters
+the current folder; each listing shows up to 1,000 entries.
+
 ## Codex and Claude Code
 
 Install and sign in to the CLI you use on the machine running the project, under

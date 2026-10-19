@@ -6,6 +6,7 @@ import { Store, type Session } from './store.js';
 import type { TerminalState } from './tmux.js';
 import { MutationQueue } from './mutation-queue.js';
 import { Execution } from './execution.js';
+import { FileTransfers } from './file-transfers.js';
 import { RemoteTmux } from './remote.js';
 import { sshAliases, sshTargetPattern } from './ssh-config.js';
 import { Terminals } from './terminals.js';
@@ -32,6 +33,7 @@ export async function startServer(config: Config) {
   const tmux = new Execution(config, store);
   try { await tmux.check(); } catch (error) { store.close(); throw error; }
   const terminals = new Terminals(config, store, tmux);
+  const files = new FileTransfers(config, store);
   let stopping = false;
   const mutations = new MutationQueue();
   const hostKey = (id: string | null) => id ?? 'local';
@@ -64,6 +66,8 @@ export async function startServer(config: Config) {
     const method = req.method;
     if (method === 'GET' && url.pathname === '/healthz') return json(res, 200, { status: 'ok', service: 'jelly' });
     if (await serveWeb(url.pathname, method, res)) return;
+    const download = /^\/api\/downloads\/([a-zA-Z0-9_-]{43})$/.exec(url.pathname);
+    if (method === 'GET' && download) return files.download(download[1]!, req, res);
     if (!authorized(req, config.token)) throw new ApiError(401, 'Unauthorized');
     if (method === 'GET' && url.pathname === '/api/ssh/aliases') return json(res, 200, await sshAliases(config.sshConfig));
     if (method === 'POST' && url.pathname === '/api/hosts/check') {
@@ -106,6 +110,24 @@ export async function startServer(config: Config) {
           if (store.projectByPath(path, input.hostId)) throw new ApiError(409, 'Project path already registered');
           json(res, 201, store.addProject(input.name, path, input.hostId));
         });
+      }
+    }
+    const fileMatch = /^\/api\/projects\/([^/]+)\/(files|preview|downloads)$/.exec(url.pathname);
+    if (fileMatch) {
+      const p = project(fileMatch[1]!);
+      const action = fileMatch[2];
+      const Path = z.string().max(4096);
+      if (method === 'GET' && action === 'files') {
+        const input = z.object({ path: Path.default(''), hidden: z.enum(['true', 'false']).default('false') }).strict().parse(Object.fromEntries(url.searchParams));
+        return files.operation(req, res, async signal => json(res, 200, await files.list(p, input.path, input.hidden === 'true', signal)));
+      }
+      if (method === 'GET' && action === 'preview') {
+        const input = z.object({ path: Path.min(1) }).strict().parse(Object.fromEntries(url.searchParams));
+        return files.operation(req, res, signal => files.preview(p, input.path, res, signal));
+      }
+      if (method === 'POST' && action === 'downloads') {
+        const input = z.object({ path: Path.min(1) }).strict().parse(await body(req));
+        return files.operation(req, res, async signal => json(res, 201, await files.ticket(p, input.path, signal)));
       }
     }
     const projectMatch = /^\/api\/projects\/([^/]+)(\/sessions)?$/.exec(url.pathname);
@@ -200,6 +222,7 @@ export async function startServer(config: Config) {
   }
   const server = createServer((req, res) => {
     void route(req, res).catch(error => {
+      if (res.destroyed) return;
       const { status, message } = failure(error);
       if (!res.headersSent) json(res, status, { error: message });
       else res.end();
@@ -221,6 +244,7 @@ export async function startServer(config: Config) {
       if (stopping) return;
       stopping = true;
       terminals.close();
+      files.close();
       const stopped = new Promise<void>(resolve => server.close(() => resolve()));
       await mutations.idle();
       server.closeIdleConnections();

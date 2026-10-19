@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-10-15.
+Last automated verification: 2026-10-19.
 
 ## Verification sources
 
@@ -10,6 +10,31 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Project file viewer and downloads (2026-10-19)
+
+- More → Files browses one project directory at a time, including SSH projects.
+  Text/code, images and PDFs have read-only previews; unsupported or large files
+  remain downloadable. HTML/SVG preview as text. PDF rendering uses the browser.
+- Local reads use Linux directory descriptors with no-follow opens. Both backends
+  reject parent traversal and symlinks, recheck downloads on redemption, and serve
+  only regular files. SSH uses POSIX shell tools and dedicated, non-PTY connections
+  with strict host-key verification; no remote installation is required.
+- Downloads stream through one-use 30-second grants, without the long-lived key in
+  URLs or temporary file copies. Four concurrent operations, 64 pending grants,
+  preview byte limits and transfer deadlines bound resources. Disconnect/shutdown
+  cancels reads and SSH processes.
+- Type checks, all 41 backend/deployment tests and eight SSH integration checks
+  passed. Coverage includes traversal/links, special filenames, binary fidelity,
+  preview limits, expired/replayed grants, deleted projects, changed files,
+  concurrent-transfer limits and cancellation releasing capacity.
+- Chromium and WebKit file workflows pass for local and SSH projects at mobile
+  sizes, alongside the existing Chromium workspace workflow. Browser checks cover
+  native downloads and Unicode names, inert script text, image decoding, unsupported
+  formats, 320px layout and unchanged terminal connection/PID. Full Chromium is
+  used for PDF checks because Chromium headless shell does not include its PDF
+  viewer. A rendered PDF was also visually inspected in full Chromium.
+- These are automated mobile viewport checks, not a new physical iPhone test.
 
 ## Terminal selection and clipboard (2026-10-15)
 

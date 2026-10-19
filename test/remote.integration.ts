@@ -81,6 +81,29 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
     try { assert.equal((await request(`/api/hosts/${host.id}/check`, 'POST', undefined, 502)).error, 'SSH_HOST_KEY'); }
     finally { await writeFile(knownHosts, known); }
   });
+  await t.test('remote project files: preview, binary downloads and project boundary', async () => {
+    const filename = "보고서 'quote'; $ &\n.txt";
+    await fixture.command('mkdir', '-p', remotePath + '/nested');
+    await fixture.command('sh', '-c', 'printf "remote file\\n" > "$1"; printf "\\000\\377ABC" > "$2"; ln -s /etc/passwd "$3"; ln -s /etc "$4"', 'fixture', remotePath + '/nested/' + filename, remotePath + '/binary.bin', remotePath + '/escape.txt', remotePath + '/outside');
+    const base = `/api/projects/${project.id}`;
+    const listed = await request(base + '/files?path=nested');
+    assert.equal(listed.entries[0].name, filename);
+    assert.equal(listed.parent, '');
+    const preview = await fetch(url + base + '/preview?' + new URLSearchParams({ path: 'nested/' + filename }), { headers: { Authorization: `Bearer ${config.token}` } });
+    assert.equal(preview.status, 200); assert.equal(await preview.text(), 'remote file\n');
+    for (const path of ['escape.txt', 'outside/passwd']) await request(base + '/downloads', 'POST', { path }, 403);
+    await request(base + '/downloads', 'POST', { path: '../etc/passwd' }, 400);
+    await request(base + '/downloads', 'POST', { path: 'nested' }, 404);
+    const grant = await request(base + '/downloads', 'POST', { path: 'binary.bin' }, 201);
+    const response = await fetch(url + grant.url);
+    assert.equal(response.status, 200);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from([0, 255, 65, 66, 67]));
+    await request(grant.url, 'GET', undefined, 401, false);
+    const knownHosts = join(fixture.directory, 'known_hosts');
+    const known = await readFile(knownHosts, 'utf8'); await writeFile(knownHosts, '');
+    try { assert.equal((await request(base + '/files', 'GET', undefined, 502)).error, 'SSH_HOST_KEY'); }
+    finally { await writeFile(knownHosts, known); }
+  });
   await t.test('remote PTY input, Unicode, resize, handoff and detach persistence', async () => {
     await fixture.command('tmux', '-L', 'unrelated-test-server', 'new-session', '-d', '-s', 'unrelated');
     session = await request(`/api/projects/${project.id}/sessions`, 'POST', { name: 'Remote session' }, 201);

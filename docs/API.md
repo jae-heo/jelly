@@ -2,8 +2,10 @@
 
 Local development: `http://127.0.0.1:47821`. Remote mode: `http://TAILSCALE_IP:47821` over the Tailscale VPN.
 `JELLY_HOST=tailscale` discovers and binds only this machine's Tailscale IPv4 address. Serve is not required.
-All `/api/*` HTTP routes require `Authorization: Bearer <token>`.
-JSON request bodies require `Content-Type: application/json`. API responses are JSON, uncached.
+All `/api/*` HTTP routes require `Authorization: Bearer <token>`, except single-use
+`/api/downloads/:ticket` links described below. JSON request bodies require
+`Content-Type: application/json`. Responses are uncached; previews and downloads
+return file bytes, while other API responses are JSON.
 If Origin is present, it must match the binding IP/MagicDNS origin or the exact `JELLY_ORIGINS` allowlist (loopback defaults also allowed).
 No cross-origin CORS permissions are issued; the web client uses the same origin.
 
@@ -30,6 +32,10 @@ localStorage (explicit remember-device selection). WebSockets use the short-live
 | GET | `/api/projects/:id` | project |
 | PATCH | `/api/projects/:id` | `{name}` → updated project; display name only |
 | DELETE | `/api/projects/:id` | metadata only; 409 if any session records remain |
+| GET | `/api/projects/:id/files?path=nested&hidden=false` | `{path,parent,entries:[{name,path,kind}],truncated}`; paths relative to the project |
+| GET | `/api/projects/:id/preview?path=nested/file.txt` | bounded file bytes; `X-Jelly-Preview: text`, `image` or `pdf` |
+| POST | `/api/projects/:id/downloads` | `{path}` → `{url,name,expiresIn:30}` (201); single-use download link |
+| GET | `/api/downloads/:ticket` | attachment stream; authorized by the short-lived ticket |
 | GET | `/api/projects/:id/sessions` | `{sessions:[...]}` |
 | POST | `/api/projects/:id/sessions` | `{name?,cols?,rows?}` → session (201) |
 | GET | `/api/sessions` | all session records and current tmux state |
@@ -73,6 +79,34 @@ Errors: `{error:"message"}` with HTTP 400 (invalid input), 401 (auth), 403 (orig
 SSH errors use `SSH_HOST_KEY`, `SSH_AUTH`, `SSH_UNREACHABLE`, `SSH_TMUX_MISSING`,
 `SSH_TMUX_VERSION`, or `SSH_COMMAND_FAILED`; raw command arguments and SSH diagnostics are not returned.
 Mutations are serialized inside one backend instance. Do not run multiple backends against one data directory.
+
+## Project files
+
+File paths are relative to the registered project root. The root listing uses
+`path=` (or omits it); its `parent` is null. A first-level folder has `parent:""`.
+`kind` is `directory` or `file`; folders sort first. Hidden names require
+`hidden=true`. Listings stop at 1,000 entries and set `truncated` if more exist.
+Absolute paths, NUL bytes, `.`/`..` components and symbolic links are rejected.
+Only regular files are served. The server account's filesystem permissions apply.
+
+Previews accept common text/code formats (1 MiB), PNG/JPEG/GIF/WebP/AVIF images and
+PDFs (20 MiB). HTML and SVG are plain text, never rendered as active pages. Unknown
+formats and binary text return 415; files exceeding the preview limit return 413.
+Responses include no-store, nosniff and restrictive content security headers.
+
+Download links are project/file scoped, single use, expire after 30 seconds, and
+are lost on restart. The file is checked again when the link is consumed. A missing
+or consumed ticket returns 401; a deleted project returns 404. The long-lived key
+is never placed in the URL. Treat download URLs as credentials and exclude them
+from any proxy/access logs. Origin checks apply to downloads too.
+
+Downloads stream with backpressure and `Content-Disposition: attachment`, without
+buffering whole files or saving temporary copies. They have no preview-size cap.
+At most four file operations run concurrently and 64 download grants may be pending;
+additional requests return 429. Transfers time out after five minutes and release
+resources on cancellation or shutdown. SSH file operations use dedicated connections
+with existing SSH configuration and strict host-key verification, without a PTY or
+changes to running terminal sessions.
 
 ## WebSocket
 
