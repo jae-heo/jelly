@@ -2,7 +2,7 @@ import type { Terminal } from '@xterm/xterm';
 
 // tmux owns scrollback. Keep using xterm's negotiated mouse protocol so swipes
 // also work inside terminal applications, without turning them into arrow keys.
-export function attachTouchScroll(term: Terminal, onTap: () => void, active: () => boolean) {
+export function attachTerminalScroll(term: Terminal, onTap: () => void, active: () => boolean) {
   const element = term.element!;
   type Gesture = { id: number; x: number; y: number; previousY: number; pending: number;
     scrolling: boolean; horizontal: boolean; time: number; velocity: number };
@@ -11,6 +11,42 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
   let coasting = false;
   let stoppingTap = false;
   const stop = () => { cancelAnimationFrame(frame); frame = 0; coasting = false; gesture = undefined; };
+  let dispatchingWheel = false;
+  let wheelPending = 0;
+  let wheelTime = 0;
+  let wheelMode = -1;
+  // xterm emits only one mouse report per wheel event, regardless of delta.
+  // Split the distance into reports while retaining its negotiated encoding.
+  const reportWheel = (count: number, x: number, y: number, modifiers?: WheelEvent) => {
+    dispatchingWheel = true;
+    try {
+      for (let i = 0; i < Math.min(Math.abs(count), 40); i++) {
+        element.dispatchEvent(new WheelEvent('wheel', {
+          bubbles: true, cancelable: true, deltaMode: WheelEvent.DOM_DELTA_LINE, deltaY: Math.sign(count),
+          clientX: x, clientY: y, altKey: modifiers?.altKey, ctrlKey: modifiers?.ctrlKey,
+        }));
+      }
+    } finally { dispatchingWheel = false; }
+  };
+  const desktopWheel = (event: WheelEvent) => {
+    if (dispatchingWheel || !active() || document.hidden || term.modes.mouseTrackingMode === 'none' || event.ctrlKey || event.shiftKey) return;
+    if (!event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    const screen = element.querySelector('.xterm-screen')?.getBoundingClientRect();
+    if (!screen?.height) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    const now = performance.now();
+    if (now - wheelTime > 150 || wheelMode !== event.deltaMode || Math.sign(wheelPending) !== Math.sign(event.deltaY)) wheelPending = 0;
+    wheelTime = now; wheelMode = event.deltaMode;
+    const line = screen.height / term.rows;
+    const distance = event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? event.deltaY * term.rows
+      : event.deltaMode === WheelEvent.DOM_DELTA_LINE ? event.deltaY : event.deltaY / line;
+    wheelPending += distance;
+    const count = Math.trunc(wheelPending);
+    wheelPending -= count;
+    reportWheel(count, event.clientX, event.clientY, event);
+  };
+  // Slow dragging stays precise; quick swipes cover substantially more output.
+  const touchGain = (velocity: number) => 1 + Math.min(3, Math.max(0, Math.abs(velocity) - 0.5));
   const scroll = (state: Gesture, pixels: number) => {
     const screen = element.querySelector('.xterm-screen')?.getBoundingClientRect();
     if (!screen?.height || !screen.width || !active() || document.hidden) return false;
@@ -27,19 +63,15 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
       if (term.buffer.active.type !== 'normal') return false;
       term.scrollLines(count);
     } else {
-      for (let i = 0; i < Math.min(Math.abs(count), 20); i++) {
-        element.dispatchEvent(new WheelEvent('wheel', {
-          bubbles: true, cancelable: true, deltaMode: WheelEvent.DOM_DELTA_LINE, deltaY: Math.sign(count),
-          clientX: Math.max(screen.left + 1, Math.min(screen.right - 1, state.x)),
-          clientY: Math.max(screen.top + 1, Math.min(screen.bottom - 1, state.y)),
-        }));
-      }
+      reportWheel(count,
+        Math.max(screen.left + 1, Math.min(screen.right - 1, state.x)),
+        Math.max(screen.top + 1, Math.min(screen.bottom - 1, state.y)));
     }
     return true;
   };
   const coast = (state: Gesture) => {
     // Preserve slow gestures while allowing fast flicks to cover longer output.
-    let velocity = Math.max(-6, Math.min(6, state.velocity)); // CSS pixels / ms.
+    let velocity = Math.max(-12, Math.min(12, state.velocity)); // CSS pixels / ms.
     if (Math.abs(velocity) < 0.25 || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let previous = performance.now();
     const started = previous;
@@ -47,10 +79,10 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
     const tick = (now: number) => {
       // Never catch up a stalled/backgrounded frame with a large jump.
       const elapsed = now - previous;
-      if (elapsed > 80 || now - started > 900 || !active() || document.hidden) { stop(); return; }
+      if (elapsed > 80 || now - started > 1200 || !active() || document.hidden) { stop(); return; }
       previous = now;
-      const decay = Math.exp(-elapsed / 220);
-      const distance = velocity * 220 * (1 - decay);
+      const decay = Math.exp(-elapsed / 300);
+      const distance = velocity * 300 * (1 - decay) * touchGain(velocity);
       velocity *= decay;
       if (!scroll(state, distance) || Math.abs(velocity) < 0.08) { stop(); return; }
       frame = requestAnimationFrame(tick);
@@ -95,7 +127,7 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
       ? velocity : gesture.velocity * 0.4 + velocity * 0.6;
     if (distance && Math.sign(distance) !== Math.sign(gesture.pending)) gesture.pending = 0;
     gesture.previousY = touch.clientY; gesture.time = now;
-    scroll(gesture, distance);
+    scroll(gesture, distance * touchGain(gesture.velocity));
   };
   const end = (event: TouchEvent) => {
     const state = gesture;
@@ -120,6 +152,7 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
   document.addEventListener('visibilitychange', stop);
   window.addEventListener('resize', stop);
   visualViewport?.addEventListener('resize', stop);
+  element.addEventListener('wheel', desktopWheel, { capture: true, passive: false });
   element.addEventListener('touchstart', start, { capture: true, passive: true });
   element.addEventListener('touchmove', move, { capture: true, passive: false });
   element.addEventListener('touchend', end, { capture: true, passive: false });
@@ -135,6 +168,7 @@ export function attachTouchScroll(term: Terminal, onTap: () => void, active: () 
     document.removeEventListener('visibilitychange', stop);
     window.removeEventListener('resize', stop);
     visualViewport?.removeEventListener('resize', stop);
+    element.removeEventListener('wheel', desktopWheel, true);
     element.removeEventListener('touchstart', start, true);
     element.removeEventListener('touchmove', move, true);
     element.removeEventListener('touchend', end, true);

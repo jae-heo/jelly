@@ -3,7 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { terminalConnection } from './terminalConnection';
 import { terminalGeometry } from './terminalGeometry';
-import { attachTouchScroll } from './touchScroll';
+import { attachTerminalScroll } from './touchScroll';
 import './TerminalViewport.css';
 import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
@@ -71,7 +71,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(container.current);
-    const touchScroll = attachTouchScroll(term, () => callbacks.current.onTouchInput(), () => callbacks.current.active);
+    const touchScroll = attachTerminalScroll(term, () => callbacks.current.onTouchInput(), () => callbacks.current.active);
     stopScroll.current = touchScroll.stop;
     if (matchMedia('(pointer: coarse)').matches && term.textarea) term.textarea.inputMode = 'none';
     term.textarea?.setAttribute('aria-label', 'Terminal input');

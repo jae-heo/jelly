@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-10-19.
+Last automated verification: 2026-10-27.
 
 ## Verification sources
 
@@ -10,6 +10,24 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Terminal scroll distance (2026-10-27)
+
+- Desktop wheel input now preserves pixel, line and page distances when tmux or
+  an application captures the mouse. xterm previously reduced a large wheel event
+  to one mouse report. Fractional trackpad movement accumulates; direction changes
+  and pauses reset the remainder. Native xterm scrollback retains its own handling.
+- Slow touch drags retain precise movement. Fast swipes gain distance with speed,
+  and momentum has a higher velocity ceiling and a longer decay. Touch, input,
+  session changes and viewport changes still stop momentum immediately. Reduced
+  motion and held gestures suppress momentum.
+- Reports use xterm's negotiated mouse encoding, with at most 40 reports per step
+  and no deferred wheel backlog. Desktop input adds no synthetic momentum.
+- Type checks and the test build passed. All 22 targeted Chromium/WebKit browser
+  scenarios passed across local and SSH terminals: long-output flick distance,
+  wheel delta units and direction, fractional trackpad movement, interruption,
+  reduced motion, clipboard selection, keyboard geometry and session switching.
+  The tests verify unchanged shell PIDs and input after leaving scrollback.
 
 ## Project file viewer and downloads (2026-10-19)
 

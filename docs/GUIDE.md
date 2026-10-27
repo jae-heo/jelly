@@ -87,8 +87,8 @@ clears the selected combination.
 
 ## On your phone
 
-Swipe the terminal to browse output. A quick swipe keeps scrolling briefly;
-touch again to stop. Holding before lifting your finger stops without momentum.
+Swipe the terminal to browse output. Faster swipes travel farther and keep
+scrolling briefly; touch again to stop. Holding before lifting your finger stops without momentum.
 Send **Esc** to return from tmux history to
 input.
 
