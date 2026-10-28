@@ -53,6 +53,12 @@ test('desktop and mobile: login, projects, terminal input, selection, reconnect 
   await expect(page.locator('.directory-selection strong')).toHaveText(info.projectPath);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByLabel('Server folder path')).toHaveValue(info.projectPath);
+  // Access errors keep their server message instead of a generic Origin hint.
+  await page.route('**/api/projects', route => route.request().method() === 'POST'
+    ? route.fulfill({ status: 403, json: { error: 'Directory access denied' } }) : route.continue());
+  await page.getByRole('dialog').getByRole('button', { name: 'Add project', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveText('Directory access denied');
+  await page.unroute('**/api/projects');
   await page.getByRole('dialog').getByRole('button', { name: 'Add project', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Select a session', exact: true })).toBeVisible();
   await page.screenshot({ path: '.data/screenshots/workspace-empty.png', fullPage: true });

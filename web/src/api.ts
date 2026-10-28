@@ -31,10 +31,11 @@ export function errorMessage(error: unknown): string {
     };
     if (sshErrors[error.message]) return sshErrors[error.message]!;
     if (error.status === 401) return 'Invalid connection key.';
-    if (error.status === 403) return 'Origin not allowed. Check the server address.';
+    // Map only known generic responses; other server errors (limits, access,
+    // missing folders) are already short and specific.
+    if (error.message === 'Origin not allowed') return 'Origin not allowed. Check the server address.';
     if (error.message.includes('already registered')) return 'This project folder is already registered.';
-    if (error.message.includes('directory')) return 'Enter an absolute folder path on the server.';
-    if (error.status === 409) return 'Session state changed. Refresh the list.';
+    if (error.message === 'Project path must be absolute') return 'Enter an absolute folder path on the server.';
     return error.message;
   }
   return 'Cannot reach the server. Check your Tailscale connection.';

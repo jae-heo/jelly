@@ -21,7 +21,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
   await page.route('**/api/projects/*/sessions', route => {
     if (route.request().method() !== 'POST') return route.continue();
     creates++;
-    if (fail) { fail = false; return route.fulfill({ status: 503, json: { error: 'Creation unavailable' } }); }
+    if (fail) { fail = false; return route.fulfill({ status: 409, json: { error: 'Session limit (100) reached; remove old sessions' } }); }
     if (hold) { hold = false; held = route; return; }
     return route.continue();
   });
@@ -66,7 +66,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
     expect(creates).toBe(2);
     fail = true;
     await shortcut();
-    await expect(page.getByRole('alert')).toHaveText('Creation unavailable');
+    await expect(page.getByRole('alert')).toHaveText('Session limit (100) reached; remove old sessions');
     await shortcut();
     await expect(page.locator('.workspace-current strong')).toHaveText('Session 3');
     await expect(page.locator('.connection-label')).toHaveText('Connected');

@@ -150,7 +150,7 @@ export function App() {
     catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
   async function removeProject() {
-    if (!projectTarget) return; setBusy(true);
+    if (!projectTarget) return; setBusy(true); setFormError('');
     try { await api(token, `/projects/${projectTarget.id}?deleteSessions=true`, 'DELETE', undefined, undefined, 120_000); await refresh(); setDialog(null); }
     catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
