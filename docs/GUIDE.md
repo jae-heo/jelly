@@ -133,6 +133,7 @@ session names and terminal output retain their original text.
 | Shortcut | Action |
 | --- | --- |
 | ⌘⇧Enter | Create and open a session in the current project. |
+| ⌘⇧⌫ | Delete the current session after confirmation (Enter). Stops its programs. |
 | ⌘⇧, | Previous session. |
 | ⌘⇧. | Next session. |
 

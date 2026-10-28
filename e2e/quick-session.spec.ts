@@ -59,6 +59,7 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
     await page.locator('.project-item').filter({ hasText: project.name }).click();
     // Modals and IME events must not accidentally create sessions.
     await page.getByRole('button', { name: `New session in ${project.name}`, exact: true }).click();
+    await expect(page.getByLabel('Session name', { exact: true })).toBeFocused();
     await shortcut();
     expect(creates).toBe(2);
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();

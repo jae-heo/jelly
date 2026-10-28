@@ -39,7 +39,7 @@ export function ProjectDialog({ token, hosts, onHostAdded, busy, error, onClose,
       </select>
       {(hostError || aliasesError) && <p className="form-error" role="alert">{hostError || aliasesError}</p>}
       <label htmlFor="project-name">Project name</label>
-      <input id="project-name" name="name" placeholder="My project" maxLength={100} required autoFocus value={name} onChange={e => setName(e.target.value)} />
+      <input id="project-name" name="name" placeholder="My project" maxLength={100} required autoFocus data-autofocus value={name} onChange={e => setName(e.target.value)} />
       <label htmlFor="project-path">Server folder path</label>
       <div className="project-folder-field"><input id="project-path" name="path" placeholder="Choose a folder or enter a path" required spellCheck={false} autoCapitalize="off" value={path} onChange={e => setPath(e.target.value)} /><button type="button" className="button secondary" onClick={() => setBrowsing(true)} disabled={busy || changing}><FolderOpen size={16} />Browse</button></div>
       {error && <p className="form-error" role="alert">{error}</p>}

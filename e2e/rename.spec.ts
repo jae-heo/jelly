@@ -30,6 +30,7 @@ for (const remote of [false, true]) test(`rename: ${remote ? 'SSH on mobile' : '
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     await openRename('project');
     await expect(page.getByLabel('Project name', { exact: true })).toHaveValue(project.name);
+    await expect(page.getByLabel('Project name', { exact: true })).toBeFocused();
     await page.getByLabel('Project name', { exact: true }).fill('   ');
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
     await page.getByLabel('Project name', { exact: true }).fill('Renamed 프로젝트');

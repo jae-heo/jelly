@@ -9,6 +9,7 @@ interface Options {
   sessionId: string | null;
   onSelect: (session: Session) => void;
   onCreate: (project: Project) => void;
+  onDelete: (session: Session) => void;
 }
 
 export function useSessionShortcuts(options: Options) {
@@ -19,13 +20,22 @@ export function useSessionShortcuts(options: Options) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (document.querySelector('[data-tree-dragging="true"]')) return;
       if (event.target instanceof Element && event.target.closest('[role="menu"]')) return;
-      const { enabled, projects, sessions, projectId, sessionId, onSelect, onCreate } = current.current;
+      const { enabled, projects, sessions, projectId, sessionId, onSelect, onCreate, onDelete } = current.current;
       if (!enabled || event.isComposing || event.keyCode === 229 || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
       if (event.code === 'Enter' || event.code === 'NumpadEnter') {
         const project = projects.find(project => project.id === projectId);
         if (!project) return;
         event.preventDefault(); event.stopPropagation();
         if (!event.repeat) onCreate(project);
+        return;
+      }
+      if (event.code === 'Backspace') {
+        // Overrides the browser's own ⌘⇧⌫ (Chrome: clear browsing data) only
+        // when there is a session to delete. Deletion still asks to confirm.
+        const session = sessions.find(session => session.id === sessionId && session.projectId === projectId);
+        if (!session) return;
+        event.preventDefault(); event.stopPropagation();
+        if (!event.repeat) onDelete(session);
         return;
       }
       if (!sessions.length) return;

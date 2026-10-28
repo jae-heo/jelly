@@ -11,6 +11,18 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Delete shortcut and dialog focus (2026-10-28)
+
+- ⌘⇧⌫ opens Delete session for the current session with the delete button
+  focused; Enter deletes and stops it, Esc cancels. Without a current session the
+  browser's own shortcut is left alone. The chord never reaches the terminal.
+- Dialogs now focus their intended field or button when they open. `showModal()`
+  had moved focus to the Close button, ignoring React's `autoFocus`.
+- A Chromium test presses the chord in a focused local terminal and checks cancel,
+  deletion, the unaffected sibling shell and that no input reached the shell. The
+  quick-session and rename tests check dialog focus. All Chromium browser tests
+  passed; WebKit runs in CI.
+
 ## Unregistered sessions and clearer errors (2026-10-28)
 
 - The session list reports tmux sessions on Jelly's private local socket and the

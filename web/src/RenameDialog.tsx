@@ -20,7 +20,7 @@ export function RenameDialog({ kind, name, onSave, onClose }: {
     }}>
       <label htmlFor="rename-name">{kind === 'project' ? 'Project name' : 'Session name'}</label>
       <input id="rename-name" value={value} onChange={event => setValue(event.target.value)}
-        maxLength={100} required autoFocus disabled={busy} onFocus={event => event.target.select()} />
+        maxLength={100} required autoFocus data-autofocus disabled={busy} onFocus={event => event.target.select()} />
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="dialog-actions">
         <button className="button secondary" type="button" onClick={close} disabled={busy}>Cancel</button>
