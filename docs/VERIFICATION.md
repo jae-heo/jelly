@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-10-27.
+Last automated verification: 2026-10-28.
 
 ## Verification sources
 
@@ -10,6 +10,25 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Project and session context menus (2026-10-28)
+
+- Right-click, a 500ms touch hold, or Shift+F10 opens options for the targeted
+  sidebar item without changing the active terminal. Project actions include
+  files, session creation, renaming and removal. Sessions offer renaming and
+  stopping or removal of an ended record. Stop still requires confirmation;
+  projects with session records cannot be removed.
+- Menus float within the visual viewport, including 320px layouts. Arrow keys,
+  Home/End, Escape and Tab support keyboard use. Outside interaction, scrolling
+  and viewport changes dismiss the menu. Movement, cancellation and a second
+  pointer cancel a pending hold; trailing touch mouse/click events cannot select
+  the row or prematurely close the menu.
+- Type checks/build and 19 targeted Chromium/WebKit scenarios passed, including
+  local/SSH background-item actions, canceling a stop, preserved active shell
+  PID/connection, renaming, file previews/downloads, sidebar nesting, session
+  shortcuts and the existing workspace workflow. Menu screenshots were inspected.
+- Chromium uses native injected touch holds. WebKit models pointer and trailing
+  click events; these checks do not claim a new physical iPhone test.
 
 ## Terminal scroll distance (2026-10-27)
 

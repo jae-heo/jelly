@@ -8,8 +8,12 @@ Add an existing folder on the Jelly server, or select an SSH host and browse its
 folders. Sessions appear beneath their project. Use **+** to create a session,
 and the arrow beside a project to fold its session list.
 
-Select a project or session, then use **More → Rename project** or
-**Rename session**. Renaming changes its label; folders and running programs stay as they are.
+Right-click a project or session, or hold it on your phone, to open its options.
+Use **Shift+F10** on a focused item with a keyboard. Projects offer files, new
+sessions, renaming and removal; sessions offer renaming and stopping or record
+removal. Remove a project's sessions before removing the project from the list.
+You can also rename the current project or session from **More**. Renaming
+changes only the label; folders and running programs stay as they are.
 
 A session is a persistent shell. Run your usual tools, including Codex or Claude
 Code. Closing the browser or choosing **Disconnect** detaches your connection;

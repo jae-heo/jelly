@@ -27,3 +27,14 @@
   .project-tree .tree-add, .project-tree .remove-session { flex-basis: 44px; width: 44px; height: 44px; margin: 0; }
   .project-tree .project-children { margin-left: 30px; }
 }
+
+.project-tree .project-item, .project-tree .session-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: pan-y; }
+.tree-context-menu { position: fixed; z-index: 100; width: 220px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; padding: 5px; border: 1px solid #405a47; border-radius: 10px; background: #19281e; box-shadow: 0 12px 36px #0008; }
+.tree-context-title { padding: 8px 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #91a998; font-size: 11px; border-bottom: 1px solid #304437; margin-bottom: 4px; }
+.tree-context-menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; text-align: left; font-size: 12px; color: #d1e3d7; }
+.tree-context-menu button:hover:not(:disabled), .tree-context-menu button:focus-visible { background: #ffffff0c; outline: 1px solid #55745f; outline-offset: -1px; }
+.tree-context-menu button:disabled { opacity: .5; cursor: default; }
+.tree-context-menu button svg { flex-shrink: 0; }
+.tree-context-menu button small { display: block; margin-top: 3px; font-size: 10px; color: #9eb4a6; }
+.tree-context-menu .menu-danger { color: #efaaa4; }
+@media (pointer: coarse) { .tree-context-menu button { min-height: 44px; } }

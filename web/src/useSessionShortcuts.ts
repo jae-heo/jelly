@@ -17,6 +17,7 @@ export function useSessionShortcuts(options: Options) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof Element && event.target.closest('[role="menu"]')) return;
       const { enabled, projects, sessions, projectId, sessionId, onSelect, onCreate } = current.current;
       if (!enabled || event.isComposing || event.keyCode === 229 || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
       if (event.code === 'Enter' || event.code === 'NumpadEnter') {

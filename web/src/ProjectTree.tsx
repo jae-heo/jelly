@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { ChevronRight, Folder, Plus, Server, Trash2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronRight, Folder, FolderOpen, Pencil, Plus, Server, Square, Trash2 } from 'lucide-react';
 import type { Project, Session } from './api';
 import './ProjectTree.css';
+import { TreeContextMenu, useTreeContextMenu, type TreeAction } from './TreeContextMenu';
 
 const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
 
@@ -16,9 +17,33 @@ interface Props {
   onSession: (session: Session) => void;
   onNewSession: (project: Project) => void;
   onRemoveSession: (session: Session) => void;
+  onStopSession: (session: Session) => void;
+  onRenameSession: (session: Session) => void;
+  onRenameProject: (project: Project) => void;
+  onRemoveProject: (project: Project) => void;
+  onFiles: (project: Project) => void;
 }
 
-export function ProjectTree({ projects, sessions, projectId, sessionId, loading, open, onProject, onSession, onNewSession, onRemoveSession }: Props) {
+export function ProjectTree({ projects, sessions, projectId, sessionId, loading, open, onProject, onSession, onNewSession, onRemoveSession, onStopSession, onRenameSession, onRenameProject, onRemoveProject, onFiles }: Props) {
+  const context = useTreeContextMenu();
+  useEffect(() => { context.close(); }, [open, projectId, sessionId]);
+  const target = context.anchor?.kind === 'project' ? projects.find(p => p.id === context.anchor?.id) : sessions.find(s => s.id === context.anchor?.id);
+  const actions: TreeAction[] = [];
+  if (target && context.anchor?.kind === 'project') {
+    const p = target as Project;
+    const hasSessions = sessions.some(s => s.projectId === p.id);
+    actions.push(
+      { label: 'Files', icon: <FolderOpen size={16} />, run: () => onFiles(p) },
+      { label: 'New session', icon: <Plus size={16} />, run: () => onNewSession(p) },
+      { label: 'Rename project', icon: <Pencil size={16} />, run: () => onRenameProject(p) },
+      { label: 'Remove project', icon: <Trash2 size={16} />, danger: true, disabled: hasSessions, reason: hasSessions ? 'Remove sessions first' : undefined, run: () => onRemoveProject(p) },
+    );
+  } else if (target) {
+    const s = target as Session;
+    actions.push({ label: 'Rename session', icon: <Pencil size={16} />, run: () => onRenameSession(s) });
+    if (s.status === 'running' || s.status === 'unreachable') actions.push({ label: 'Stop session', icon: <Square size={16} />, danger: true, run: () => onStopSession(s) });
+    else actions.push({ label: 'Remove record', icon: <Trash2 size={16} />, danger: true, run: () => onRemoveSession(s) });
+  }
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const tree = useRef<HTMLElement>(null);
   const activeRow = useRef<HTMLLIElement>(null);
@@ -45,7 +70,7 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
     return () => cancelAnimationFrame(frame);
   }, [projectId, sessionId, open]);
 
-  return <nav ref={tree} className="project-tree" aria-label="Projects and sessions">
+  return <><nav ref={tree} className="project-tree" aria-label="Projects and sessions">
     <ul className="project-tree-list">
       {projects.map(project => {
         const expanded = !collapsed.has(project.id);
@@ -59,7 +84,7 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
                 if (next.has(project.id)) next.delete(project.id); else next.add(project.id);
                 return next;
               })}><ChevronRight size={14} /></button>
-            <button className={`project-item ${project.id === projectId ? 'selected' : ''}`} title={project.name}
+            <button className={`project-item ${project.id === projectId ? 'selected' : ''}`} title={project.name} {...context.bind({ kind: 'project', id: project.id })}
               onClick={() => { expand(project.id); onProject(project.id); }}>
               <Folder size={16} /><span>{project.name}</span>{project.hostId && <Server size={13} aria-label="SSH host" />}
             </button>
@@ -69,6 +94,7 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
             {children.map(session => <li key={session.id} ref={session.id === sessionId ? activeRow : undefined}
               className={`session-row ${session.id === sessionId ? 'selected' : ''}`}>
               <button className="session-item" aria-current={session.id === sessionId ? 'true' : undefined}
+                {...context.bind({ kind: 'session', id: session.id })}
                 aria-label={`${session.name} · ${stateLabels[session.status]}`} title={`${session.name} · ${stateLabels[session.status]}`}
                 onClick={() => onSession(session)}>
                 <span className={`session-dot ${session.status}`} /><span className="session-text"><strong>{session.name}</strong></span>
@@ -82,5 +108,5 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
       })}
     </ul>
     {!projects.length && <p className="sidebar-empty">{loading ? 'Loading…' : 'No projects'}</p>}
-  </nav>;
+  </nav>{context.anchor && target && <TreeContextMenu anchor={context.anchor} name={target.name} actions={actions} onClose={context.close} />}</>;
 }
