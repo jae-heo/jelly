@@ -5,6 +5,8 @@ import type { Config } from './config.js';
 
 const exec = promisify(execFile);
 export interface TerminalState { status: 'running' | 'exited' | 'lost' | 'unreachable'; pid?: number; cols?: number; rows?: number; exitCode?: number }
+// Creation time and start directory identify tmux sessions that have no Jelly record.
+export interface TmuxSession extends TerminalState { createdAt?: string; path?: string }
 
 export class Tmux {
   constructor(readonly config: Config) {}
@@ -30,23 +32,27 @@ export class Tmux {
     // A separate tmux server owns the shell, so killing the API/attach PTY does not kill the work.
     await this.run('new-session', '-d', '-s', this.name(id), '-c', cwd, '-x', String(cols), '-y', String(rows), this.config.shell);
   }
-  async states(): Promise<Map<string, TerminalState>> {
+  async states(): Promise<Map<string, TmuxSession>> {
     let output: string;
     try {
-      output = await this.run('list-panes', '-a', '-F', '#{session_name}|#{pane_dead}|#{pane_pid}|#{pane_width}|#{pane_height}|#{pane_dead_status}');
+      // The path is last because it may itself contain the separator.
+      output = await this.run('list-panes', '-a', '-F', '#{session_name}|#{pane_dead}|#{pane_pid}|#{pane_width}|#{pane_height}|#{pane_dead_status}|#{session_created}|#{session_path}');
     } catch (error) {
       const stderr = String((error as { stderr?: string }).stderr ?? '');
       if (/no current target|no server running|No such file or directory|Connection refused/.test(stderr)) return new Map();
       throw error;
     }
-    const states = new Map<string, TerminalState>();
+    const states = new Map<string, TmuxSession>();
     for (const line of output.split('\n')) {
-      const [name, dead, pid, cols, rows, code] = line.split('|');
-      if (!name?.startsWith('jelly-')) continue;
+      const [name, dead, pid, cols, rows, code, created, ...rest] = line.split('|');
+      const path = rest.join('|');
+      if (!name || !/^jelly-[a-f0-9-]{36}$/.test(name)) continue;
       if (![pid, cols, rows].every(value => value && Number.isFinite(Number(value)))) throw new Error('Invalid tmux state response');
       states.set(name.slice(6), {
         status: dead === '1' ? 'exited' : 'running', pid: Number(pid), cols: Number(cols), rows: Number(rows),
         ...(dead === '1' && code ? { exitCode: Number(code) } : {}),
+        ...(created && /^\d+$/.test(created) ? { createdAt: new Date(Number(created) * 1000).toISOString() } : {}),
+        ...(path ? { path } : {}),
       });
     }
     return states;

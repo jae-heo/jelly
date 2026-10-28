@@ -237,3 +237,4 @@ select:focus{outline:1px solid var(--mint)}
 .file-preview img{display:block;max-width:100%;height:auto;margin:auto}
 .file-preview iframe{display:block;width:100%;height:100%;border:0;background:white}
 @media(max-width:700px){.files-dialog{padding:12px}.files-toolbar{gap:6px}.files-location{font-size:11px}}
+.dialog .dialog-description+.dialog-path{margin:-17px 0 19px}

@@ -1,15 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUp, ArrowDown, ChevronRight, Folder, FolderOpen, Pencil, Plus, Server, Square, Trash2 } from 'lucide-react';
-import type { Project, Session } from './api';
+import type { Host, Project, Session, Unregistered } from './api';
 import './ProjectTree.css';
 import { useTreeReorder, type MoveTreeItem } from './useTreeReorder';
 import { TreeContextMenu, useTreeContextMenu, type TreeAction } from './TreeContextMenu';
 
-const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
+const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'Lost', unreachable: 'Server unreachable' };
 
 interface Props {
   projects: Project[];
   sessions: Session[];
+  unregistered: Unregistered[];
+  hosts: Host[];
   projectId: string | null;
   sessionId: string | null;
   loading: boolean;
@@ -25,9 +27,10 @@ interface Props {
   onRemoveProject: (project: Project) => void;
   onFiles: (project: Project) => void;
   onMove: MoveTreeItem;
+  onUnregistered: (target: Unregistered) => void;
 }
 
-export function ProjectTree({ projects, sessions, projectId, sessionId, loading, open, onProject, onSession, onNewSession, onRemoveSession, onDeleteSession, onStopSession, onRenameSession, onRenameProject, onRemoveProject, onFiles, onMove }: Props) {
+export function ProjectTree({ projects, sessions, unregistered, hosts, projectId, sessionId, loading, open, onProject, onSession, onNewSession, onRemoveSession, onDeleteSession, onStopSession, onRenameSession, onRenameProject, onRemoveProject, onFiles, onMove, onUnregistered }: Props) {
   const tree = useRef<HTMLElement>(null);
   const reorder = useTreeReorder(tree, projects, sessions, onMove);
   const context = useTreeContextMenu(reorder.handlers);
@@ -121,5 +124,20 @@ export function ProjectTree({ projects, sessions, projectId, sessionId, loading,
       })}
     </ul>
     {!projects.length && <p className="sidebar-empty">{loading ? 'Loading…' : 'No projects'}</p>}
+    {!!unregistered.length && <section className="unregistered-sessions" aria-label="Unregistered sessions">
+      <h3 className="tree-section-title">Unregistered</h3>
+      <ul className="project-children">
+        {unregistered.map(item => {
+          const folder = item.path?.split('/').filter(Boolean).at(-1) ?? item.path ?? 'Unknown folder';
+          const host = item.hostId ? hosts.find(h => h.id === item.hostId)?.target ?? 'SSH server' : 'This server';
+          const label = item.status === 'running' ? 'Running' : 'Ended';
+          return <li key={`${item.hostId}:${item.id}`} className="session-row">
+            <button className="session-item" aria-label={`Unregistered session in ${folder} · ${label}`} title={`${item.path ?? folder} · ${host}`} onClick={() => onUnregistered(item)}>
+              <span className={`session-dot ${item.status}`} /><span className="session-text"><strong>{folder}</strong><small>{host}</small></span>
+            </button>
+          </li>;
+        })}
+      </ul>
+    </section>}
   </nav>{reorder.overlay}{context.anchor && target && <TreeContextMenu anchor={context.anchor} name={target.name} actions={actions} onClose={context.close} />}</>;
 }

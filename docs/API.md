@@ -32,13 +32,18 @@ localStorage (explicit remember-device selection). WebSockets use the short-live
 | GET | `/api/projects/:id` | project |
 | PATCH | `/api/projects/:id` | `{name}` → updated project; display name only |
 | DELETE | `/api/projects/:id` | metadata only; 409 if any session records remain |
+| DELETE | `/api/projects/:id?deleteSessions=true` | stop and delete its sessions, then the project; server files are kept |
+| POST | `/api/projects/:id/move` | `{beforeId}` → `{ids}`; `beforeId:null` moves to the end |
 | GET | `/api/projects/:id/files?path=nested&hidden=false` | `{path,parent,entries:[{name,path,kind}],truncated}`; paths relative to the project |
 | GET | `/api/projects/:id/preview?path=nested/file.txt` | bounded file bytes; `X-Jelly-Preview: text`, `image` or `pdf` |
 | POST | `/api/projects/:id/downloads` | `{path}` → `{url,name,expiresIn:30}` (201); single-use download link |
 | GET | `/api/downloads/:ticket` | attachment stream; authorized by the short-lived ticket |
 | GET | `/api/projects/:id/sessions` | `{sessions:[...]}` |
 | POST | `/api/projects/:id/sessions` | `{name?,cols?,rows?}` → session (201) |
-| GET | `/api/sessions` | all session records and current tmux state |
+| GET | `/api/sessions` | `{sessions,unregistered}`: all session records with current tmux state, and tmux sessions without a record |
+| POST | `/api/sessions/:id/move` | `{beforeId}` → `{ids}`; within the session's project |
+| POST | `/api/unregistered-sessions/:id/adopt` | `{projectId,name}` → session (201); records the existing shell under that project |
+| POST | `/api/unregistered-sessions/:id/stop` | `{hostId}` → `{stopped:true}`; terminates a shell that has no record |
 | GET | `/api/sessions/:id` | session with current state |
 | PATCH | `/api/sessions/:id` | `{name}` → updated session metadata (`id,projectId,name,createdAt,stoppedAt`); no shell status query |
 | POST | `/api/sessions/:id/stop` | terminate session processes, keep stopped record; idempotent |
@@ -70,6 +75,11 @@ The last means an SSH host could not be queried; it never marks the metadata sto
 Names: 1–100 characters. Terminal: 2–500 columns, 2–200 rows; defaults 80×24.
 Renaming trims surrounding whitespace and preserves IDs, paths and running shells.
 It works for ended sessions and unreachable SSH hosts too. Only `name` may be patched.
+Unregistered: `{id,hostId,status,path,createdAt}`. These are sessions on Jelly's own tmux sockets
+with no record, for example after the database was replaced. `status` is `running` or `exited`;
+`path` is the tmux start directory. The local server and SSH hosts with projects are checked.
+Adoption keeps the ID and shell; the project must be on the same server, and the record is added
+at the end of the project's order. Sessions on other tmux servers are never listed.
 Maximum 100 session records; delete old records to create more. Registration never creates/deletes source directories.
 An exited session keeps its screen until explicitly deleted/stopped; attachment requires a running shell.
 Stopping/deleting terminates work, and its in-memory tmux history becomes unavailable.

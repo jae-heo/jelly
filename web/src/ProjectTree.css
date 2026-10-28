@@ -21,6 +21,9 @@
 .project-tree .remove-session { position: static; flex-shrink: 0; width: 30px; height: 32px; margin-right: 2px; background: transparent; }
 .project-tree .tree-toggle:hover, .project-tree .project-item:hover, .project-tree .session-item:hover { background: #ffffff06; }
 .tree-empty { padding: 10px 9px; color: #73887a; font-size: 11px; }
+.unregistered-sessions { margin-top: 14px; padding-top: 12px; border-top: 1px solid #263229; }
+.tree-section-title { margin: 0 0 4px; padding: 0 9px; font-size: 11px; font-weight: 550; color: #a2b2a7; }
+.project-tree .unregistered-sessions .project-children { margin: 0; padding: 0; border: 0; }
 @media (max-width: 700px), (pointer: coarse) {
   .project-tree .tree-toggle { flex-basis: 44px; min-height: 44px; }
   .project-tree .project-item, .project-tree .session-item { min-height: 44px; }

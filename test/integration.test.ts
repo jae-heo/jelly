@@ -7,6 +7,7 @@ import { chmod, mkdir, mkdtemp, readFile, realpath, rm, symlink, stat, writeFile
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { homedir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import * as pty from 'node-pty';
 
@@ -473,6 +474,48 @@ test('Jelly API + real tmux lifecycle', { timeout: 90_000 }, async t => {
     await api(`/api/sessions/${sessionId}/stop`, 'POST');
     await connect(sessionId, { status: 409 });
     await api(`/api/sessions/${sessionId}`, 'DELETE');
+  });
+  await t.test('tmux sessions without records are listed, adopted with the same shell, or stopped', async () => {
+    // Simulate shells whose records were lost, e.g. after the database was replaced.
+    const orphan = async () => {
+      const id = randomUUID();
+      await exec('tmux', ['-S', socket, '-f', join(dataDir, 'tmux.conf'), 'new-session', '-d', '-s', `jelly-${id}`, '-c', projectPath, 'bash']);
+      const { stdout } = await exec('tmux', ['-S', socket, 'list-panes', '-t', `=jelly-${id}`, '-F', '#{pane_pid}']);
+      return { id, pid: Number(stdout.trim()) };
+    };
+    const kept = await orphan();
+    const stopped = await orphan();
+    await exec('tmux', ['-S', socket, 'new-session', '-d', '-s', 'jelly-not-a-session-id']);
+    const listed = (await api('/api/sessions')).unregistered;
+    assert.deepEqual(listed.map((s: any) => s.id).sort(), [kept.id, stopped.id].sort());
+    const entry = listed.find((s: any) => s.id === kept.id);
+    assert.equal(entry.hostId, null); assert.equal(entry.status, 'running'); assert.equal(entry.path, projectPath);
+    assert.ok(Date.parse(entry.createdAt) > Date.now() - 60_000);
+
+    await api(`/api/unregistered-sessions/${kept.id}/adopt`, 'POST', { projectId, name: '' }, 400);
+    await api(`/api/unregistered-sessions/${kept.id}/adopt`, 'POST', { projectId: randomUUID(), name: 'Recovered' }, 404);
+    await api(`/api/unregistered-sessions/${randomUUID()}/adopt`, 'POST', { projectId, name: 'Recovered' }, 404);
+    const adopted = await api(`/api/unregistered-sessions/${kept.id}/adopt`, 'POST', { projectId, name: 'Recovered' }, 201);
+    assert.equal(adopted.id, kept.id); assert.equal(adopted.status, 'running'); assert.equal(adopted.pid, kept.pid);
+    await api(`/api/unregistered-sessions/${kept.id}/adopt`, 'POST', { projectId, name: 'Again' }, 409);
+    await api(`/api/unregistered-sessions/${kept.id}/stop`, 'POST', { hostId: null }, 409);
+    const listing = await api('/api/sessions');
+    assert.deepEqual(listing.unregistered.map((s: any) => s.id), [stopped.id]);
+    assert.equal(listing.sessions.at(-1).id, kept.id);
+    const c = await connect(kept.id);
+    c.send("printf '\\nADOPTED_%s\\n' OK\r");
+    await c.wait('ADOPTED_OK');
+    c.ws.close(); await once(c.ws, 'close');
+
+    await api(`/api/unregistered-sessions/${stopped.id}/stop`, 'POST', { hostId: randomUUID() }, 404);
+    await api(`/api/unregistered-sessions/${stopped.id}/stop`, 'POST', { hostId: null });
+    await api(`/api/unregistered-sessions/${stopped.id}/stop`, 'POST', { hostId: null }, 404);
+    await assert.rejects(exec('tmux', ['-S', socket, 'has-session', '-t', `=jelly-${stopped.id}`]));
+    assert.deepEqual((await api('/api/sessions')).unregistered, []);
+    assert.equal((await api(`/api/sessions/${kept.id}`)).pid, kept.pid);
+    await exec('tmux', ['-S', socket, 'has-session', '-t', '=jelly-not-a-session-id']);
+    await exec('tmux', ['-S', socket, 'kill-session', '-t', '=jelly-not-a-session-id']);
+    await api(`/api/sessions/${kept.id}`, 'DELETE');
   });
   await t.test('missing tmux session is reported as lost and project deletion preserves files', async () => {
     const lost = await api(`/api/projects/${projectId}/sessions`, 'POST', {}, 201);

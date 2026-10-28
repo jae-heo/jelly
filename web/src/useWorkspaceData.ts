@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, type Host, type Project, type Session } from './api';
+import { api, ApiError, type Host, type Project, type Session, type Unregistered } from './api';
 
-interface Snapshot { projects: Project[]; sessions: Session[]; hosts: Host[] }
-const empty: Snapshot = { projects: [], sessions: [], hosts: [] };
+interface Snapshot { projects: Project[]; sessions: Session[]; hosts: Host[]; unregistered: Unregistered[] }
+const empty: Snapshot = { projects: [], sessions: [], hosts: [], unregistered: [] };
 
 export function useWorkspaceData(token: string, onUnauthorized: () => void, onSnapshot: (data: Snapshot) => void) {
   const [data, setData] = useState<Snapshot>(empty);
@@ -22,11 +22,11 @@ export function useWorkspaceData(token: string, onUnauthorized: () => void, onSn
     try {
       const [p, s, h] = await Promise.all([
         api<{ projects: Project[] }>(token, '/projects', 'GET', undefined, controller.signal),
-        api<{ sessions: Session[] }>(token, '/sessions', 'GET', undefined, controller.signal),
+        api<{ sessions: Session[]; unregistered?: Unregistered[] }>(token, '/sessions', 'GET', undefined, controller.signal),
         api<{ hosts: Host[] }>(token, '/hosts', 'GET', undefined, controller.signal),
       ]);
       if (!valid()) return;
-      const snapshot = { projects: p.projects, sessions: s.sessions, hosts: h.hosts };
+      const snapshot = { projects: p.projects, sessions: s.sessions, hosts: h.hosts, unregistered: s.unregistered ?? [] };
       setData(snapshot); setOnline(true); current.current.onSnapshot(snapshot);
     } catch (error) {
       if (!valid()) return;

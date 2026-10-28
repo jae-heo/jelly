@@ -91,8 +91,8 @@ export class Store {
       : this.db.prepare('SELECT s.* FROM sessions s LEFT JOIN session_order o ON o.id = s.id ORDER BY o.position IS NULL, o.position, s.createdAt, s.id').all()) as unknown as Session[];
   }
   session(id: string): Session | undefined { return this.db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as unknown as Session | undefined; }
-  addSession(projectId: string, name: string): Session {
-    const session = { id: randomUUID(), projectId, name, createdAt: new Date().toISOString(), stoppedAt: null };
+  addSession(projectId: string, name: string, id: string = randomUUID()): Session {
+    const session = { id, projectId, name, createdAt: new Date().toISOString(), stoppedAt: null };
     this.db.prepare('INSERT INTO sessions VALUES (?, ?, ?, ?, NULL)').run(session.id, projectId, name, session.createdAt);
     return session;
   }

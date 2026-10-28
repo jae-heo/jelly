@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { once } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { loadConfig } from '../src/config.js';
 import { startServer } from '../src/server.js';
@@ -224,6 +225,41 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
       await deletion;
       await request(`/api/sessions/${remoteSession.id}`, 'DELETE');
       if (localSession) await request(`/api/sessions/${localSession.id}`, 'DELETE');
+      await request(`/api/projects/${localProject.id}`, 'DELETE');
+    }
+  });
+  await t.test('remote tmux sessions without records can be adopted or stopped', async () => {
+    const socketName = `jelly-${config.instanceId}`;
+    const orphan = async () => {
+      const id = randomUUID();
+      await fixture.command('tmux', '-L', socketName, 'new-session', '-d', '-s', `jelly-${id}`, '-c', remotePath);
+      return { id, pid: Number((await fixture.command('tmux', '-L', socketName, 'list-panes', '-t', `=jelly-${id}`, '-F', '#{pane_pid}')).trim()) };
+    };
+    const kept = await orphan();
+    const stopped = await orphan();
+    const localPath = join(dataDir, 'local-adopt');
+    await mkdir(localPath);
+    const localProject = await request('/api/projects', 'POST', { name: 'Local adopt', path: localPath }, 201);
+    try {
+      let listed: any[] = [];
+      await until(async () => { listed = (await request('/api/sessions')).unregistered; return listed.length === 2; });
+      const entry = listed.find(s => s.id === kept.id);
+      assert.equal(entry.hostId, host.id); assert.equal(entry.path, remotePath); assert.equal(entry.status, 'running');
+      // A shell belongs to its own server; a local project cannot adopt it.
+      await request(`/api/unregistered-sessions/${kept.id}/adopt`, 'POST', { projectId: localProject.id, name: 'Wrong host' }, 404);
+      await request(`/api/unregistered-sessions/${kept.id}/stop`, 'POST', { hostId: null }, 404);
+      const adopted = await request(`/api/unregistered-sessions/${kept.id}/adopt`, 'POST', { projectId: project.id, name: 'Recovered remote' }, 201);
+      assert.equal(adopted.pid, kept.pid);
+      const recovered = await attach("printf '\\nREMOTE_ADOPTED_%s\\n' OK\r", kept.id);
+      await until(() => recovered.output().includes('REMOTE_ADOPTED_OK'));
+      recovered.ws.close(); await once(recovered.ws, 'close');
+      await request(`/api/unregistered-sessions/${stopped.id}/stop`, 'POST', { hostId: host.id });
+      await assert.rejects(fixture.command('tmux', '-L', socketName, 'has-session', '-t', `=jelly-${stopped.id}`));
+      assert.deepEqual((await request('/api/sessions')).unregistered, []);
+      assert.equal((await request(`/api/sessions/${session.id}`)).pid, session.pid);
+    } finally {
+      if (app.store.session(kept.id)) await request(`/api/sessions/${kept.id}`, 'DELETE');
+      for (const id of [kept.id, stopped.id]) await fixture.command('tmux', '-L', socketName, 'kill-session', '-t', `=jelly-${id}`).catch(() => {});
       await request(`/api/projects/${localProject.id}`, 'DELETE');
     }
   });

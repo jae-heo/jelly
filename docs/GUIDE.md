@@ -29,7 +29,12 @@ client. Jelly keeps the three most recently visited terminals connected across
 projects. Older sessions keep running and reconnect when selected.
 
 Sessions survive Jelly restarts, but not a reboot of the machine running the shell.
+After a reboot, their records are labeled **Lost**; remove them with the trash button.
 Jelly uses private tmux sockets and leaves unrelated tmux sessions alone.
+
+If Jelly finds a running shell on its own tmux socket without a record, for example
+after its database was replaced, the shell is listed under **Unregistered**. Select
+it to add it to a project on the same server, keeping the shell, or to stop it.
 
 ## Files
 

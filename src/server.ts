@@ -17,6 +17,8 @@ const NewProject = z.object({ name: Name, path: z.string().min(1).max(4096), hos
 const NewSession = Size.extend({ name: Name.default('Terminal') }).strict();
 const Move = z.object({ beforeId: Id.nullable() }).strict();
 const Rename = z.object({ name: Name }).strict();
+const Adopt = z.object({ projectId: Id, name: Name }).strict();
+const StopUnregistered = z.object({ hostId: Id.nullable() }).strict();
 const NewHost = z.object({
   name: Name,
   target: z.string().trim().regex(sshTargetPattern),
@@ -201,9 +203,34 @@ export async function startServer(config: Config) {
       }
     }
     if (method === 'GET' && url.pathname === '/api/sessions') {
-      const sessions = store.sessions();
-      const states = await tmux.states(sessions, true);
-      return json(res, 200, { sessions: sessions.map(s => view(s, states)) });
+      const { sessions, states, unregistered } = await tmux.overview(true);
+      return json(res, 200, { sessions: sessions.map(s => view(s, states)), unregistered });
+    }
+    const unregisteredMatch = /^\/api\/unregistered-sessions\/([^/]+)\/(adopt|stop)$/.exec(url.pathname);
+    if (method === 'POST' && unregisteredMatch) {
+      const id = Id.parse(unregisteredMatch[1]);
+      if (unregisteredMatch[2] === 'adopt') {
+        const input = Adopt.parse(await body(req));
+        return mutate(hostKey(project(input.projectId).hostId), async () => {
+          const p = project(input.projectId);
+          if (store.session(id)) throw new ApiError(409, 'Session already registered');
+          // The shell must be on the project's server; its directory may differ.
+          if (!await tmux.unregistered(p.hostId, id)) throw new ApiError(404, 'Unregistered session not found on this project\'s server');
+          if (store.sessions().length >= 100) throw new ApiError(409, 'Session limit (100) reached; remove old sessions');
+          // Keep the tmux ID so the record controls the existing shell. Like a
+          // new session, it appends to the project's order.
+          const created = store.addSession(p.id, input.name, id);
+          json(res, 201, view(created, await tmux.states([created])));
+        });
+      }
+      const input = StopUnregistered.parse(await body(req));
+      if (input.hostId && !store.host(input.hostId)) throw new ApiError(404, 'SSH server not found');
+      return mutate(hostKey(input.hostId), async () => {
+        if (store.session(id)) throw new ApiError(409, 'Session is registered');
+        if (!await tmux.unregistered(input.hostId, id)) throw new ApiError(404, 'Unregistered session not found');
+        await tmux.stopUnregistered(input.hostId, id);
+        json(res, 200, { stopped: true });
+      });
     }
     const sessionMatch = /^\/api\/sessions\/([^/]+)(?:\/(stop|tickets|history))?$/.exec(url.pathname);
     if (sessionMatch) {

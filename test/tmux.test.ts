@@ -29,11 +29,17 @@ test('tmux state parsing preserves zero/nonzero exit codes and leaves unknown co
   const tmux = new Tmux({} as Config);
   const ids = [randomUUID(), randomUUID(), randomUUID()];
   t.mock.method(tmux, 'run', async () => [
-    `jelly-${ids[0]}|1|101|80|24|0`,
-    `jelly-${ids[1]}|1|102|80|24|7`,
+    `jelly-${ids[0]}|1|101|80|24|0|1790000000|/work/a|b`,
+    `jelly-${ids[1]}|1|102|80|24|7||`,
     `jelly-${ids[2]}|1|103|80|24|`,
+    'jelly-not-a-session-id|0|104|80|24|',
   ].join('\n'));
   const states = await tmux.states();
+  assert.equal(states.size, 3);
+  assert.equal(states.get(ids[0]!)?.createdAt, new Date(1790000000 * 1000).toISOString());
+  assert.equal(states.get(ids[0]!)?.path, '/work/a|b');
+  assert.equal(Object.hasOwn(states.get(ids[1]!)!, 'createdAt'), false);
+  assert.equal(Object.hasOwn(states.get(ids[1]!)!, 'path'), false);
   assert.equal(states.get(ids[0]!)?.exitCode, 0);
   assert.equal(states.get(ids[1]!)?.exitCode, 7);
   assert.equal(states.get(ids[2]!)?.status, 'exited');

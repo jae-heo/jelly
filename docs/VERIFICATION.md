@@ -11,6 +11,25 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Unregistered sessions and clearer errors (2026-10-28)
+
+- The session list reports tmux sessions on Jelly's private local socket and the
+  `jelly-<instanceId>` socket of each SSH host with projects that have no record.
+  Only `jelly-<uuid>` names are considered. They can be added to a project on the
+  same server, keeping the ID and shell PID, or stopped after confirmation.
+- Sessions lost after a reboot are labeled Lost instead of No sessions.
+- The web client shows specific server errors for 403 and 409 responses, such as
+  the session limit and folder access failures, instead of generic Origin or state
+  messages. Only an actual Origin rejection shows the Origin hint.
+- Integration tests with real tmux cover listing, adoption with the same PID and
+  terminal, wrong-host and duplicate adoption, stopping, and ignoring non-Jelly
+  names. Disposable SSH tests cover a remote path with quotes, `$`, `&` and Korean,
+  cross-host rejection and remote stop. A Chromium test covers adoption with the
+  restored screen, stop confirmation and the Lost label. `npm test`, `npm run check`,
+  `npm run test:ssh` and all Chromium browser tests passed. The SSH and browser
+  fixtures ran on rootless Podman's Docker-compatible API. WebKit tests were not run
+  locally because the host lacks WebKit's system libraries.
+
 ## Ordering, deletion and selection scrolling (2026-10-28)
 
 - Projects and sessions can be reordered with a mouse drag or a touch hold then

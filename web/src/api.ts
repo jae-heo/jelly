@@ -2,6 +2,8 @@ export interface Host { id: string; name: string; target: string; port: number |
 export interface Project { id: string; name: string; path: string; hostId: string | null; createdAt: string }
 export interface Session { id: string; projectId: string; name: string; status: 'running' | 'stopped' | 'exited' | 'lost' | 'unreachable'; connected: boolean; createdAt: string; cols?: number; rows?: number }
 
+export interface Unregistered { id: string; hostId: string | null; status: 'running' | 'exited'; path: string | null; createdAt: string | null }
+
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
 }
