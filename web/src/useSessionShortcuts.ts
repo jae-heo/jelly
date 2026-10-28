@@ -21,7 +21,8 @@ export function useSessionShortcuts(options: Options) {
       if (document.querySelector('[data-tree-dragging="true"]')) return;
       if (event.target instanceof Element && event.target.closest('[role="menu"]')) return;
       const { enabled, projects, sessions, projectId, sessionId, onSelect, onCreate, onDelete } = current.current;
-      if (!enabled || event.isComposing || event.keyCode === 229 || !event.metaKey || !event.shiftKey || event.ctrlKey || event.altKey) return;
+      if (!enabled || event.isComposing || event.keyCode === 229 || !event.metaKey || event.ctrlKey || event.altKey) return;
+      // ⌘Enter and ⌘⇧Enter both create a session; other shortcuts need Shift.
       if (event.code === 'Enter' || event.code === 'NumpadEnter') {
         const project = projects.find(project => project.id === projectId);
         if (!project) return;
@@ -29,6 +30,7 @@ export function useSessionShortcuts(options: Options) {
         if (!event.repeat) onCreate(project);
         return;
       }
+      if (!event.shiftKey) return;
       if (event.code === 'Backspace') {
         // Overrides the browser's own ⌘⇧⌫ (Chrome: clear browsing data) only
         // when there is a session to delete. Deletion still asks to confirm.

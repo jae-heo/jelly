@@ -26,7 +26,8 @@
     "deploy": "node scripts/deploy.mjs",
     "dev:server": "npm run build:server && node scripts/dev-server.mjs",
     "cleanup": "node scripts/cleanup.mjs",
-    "test:soak": "npm run build:test && node --expose-gc --test .data/test-build/test/soak.js"
+    "test:soak": "npm run build:test && node --expose-gc --test .data/test-build/test/soak.js",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

@@ -8,7 +8,7 @@ Add an existing folder on the Jelly server, or select an SSH host and browse its
 folders. Sessions appear beneath their project. Use **+** to create a session,
 and the arrow beside a project to fold its session list. While a session is open,
 **+** in the header opens a new one in the same project right away, without
-asking for a name; this is the quickest way on a phone.
+asking for a name, like ⌘Enter; this is the quickest way on a phone.
 
 Right-click a project or session, or hold it on your phone, to open its options.
 Use **Shift+F10** on a focused item with a keyboard. Projects offer files, new
@@ -134,7 +134,7 @@ session names and terminal output retain their original text.
 
 | Shortcut | Action |
 | --- | --- |
-| ⌘⇧Enter | Create and open a session in the current project. |
+| ⌘Enter or ⌘⇧Enter | Create and open a session in the current project. |
 | ⌘⇧⌫ | Delete the current session after confirmation (Enter). Stops its programs and opens the previous session in the project, or the next one if it was first. |
 | ⌘⇧, | Previous session. |
 | ⌘⇧. | Next session. |

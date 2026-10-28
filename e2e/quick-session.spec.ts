@@ -76,7 +76,13 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
     await expect(page.getByLabel('Selected key combination')).toHaveText('Select a key');
     await expect(page.getByRole('button', { name: 'Send key combination', exact: true })).toBeDisabled();
     expect(creates).toBe(4);
-    expect((await call('/sessions')).sessions.filter((s: any) => s.projectId === project.id)).toHaveLength(3);
+    // ⌘Enter is an alias and never reaches the terminal as Enter.
+    keys.length = 0;
+    await page.keyboard.press('Meta+Enter');
+    await expect(page.locator('.workspace-current strong')).toHaveText('Session 4');
+    expect(creates).toBe(5);
+    expect(keys).not.toContain('\r');
+    expect((await call('/sessions')).sessions.filter((s: any) => s.projectId === project.id)).toHaveLength(4);
     expect(errors).toEqual([]);
   } finally {
     if (held) await held.abort().catch(() => {});

@@ -1,8 +1,15 @@
-import { test, expect, chromium } from '@playwright/test';
+import { test, expect, chromium, type Download } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 for (const remote of [false, true]) test(`project files: ${remote ? 'SSH' : 'local'} mobile viewer and browser downloads`, async ({ browser, request }) => {
   const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
+  // saveAs also works with a remote browser, where download.path() is unavailable.
+  let saved = 0;
+  const contents = async (download: Download) => {
+    const path = test.info().outputPath(`download-${saved++}`);
+    await download.saveAs(path);
+    return readFileSync(path);
+  };
   const token = readFileSync(info.tokenFile, 'utf8').trim();
   const call = async (path: string, method = 'GET', data?: unknown) => {
     const response = await request.fetch('/api' + path, { method, data, headers: { Authorization: `Bearer ${token}` } });
@@ -52,7 +59,7 @@ for (const remote of [false, true]) test(`project files: ${remote ? 'SSH' : 'loc
     const download = await downloading;
     expect(download.suggestedFilename()).toBe('보고서 & note.txt');
     expect(await download.failure()).toBeNull();
-    expect(readFileSync((await download.path())!, 'utf8')).toContain('한글 🙂');
+    expect((await contents(download)).toString('utf8')).toContain('한글 🙂');
     await page.getByRole('button', { name: 'Back', exact: true }).click();
     await page.getByRole('button', { name: 'Parent', exact: true }).click();
     await list.getByRole('button', { name: 'pixel.png', exact: true }).click();
@@ -74,7 +81,7 @@ for (const remote of [false, true]) test(`project files: ${remote ? 'SSH' : 'loc
     await page.getByRole('button', { name: 'Download', exact: true }).click();
     const binary = await binaryReady;
     expect(await binary.failure()).toBeNull();
-    expect(readFileSync((await binary.path())!)).toEqual(Buffer.from([0, 255, 65, 66]));
+    expect(await contents(binary)).toEqual(Buffer.from([0, 255, 65, 66]));
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     expect(connections).toBe(originalConnections);

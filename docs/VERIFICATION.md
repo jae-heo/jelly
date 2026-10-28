@@ -11,6 +11,23 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Local verification, touch hover and ⌘Enter (2026-10-28)
+
+- `npm run verify` runs the CI checks locally: type checks, backend, soak, SSH,
+  Chromium and WebKit tests. The SSH fixture uses Docker when reachable, otherwise
+  rootless Podman. Without host WebKit libraries, WebKit tests connect to
+  Playwright's official browser container. Download tests use `saveAs()`, which
+  works with a remote browser.
+- Hover highlights apply only to devices with a hover-capable pointer, so tapped
+  buttons on touch screens no longer stay highlighted. Focus, active and open
+  states are unchanged.
+- ⌘Enter also creates a session, alongside ⌘⇧Enter; it never sends Enter to the
+  terminal.
+- Inline dialogs moved from `App.tsx` into `WorkspaceDialogs.tsx` without changes
+  to their text, actions or focus.
+- `npm run verify` passed on this Rocky Linux host with rootless Podman, including
+  WebKit through the container.
+
 ## Header new-session button (2026-10-28)
 
 - While a session is open, + in the header creates and opens a session in the

@@ -6,12 +6,25 @@ import { join, resolve } from 'node:path';
 
 const exec = promisify(execFile);
 
+// Docker where its daemon is reachable (CI), otherwise rootless Podman, which
+// accepts the same commands. JELLY_CONTAINER_CLI overrides the choice.
+let runtime: Promise<string> | undefined;
+export function containerCli(): Promise<string> {
+  runtime ??= (async () => {
+    if (process.env.JELLY_CONTAINER_CLI) return process.env.JELLY_CONTAINER_CLI;
+    try { await exec('docker', ['info'], { timeout: 15_000 }); return 'docker'; } catch { /* Try Podman. */ }
+    try { await exec('podman', ['--version'], { timeout: 15_000 }); return 'podman'; } catch { return 'docker'; }
+  })();
+  return runtime;
+}
+
 // Disposable remote host: only OpenSSH, a POSIX shell and tmux. No Jelly, Node or Python.
 export async function sshFixture(parent: string) {
   const directory = await mkdtemp(join(parent, 'ssh-'));
   const container = `jelly-ssh-test-${randomBytes(6).toString('hex')}`;
   const image = 'jelly-ssh-test:local';
-  const docker = (...args: string[]) => exec('docker', args, { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 });
+  const cli = await containerCli();
+  const docker = (...args: string[]) => exec(cli, args, { timeout: 180_000, maxBuffer: 4 * 1024 * 1024 });
   try { await docker('image', 'inspect', image); }
   catch { await docker('build', '-t', image, 'test/ssh-container'); }
   try {

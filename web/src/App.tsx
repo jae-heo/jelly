@@ -1,13 +1,13 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CircleAlert, Folder, Plus, Power, RefreshCw, TerminalSquare, Unplug, X, Server } from 'lucide-react';
+import { CircleAlert, Plus, Power, RefreshCw, TerminalSquare, Unplug, X, Server } from 'lucide-react';
 import { api, errorMessage, forgetToken, storedToken, type Project, type Session, type Unregistered } from './api';
 import { useWorkspaceData } from './useWorkspaceData';
 import { Login } from './Login';
-import { Modal } from './Modal';
 import { ProjectDialog } from './ProjectDialog';
 import { ProjectFiles } from './ProjectFiles';
 import { RenameDialog } from './RenameDialog';
 import { UnregisteredDialog } from './UnregisteredDialog';
+import { ConfirmDialog, HelpDialog, NewSessionDialog, PasteDialog } from './WorkspaceDialogs';
 import { ProjectTree } from './ProjectTree';
 import { HostManager } from './Hosts';
 import { WorkspaceHeader } from './WorkspaceHeader';
@@ -228,25 +228,15 @@ export function App() {
         if (currentToken.current !== token) return;
         addSession(s); chooseSession(s);
       }} />}
-    {dialog === 'session' && <Modal title="New session" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">Session name</label><input id="session-name" name="name" defaultValue={newSessionProjectId ? nextSessionName(newSessionProjectId) : 'Session 1'} maxLength={100} required autoFocus data-autofocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? 'Opening…' : 'Open session'}</button></div></form></Modal>}
-    {dialog === 'stop' && <Modal title="Stop session" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{stopTarget?.name}’ and its running programs will stop.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />Stop session</button></div></Modal>}
-    {dialog === 'delete-session' && <Modal title="Delete session" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{stopTarget?.name}’ will be deleted. Its shell and running programs will stop.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void deleteSession()} data-autofocus>{busy ? 'Deleting…' : 'Delete session'}</button></div></Modal>}
-    {dialog === 'delete-project' && <Modal title="Delete project" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{projectTarget?.name}’ and its {targetSessions.length} {targetSessions.length === 1 ? 'session' : 'sessions'} will be deleted. Running programs will stop. Files and folders on the server will be kept.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>{busy ? 'Deleting…' : 'Delete project'}</button></div></Modal>}
-    {dialog === 'paste' && <Modal title="Paste into terminal" onClose={() => setDialog(null)}><form onSubmit={e => { e.preventDefault(); terminal.current?.paste(String(new FormData(e.currentTarget).get('text') ?? '')); setDialog(null); }}><textarea aria-label="Text to paste" name="text" className="paste-area" rows={7} required autoFocus data-autofocus /><div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="button primary">Send to terminal</button></div></form></Modal>}
-    {dialog === 'help' && <Modal title="Help" onClose={() => setDialog(null)}><dl className="help-items">
-      <div><dt>Disconnect</dt><dd>Disconnects this browser. The session keeps running.</dd></div>
-      <div><dt>Stop session</dt><dd>Stops the shell and its running programs.</dd></div>
-      <div><dt>Switch devices</dt><dd>Opening a session disconnects the previous device.</dd></div>
-      <div><dt>Switch sessions</dt><dd>⌘⇧, previous · ⌘⇧. next. Cycles through sessions in project order.</dd></div>
-      <div><dt>New session</dt><dd>+ in the header or ⌘⇧Enter creates a session in the current project.</dd></div>
-      <div><dt>Delete session</dt><dd>⌘⇧⌫ then Enter deletes the current session, stops its programs and opens the previous session.</dd></div>
-      <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
-      <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
-      <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns from tmux scrollback to input.</dd></div>
-      <div><dt>Copy</dt><dd>Select text lets you scroll and copy terminal output. On phones, hold text to select it. On desktop, Option-drag (Mac) or Shift-drag selects directly in the terminal.</dd></div>
-      <div><dt>Paste</dt><dd>Paste into Input or the terminal. Shortcuts → Paste text lets you review text before sending.</dd></div>
-      <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>
-      <div><dt>Hide browser chrome</dt><dd>{screen.available ? 'More → Fullscreen.' : 'iPhone: Share → Add to Home Screen. Open Jelly from that icon.'}</dd></div>
-    </dl></Modal>}
+    {dialog === 'session' && <NewSessionDialog project={newSessionProject} defaultName={newSessionProjectId ? nextSessionName(newSessionProjectId) : 'Session 1'}
+      busy={busy} error={formError} onSubmit={submitSession} onClose={() => setDialog(null)} />}
+    {dialog === 'stop' && <ConfirmDialog title="Stop session" action={<><Power size={16} />Stop session</>} busy={busy} error={formError}
+      onConfirm={() => void stopSession()} onClose={() => setDialog(null)}>‘{stopTarget?.name}’ and its running programs will stop.</ConfirmDialog>}
+    {dialog === 'delete-session' && <ConfirmDialog title="Delete session" action={busy ? 'Deleting…' : 'Delete session'} busy={busy} error={formError} focusAction
+      onConfirm={() => void deleteSession()} onClose={() => setDialog(null)}>‘{stopTarget?.name}’ will be deleted. Its shell and running programs will stop.</ConfirmDialog>}
+    {dialog === 'delete-project' && <ConfirmDialog title="Delete project" action={busy ? 'Deleting…' : 'Delete project'} busy={busy} error={formError}
+      onConfirm={() => void removeProject()} onClose={() => setDialog(null)}>‘{projectTarget?.name}’ and its {targetSessions.length} {targetSessions.length === 1 ? 'session' : 'sessions'} will be deleted. Running programs will stop. Files and folders on the server will be kept.</ConfirmDialog>}
+    {dialog === 'paste' && <PasteDialog onPaste={text => terminal.current?.paste(text)} onClose={() => setDialog(null)} />}
+    {dialog === 'help' && <HelpDialog fullscreenAvailable={screen.available} onClose={() => setDialog(null)} />}
   </div>;
 }

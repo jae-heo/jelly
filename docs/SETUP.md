@@ -177,6 +177,21 @@ server changes. `npm start` remains available for a standalone build in `dist/`.
 
 ## Tests
 
+Run everything CI runs, in the same order, with one command:
+
+```bash
+npm run verify
+```
+
+It stops at the first failing step. SSH and browser fixtures use Docker when its
+daemon is reachable and rootless Podman otherwise; set `JELLY_CONTAINER_CLI` to
+choose. If this machine cannot launch WebKit (for example, missing system
+libraries on non-Ubuntu Linux), the WebKit tests run against Playwright's official
+browser container, `mcr.microsoft.com/playwright:v<version>-noble`, using host
+networking to reach the loopback test server. The container is removed afterwards.
+
+The individual commands:
+
 ```bash
 npm test
 npm run check
@@ -197,8 +212,8 @@ concurrent attachments, delays output acknowledgements, and alternates graceful
 and abrupt disconnects. It checks shell PIDs, connection and descriptor cleanup,
 retained JS heap, and API/test-process and tmux RSS after warm-up. These are regression
 thresholds for the tested duration, not a proof that all workloads have bounded memory.
-SSH and browser tests also need Docker; they create disposable SSH servers and
-temporary credentials. Tests use their own data directories and tmux sockets.
+SSH and browser tests also need Docker or Podman; they create disposable SSH
+servers and temporary credentials. Tests use their own data directories and tmux sockets.
 
 Chromium runs the full browser suite. WebKit covers keyboard geometry, virtual
 keys, quick session creation, output flow, warm switching and workspace response
