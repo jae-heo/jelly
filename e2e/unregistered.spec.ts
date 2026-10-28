@@ -21,10 +21,8 @@ test('unregistered sessions can be added to a project or stopped; lost records a
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
-    for (const id of [kept, stopped]) {
-      tmux('new-session', '-d', '-s', `jelly-${id}`, '-c', info.projectPath, 'bash');
-      tmux('send-keys', '-t', `=jelly-${id}:`, `printf '\\nORPHAN_%s\\n' ${id.slice(0, 8)}`, 'Enter');
-    }
+    // Print the marker at startup: keys sent before bash initializes can be discarded.
+    for (const id of [kept, stopped]) tmux('new-session', '-d', '-s', `jelly-${id}`, '-c', info.projectPath, `printf '\\nORPHAN_%s\\n' ${id.slice(0, 8)}; exec bash`);
     const lost = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Gone' });
     tmux('kill-session', '-t', `=jelly-${lost.id}`);
     await page.addInitScript(({ token, id }) => {
