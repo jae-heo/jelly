@@ -21,8 +21,9 @@ test('unregistered sessions can be added to a project or stopped; lost records a
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
-    // Print the marker at startup: keys sent before bash initializes can be discarded.
-    for (const id of [kept, stopped]) tmux('new-session', '-d', '-s', `jelly-${id}`, '-c', info.projectPath, `printf '\\nORPHAN_%s\\n' ${id.slice(0, 8)}; exec bash`);
+    // Only the original shell has this variable, so it identifies the adopted shell
+    // without relying on tmux's screen restoration after a resize.
+    for (const id of [kept, stopped]) tmux('new-session', '-d', '-s', `jelly-${id}`, '-c', info.projectPath, '-e', `JELLY_TEST_MARK=${id.slice(0, 8)}`, 'bash');
     const lost = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Gone' });
     tmux('kill-session', '-t', `=jelly-${lost.id}`);
     await page.addInitScript(({ token, id }) => {
@@ -48,8 +49,10 @@ test('unregistered sessions can be added to a project or stopped; lost records a
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     const adoptedId = (await call('/sessions')).sessions.find((s: any) => s.name === 'Recovered').id;
     expect([kept, stopped]).toContain(adoptedId);
-    // The same shell is attached: its earlier screen output is restored.
-    await expect(page.locator('.xterm-rows')).toContainText(`ORPHAN_${adoptedId.slice(0, 8)}`);
+    await expect(page.locator('.terminal-slot:visible .xterm-helper-textarea')).toBeFocused();
+    await page.keyboard.type(`printf '\\nMARK_%s\\n' "$JELLY_TEST_MARK"`);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.terminal-slot:visible .xterm-rows')).toContainText(`MARK_${adoptedId.slice(0, 8)}`);
     await expect(section.getByRole('button')).toHaveCount(1);
 
     await section.getByRole('button').click();
