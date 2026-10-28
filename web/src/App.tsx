@@ -148,7 +148,16 @@ export function App() {
   }
   async function deleteSession() {
     if (!stopTarget) return; setBusy(true); setFormError('');
-    try { await api(token, `/sessions/${stopTarget.id}`, 'DELETE'); await refresh(); setDialog(null); }
+    // Like closing a tab: deleting the open session moves to the previous one in
+    // its project, or the next one when it was first.
+    const siblings = sessions.filter(s => s.projectId === stopTarget.projectId);
+    const index = siblings.findIndex(s => s.id === stopTarget.id);
+    const neighbor = stopTarget.id === sessionId ? siblings[index - 1] ?? siblings[index + 1] : undefined;
+    try {
+      await api(token, `/sessions/${stopTarget.id}`, 'DELETE');
+      if (neighbor && currentToken.current === token) chooseSession(neighbor);
+      await refresh(); setDialog(null);
+    }
     catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
   async function removeProject() {
@@ -230,7 +239,7 @@ export function App() {
       <div><dt>Switch devices</dt><dd>Opening a session disconnects the previous device.</dd></div>
       <div><dt>Switch sessions</dt><dd>⌘⇧, previous · ⌘⇧. next. Cycles through sessions in project order.</dd></div>
       <div><dt>New session</dt><dd>⌘⇧Enter creates a session in the current project.</dd></div>
-      <div><dt>Delete session</dt><dd>⌘⇧⌫ then Enter deletes the current session and stops its programs.</dd></div>
+      <div><dt>Delete session</dt><dd>⌘⇧⌫ then Enter deletes the current session, stops its programs and opens the previous session.</dd></div>
       <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
       <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
       <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns from tmux scrollback to input.</dd></div>

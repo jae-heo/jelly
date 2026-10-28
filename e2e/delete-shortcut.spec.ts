@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-test('⌘⇧⌫ asks to delete the current session; Enter deletes it, Esc keeps it', async ({ page, request }) => {
+test('⌘⇧⌫ deletes the current session after confirmation and opens the previous one', async ({ page, request }) => {
   const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
   const token = readFileSync(info.tokenFile, 'utf8').trim();
   const socket = join(dirname(info.tokenFile), 'tmux.sock');
@@ -14,8 +14,11 @@ test('⌘⇧⌫ asks to delete the current session; Enter deletes it, Esc keeps 
     return response.json();
   };
   const project = await call('/projects', 'POST', { name: 'Delete shortcut', path: info.projectPath });
-  const target = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Doomed' });
-  const other = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Survivor' });
+  const created: any[] = [];
+  for (const name of ['First', 'Middle', 'Last']) created.push(await call(`/projects/${project.id}/sessions`, 'POST', { name }));
+  const [first, middle, last] = created;
+  const other = await call('/projects', 'POST', { name: 'Other project', path: info.browseRoot });
+  const outside = await call(`/projects/${other.id}/sessions`, 'POST', { name: 'Outside' });
   const errors: string[] = [];
   const input: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -25,39 +28,63 @@ test('⌘⇧⌫ asks to delete the current session; Enter deletes it, Esc keeps 
     await page.addInitScript(({ token, projectId, sessionId }) => {
       sessionStorage.setItem('jelly-token', token);
       localStorage.setItem('jelly-project', projectId); localStorage.setItem('jelly-session', sessionId);
-    }, { token, projectId: project.id, sessionId: target.id });
+    }, { token, projectId: project.id, sessionId: middle.id });
     await page.goto('/');
+    const current = page.locator('.workspace-current strong');
+    await expect(current).toHaveText('Middle');
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     await expect(page.locator('.terminal-slot:visible .xterm-helper-textarea')).toBeFocused();
     input.length = 0;
 
     await chord();
     const dialog = page.getByRole('dialog');
+    const confirm = dialog.getByRole('button', { name: 'Delete session', exact: true });
     await expect(dialog.getByRole('heading', { name: 'Delete session' })).toBeVisible();
-    await expect(dialog).toContainText('‘Doomed’');
-    await expect(dialog.getByRole('button', { name: 'Delete session', exact: true })).toBeFocused();
+    await expect(dialog).toContainText('‘Middle’');
+    await expect(confirm).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    expect(alive(target.id)).toBe(true);
+    await expect(current).toHaveText('Middle');
+    expect(alive(middle.id)).toBe(true);
 
+    // Previous session in the project.
     await chord();
-    await expect(dialog.getByRole('button', { name: 'Delete session', exact: true })).toBeFocused();
+    await expect(confirm).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Doomed ·/ })).toHaveCount(0);
+    await expect(current).toHaveText('First');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
+    await expect(page.getByRole('button', { name: /^Middle ·/ })).toHaveCount(0);
+    expect(alive(middle.id)).toBe(false);
+
+    // The first session has no previous one; the next is opened instead.
+    await chord();
+    await expect(dialog).toContainText('‘First’');
+    await expect(confirm).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(current).toHaveText('Last');
+    expect(alive(first.id)).toBe(false);
+
+    // Never moves to another project; an empty project shows its empty state.
+    await chord();
+    await expect(dialog).toContainText('‘Last’');
+    await expect(confirm).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name: 'Select a session', exact: true })).toBeVisible();
-    expect(alive(target.id)).toBe(false);
-    expect(alive(other.id)).toBe(true);
-    expect((await call('/sessions')).sessions.some((s: any) => s.id === target.id)).toBe(false);
+    expect(alive(last.id)).toBe(false);
+    expect(alive(outside.id)).toBe(true);
+    expect((await call(`/projects/${project.id}/sessions`)).sessions).toEqual([]);
 
     // Without a current session the chord is ignored.
     await chord();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    // The chord and its confirmation never reach the shell.
-    expect(input).toEqual([]);
+    // Neither the chord's Backspace nor the confirming Enter reached a shell.
+    // Newly opened terminals do answer tmux's device queries, which is not input.
+    expect(input.filter(data => /[\r\x7f\b]/.test(data))).toEqual([]);
     expect(errors).toEqual([]);
   } finally {
     await page.close();
     await call(`/projects/${project.id}?deleteSessions=true`, 'DELETE');
+    await call(`/projects/${other.id}?deleteSessions=true`, 'DELETE');
   }
 });

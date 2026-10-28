@@ -14,7 +14,9 @@ not to the maintainer's device testing.
 ## Delete shortcut and dialog focus (2026-10-28)
 
 - ⌘⇧⌫ opens Delete session for the current session with the delete button
-  focused; Enter deletes and stops it, Esc cancels. Without a current session the
+  focused; Enter deletes and stops it, Esc cancels. Deleting the open session,
+  by shortcut or menu, opens the previous session in its project, or the next
+  one when it was first; an emptied project shows its empty state. Without a current session the
   browser's own shortcut is left alone. The chord never reaches the terminal.
 - Dialogs now focus their intended field or button when they open. `showModal()`
   had moved focus to the Close button, ignoring React's `autoFocus`.
