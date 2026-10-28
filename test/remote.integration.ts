@@ -178,6 +178,24 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
       await request(`/api/sessions/${secondSession.id}`, 'DELETE');
     }
   });
+  await t.test('cascade deletion stops only the selected project and preserves remote files', async () => {
+    const path = '/workspaces/cascade-test';
+    await fixture.command('mkdir', '-p', path);
+    await fixture.command('touch', path + '/keep.txt');
+    const p = await request('/api/projects', 'POST', { name: 'Cascade', path, hostId: host.id }, 201);
+    const a = await request(`/api/projects/${p.id}/sessions`, 'POST', { name: 'A' }, 201);
+    const b = await request(`/api/projects/${p.id}/sessions`, 'POST', { name: 'B' }, 201);
+    await request(`/api/sessions/${b.id}/move`, 'POST', { beforeId: a.id });
+    assert.deepEqual((await request(`/api/projects/${p.id}/sessions`)).sessions.map((s: any) => s.id), [b.id, a.id]);
+    await request(`/api/projects/${p.id}?deleteSessions=true`, 'DELETE');
+    for (const child of [a, b]) {
+      await request(`/api/sessions/${child.id}`, 'GET', undefined, 404);
+      await assert.rejects(fixture.command('tmux', '-L', `jelly-${config.instanceId}`, 'has-session', '-t', `=jelly-${child.id}`));
+    }
+    await fixture.command('test', '-f', path + '/keep.txt');
+    assert.equal((await request(`/api/sessions/${session.id}`)).pid, session.pid);
+    await fixture.command('tmux', '-L', 'unrelated-test-server', 'has-session', '-t', 'unrelated');
+  });
   await t.test('slow remote mutation does not delay local work; same-host deletion stays ordered', async () => {
     const localPath = join(dataDir, 'local-project');
     await mkdir(localPath);

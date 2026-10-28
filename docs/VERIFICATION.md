@@ -11,6 +11,29 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Ordering, deletion and selection scrolling (2026-10-28)
+
+- Projects and sessions can be reordered with a mouse drag or a touch hold then
+  drag. Session moves stay within their project. The options menu also provides
+  Move up/down. SQLite stores the order separately from existing metadata;
+  new items append and session shortcuts follow the saved order.
+- Delete session stops and removes a live session in one confirmed action.
+  Delete project stops its children and removes their records together, keeping
+  server files. A failed stop retains the project and records for retry. The API
+  requires `deleteSessions=true` to cascade an existing project.
+- Select text forwards swipes and wheel movement through the terminal's existing
+  mouse protocol and updates its selectable screen after scrolling. Native text
+  selection and explicit copy remain available; unsolicited output leaves the
+  snapshot still. No history fetch, PTY resize, or replacement connection is used.
+- Store/API tests cover persisted order, append behavior, project boundaries,
+  auth/origin checks, partial stop failure and retry. Disposable SSH tests verify
+  cascade deletion preserves files and unrelated shells.
+- Browser coverage includes native Chromium touch dragging, cancellation, save
+  errors, order after reload, one-action deletion, selection scrolling and
+  clipboard round trips. All 30 targeted Chromium/WebKit scenarios passed, as
+  did `npm test`, `npm run check` and `npm run test:ssh`. WebKit touch gestures
+  use modeled events.
+
 ## Project and session context menus (2026-10-28)
 
 - Right-click, a 500ms touch hold, or Shift+F10 opens options for the targeted

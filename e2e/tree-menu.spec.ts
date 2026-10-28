@@ -58,7 +58,7 @@ for (const mobile of [false, true]) test(`tree options: ${mobile ? 'mobile SSH h
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     if (mobile) await page.getByRole('button', { name: 'Open projects and sessions' }).click();
     await open(projectRow());
-    await expect(menu.getByRole('menuitem', { name: /Remove project/ })).toBeDisabled();
+    await expect(menu.getByRole('menuitem', { name: /Delete project/ })).toBeEnabled();
     await menu.getByRole('menuitem', { name: 'New session', exact: true }).click();
     await expect(page.getByRole('dialog').locator('.dialog-description')).toHaveText('Background project');
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -86,7 +86,7 @@ for (const mobile of [false, true]) test(`tree options: ${mobile ? 'mobile SSH h
     await expect(menu).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Rename session' })).toBeFocused();
     await page.keyboard.press('End');
-    await expect(menu.getByRole('menuitem', { name: 'Stop session' })).toBeFocused();
+    await expect(menu.getByRole('menuitem', { name: 'Delete session' })).toBeFocused();
     await page.keyboard.press('Meta+Shift+Period');
     await expect(page.locator('.workspace-current strong')).toHaveText('Active session');
     await page.keyboard.press('Escape');
@@ -143,9 +143,9 @@ for (const mobile of [false, true]) test(`tree options: ${mobile ? 'mobile SSH h
     await menu.getByRole('menuitem', { name: 'Remove record' }).click();
     await expect(renamed).toHaveCount(0);
     await open(projectRow());
-    await menu.getByRole('menuitem', { name: 'Remove project' }).click();
+    await menu.getByRole('menuitem', { name: 'Delete project' }).click();
     await expect(page.getByRole('dialog').locator('.dialog-description')).toContainText('Renamed background');
-    await page.getByRole('button', { name: 'Remove from list' }).click();
+    await page.getByRole('button', { name: 'Delete project' }).click();
     await expect(projectRow()).toHaveCount(0);
     await expect(page.locator('.connection-label')).toHaveText('Connected');
     expect((await call(`/sessions/${active.id}`)).pid).toBe(active.pid);

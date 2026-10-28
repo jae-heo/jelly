@@ -38,3 +38,8 @@
 .tree-context-menu button small { display: block; margin-top: 3px; font-size: 10px; color: #9eb4a6; }
 .tree-context-menu .menu-danger { color: #efaaa4; }
 @media (pointer: coarse) { .tree-context-menu button { min-height: 44px; } }
+
+.tree-drag-source { opacity: .4; }
+.project-tree[data-tree-dragging="true"], .project-tree[data-tree-dragging="true"] * { cursor: grabbing; }
+.tree-drop-line { position: fixed; z-index: 110; height: 2px; background: #b6eed1; pointer-events: none; box-shadow: 0 0 0 1px #0b1110; }
+.tree-drag-preview { position: fixed; z-index: 111; width: 220px; padding: 11px 13px; border: 1px solid #6b9279; border-radius: 8px; background: #203529; color: #e1f5e8; box-shadow: 0 8px 26px #0006; pointer-events: none; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

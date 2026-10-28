@@ -10,6 +10,7 @@ interface Props {
   fullscreenAvailable: boolean; fullscreen: boolean; onFullscreen: () => void;
   onSidebar: () => void; onSelectText: () => void; onFontSize: (size: number) => void;
   onConnection: () => void; onNewSession: () => void; onStop: () => void;
+  onDeleteSession: () => void;
   onRenameProject: () => void; onRenameSession: () => void;
   onFiles: () => void; onDeleteProject: () => void; onHosts: () => void; onHelp: () => void; onLogout: () => void;
 }
@@ -75,7 +76,8 @@ export function WorkspaceHeader(props: Props) {
               <button aria-label={props.canDisconnect ? 'Disconnect' : 'Reconnect'} onClick={act(props.onConnection)}>{props.canDisconnect ? <Unplug size={17} /> : <RefreshCw size={17} />}<span>{props.canDisconnect ? 'Disconnect' : 'Reconnect'}</span></button>
               <button className="menu-danger" onClick={act(props.onStop)}><Square size={15} /><span>Stop session</span></button>
             </>}
-            {props.canDeleteProject && <button className="menu-danger" onClick={act(props.onDeleteProject)}><Trash2 size={17} /><span>Remove project</span></button>}
+            {props.session && <button className="menu-danger" onClick={act(props.onDeleteSession)}><Trash2 size={17} /><span>Delete session</span></button>}
+            {props.canDeleteProject && <button className="menu-danger" onClick={act(props.onDeleteProject)}><Trash2 size={17} /><span>Delete project</span></button>}
           </div>}
           <div className="workspace-menu-group">
             {props.fullscreenAvailable && <button onClick={act(props.onFullscreen)}>{props.fullscreen ? <Minimize size={17} /> : <Maximize size={17} />}<span>{props.fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span></button>}

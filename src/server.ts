@@ -15,6 +15,7 @@ import { serveWeb } from './web-static.js';
 
 const NewProject = z.object({ name: Name, path: z.string().min(1).max(4096), hostId: Id.nullable().default(null) }).strict();
 const NewSession = Size.extend({ name: Name.default('Terminal') }).strict();
+const Move = z.object({ beforeId: Id.nullable() }).strict();
 const Rename = z.object({ name: Name }).strict();
 const NewHost = z.object({
   name: Name,
@@ -97,6 +98,22 @@ export async function startServer(config: Config) {
         json(res, 200, { deleted: true });
       });
     }
+    const moveMatch = /^\/api\/(projects|sessions)\/([^/]+)\/move$/.exec(url.pathname);
+    if (method === 'POST' && moveMatch) {
+      const kind = moveMatch[1] === 'projects' ? 'project' : 'session';
+      const id = Id.parse(moveMatch[2]);
+      const input = Move.parse(await body(req));
+      return mutate('order', async () => {
+        if (kind === 'project') {
+          project(id);
+          if (input.beforeId !== null) project(input.beforeId);
+        } else {
+          const source = session(id);
+          if (input.beforeId !== null && session(input.beforeId).projectId !== source.projectId) throw new ApiError(400, 'Sessions must stay in their project');
+        }
+        json(res, 200, { ids: store.move(kind, id, input.beforeId) });
+      });
+    }
     if (method === 'GET' && url.pathname === '/api/directories') {
       const input = BrowseDirectory.parse(Object.fromEntries(url.searchParams));
       return json(res, 200, await tmux.directories(input.hostId ?? null, input.path, input.hidden === 'true'));
@@ -145,8 +162,17 @@ export async function startServer(config: Config) {
         }
         if (method === 'DELETE') return mutate(hostKey(project(id).hostId), async () => {
           project(id);
-          if (store.sessions(id).length) throw new ApiError(409, 'Delete project sessions first');
-          store.deleteProject(id);
+          const input = z.object({ deleteSessions: z.enum(['true', 'false']).default('false') }).strict().parse(Object.fromEntries(url.searchParams));
+          const children = store.sessions(id);
+          if (children.length && input.deleteSessions !== 'true') throw new ApiError(409, 'Delete project sessions first');
+          // Keep every record until all shells have been stopped. If SSH fails,
+          // the project and remaining sessions stay available for retry.
+          for (const child of children) {
+            if (!child.stoppedAt) await tmux.stop(child.id);
+            terminals.disconnect(child.id);
+            store.stopSession(child.id);
+          }
+          store.deleteProjectWithSessions(id);
           json(res, 200, { deleted: true });
         });
       } else {
@@ -196,8 +222,8 @@ export async function startServer(config: Config) {
       if (method === 'GET' && !action) return json(res, 200, view(session(id), await tmux.states([session(id)])));
       if ((method === 'DELETE' && !action) || (method === 'POST' && action === 'stop')) {
         return mutate(hostKey(project(session(id).projectId).hostId), async () => {
-          session(id);
-          await tmux.stop(id);
+          const target = session(id);
+          if (!target.stoppedAt) await tmux.stop(id);
           terminals.disconnect(id);
           store.stopSession(id);
           if (method === 'DELETE') { store.deleteSession(id); return json(res, 200, { deleted: true }); }

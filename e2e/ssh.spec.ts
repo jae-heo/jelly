@@ -76,8 +76,8 @@ test('SSH config aliases, remote folders and terminal from a mobile browser', as
   await page.getByRole('button', { name: 'Remove record for 원격 작업' }).click();
   await page.getByRole('button', { name: 'Open projects and sessions' }).click();
   await page.getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('button', { name: 'Remove project', exact: true }).click();
-  await page.getByRole('button', { name: 'Remove from list', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete project', exact: true }).click();
+  await page.getByRole('button', { name: 'Delete project', exact: true }).click();
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('button', { name: 'Manage SSH hosts' }).click();
   await page.getByRole('button', { name: 'Remove host jelly-remote' }).click();

@@ -19,7 +19,7 @@ import { useSessionShortcuts } from './useSessionShortcuts';
 import type { Connection, TerminalHandle } from './TerminalView';
 const TerminalCache = lazy(() => import('./TerminalCache').then(module => ({ default: module.TerminalCache })));
 
-type Dialog = 'files' | 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | 'rename' | null;
+type Dialog = 'files' | 'hosts' | 'project' | 'session' | 'stop' | 'paste' | 'help' | 'delete-project' | 'delete-session' | 'rename' | null;
 const stateLabels = { running: 'Running', exited: 'Ended', stopped: 'Ended', lost: 'No sessions', unreachable: 'Server unreachable' };
 const connectionLabels: Record<Connection, string> = { connecting: 'Connecting', connected: 'Connected', retrying: 'Reconnecting', disconnected: 'Disconnected', taken: 'In use on another device', ended: 'Connection ended' };
 
@@ -50,7 +50,7 @@ export function App() {
   const screen = useFullscreen(!!token, setNotice);
 
   const logout = useCallback(() => { selectionVersion.current++; currentToken.current = ''; forgetToken(); setToken(''); setSessionId(null); }, []);
-  const { hosts, projects, sessions, loading, online, refresh, addSession, addHost, updateName } = useWorkspaceData(token, logout, snapshot => {
+  const { hosts, projects, sessions, loading, online, refresh, addSession, addHost, updateName, updateOrder } = useWorkspaceData(token, logout, snapshot => {
     setProjectId(current => snapshot.projects.some(p => p.id === current) ? current : snapshot.projects[0]?.id ?? null);
     setSessionId(current => snapshot.sessions.some(s => s.id === current) ? current : null);
   });
@@ -65,7 +65,7 @@ export function App() {
 
   const project = projects.find(p => p.id === projectId);
   const session = sessions.find(s => s.id === sessionId && s.projectId === projectId);
-  const projectSessions = sessions.filter(s => s.projectId === projectId);
+  const targetSessions = sessions.filter(s => s.projectId === projectTarget?.id);
   const newSessionProject = projects.find(p => p.id === newSessionProjectId);
   const hasTerminal = session?.status === 'running' || session?.status === 'unreachable';
   const canInput = hasTerminal && attached && connection === 'connected';
@@ -76,6 +76,7 @@ export function App() {
   }
   function openFiles(p = project) { if (p) { setProjectTarget(p); openDialog('files'); } }
   function openRemoveProject(p = project) { if (p) { setProjectTarget(p); openDialog('delete-project'); } }
+  function openDeleteSession(s = session) { if (s) { setStopTarget(s); openDialog('delete-session'); } }
   function openStop(s = session) { if (s) { setStopTarget(s); openDialog('stop'); } }
   function openSession(p = project) {
     if (!p) return;
@@ -143,9 +144,14 @@ export function App() {
     try { await api(token, `/sessions/${s.id}`, 'DELETE'); await refresh(); }
     catch (error) { setNotice(errorMessage(error)); }
   }
+  async function deleteSession() {
+    if (!stopTarget) return; setBusy(true); setFormError('');
+    try { await api(token, `/sessions/${stopTarget.id}`, 'DELETE'); await refresh(); setDialog(null); }
+    catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
+  }
   async function removeProject() {
     if (!projectTarget) return; setBusy(true);
-    try { await api(token, `/projects/${projectTarget.id}`, 'DELETE'); await refresh(); setDialog(null); }
+    try { await api(token, `/projects/${projectTarget.id}?deleteSessions=true`, 'DELETE', undefined, undefined, 120_000); await refresh(); setDialog(null); }
     catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
   function selectText() {
@@ -160,10 +166,10 @@ export function App() {
       status={session ? (hasTerminal && (session.status === 'running' || connection === 'connected') ? connectionLabels[connection] : stateLabels[session.status]) : online ? 'Server connected' : 'Checking connection'}
       live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} selecting={!!selection} canSelect={canInput}
       fullscreenAvailable={screen.available} fullscreen={screen.fullscreen} onFullscreen={() => void screen.toggle()}
-      canDeleteProject={!!project && projectSessions.length === 0} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
+      canDeleteProject={!!project} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
       onSidebar={() => setSidebar(!sidebar)} onSelectText={selectText} onFontSize={setFontSize}
       onConnection={() => { if (attached && !['taken', 'ended'].includes(connection)) setAttached(false); else { setAttached(true); setRevision(r => r + 1); } }}
-      onNewSession={() => openSession()} onStop={() => openStop()} onDeleteProject={() => openRemoveProject()}
+      onDeleteSession={() => openDeleteSession()} onNewSession={() => openSession()} onStop={() => openStop()} onDeleteProject={() => openRemoveProject()}
       onRenameProject={() => openRename('project')} onRenameSession={() => openRename('session')}
       onFiles={() => openFiles()} onHosts={() => openDialog('hosts')} onHelp={() => openDialog('help')} onLogout={logout} />
     <div className="workspace-body">
@@ -172,9 +178,14 @@ export function App() {
         <div className="section-title"><span>Projects <small>{projects.length}</small></span><button className="icon-button" aria-label="Add project" onClick={() => openDialog('project')}><Plus size={18} /></button></div>
         <ProjectTree projects={projects} sessions={sessions} projectId={projectId} sessionId={session?.id ?? null}
           loading={loading} open={sidebar} onProject={chooseProject} onSession={chooseSession}
-          onNewSession={openSession} onRemoveSession={s => void removeSession(s)} onStopSession={openStop}
+          onDeleteSession={openDeleteSession} onNewSession={openSession} onRemoveSession={s => void removeSession(s)} onStopSession={openStop}
           onRenameProject={p => openRename('project', p)} onRenameSession={s => openRename('session', s)}
-          onRemoveProject={openRemoveProject} onFiles={openFiles} />
+          onRemoveProject={openRemoveProject} onFiles={openFiles} onMove={async (target, beforeId) => {
+            try {
+              const result = await api<{ ids: string[] }>(token, `/${target.kind}s/${target.id}/move`, 'POST', { beforeId });
+              if (currentToken.current === token) updateOrder(target.kind, result.ids);
+            } catch (error) { if (currentToken.current === token) setNotice(errorMessage(error)); }
+          }} />
       </aside>
       <main className="main-panel">
         {!online && <div className="network-banner" role="alert">Cannot reach the server. Check your Tailscale connection.<button className="text-button" onClick={() => void refresh()}>Retry</button></div>}
@@ -186,7 +197,7 @@ export function App() {
             <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} /></Suspense>
             {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH host unreachable</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />Check again</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>Session ended</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />New session</button></div>}
             {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? 'In use on another device' : 'Disconnected'}</h2><p>Session running</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />Reconnect</button></div></div>}
-            {selection && selection.sessionId === session?.id && <TerminalSelection key={selection.sessionId} text={selection.text} fontSize={fontSize} onClose={() => setSelection(null)} />}
+            {selection && selection.sessionId === session?.id && <TerminalSelection key={selection.sessionId} text={selection.text} terminal={terminal} fontSize={fontSize} onClose={() => setSelection(null)} />}
           </div>
           {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput && !selection} terminal={terminal} onPaste={() => openDialog('paste')} />}
       </main>
@@ -201,7 +212,8 @@ export function App() {
     }} />}
     {dialog === 'session' && <Modal title="New session" onClose={() => !busy && setDialog(null)}><form onSubmit={submitSession}><p className="dialog-description"><Folder size={15} />{newSessionProject?.name}</p><label htmlFor="session-name">Session name</label><input id="session-name" name="name" defaultValue={newSessionProjectId ? nextSessionName(newSessionProjectId) : 'Session 1'} maxLength={100} required autoFocus /><p className="field-note path-note">{newSessionProject?.path}</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button primary" disabled={busy}><TerminalSquare size={16} />{busy ? 'Opening…' : 'Open session'}</button></div></form></Modal>}
     {dialog === 'stop' && <Modal title="Stop session" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{stopTarget?.name}’ and its running programs will stop.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" onClick={() => void stopSession()} disabled={busy}><Power size={16} />Stop session</button></div></Modal>}
-    {dialog === 'delete-project' && <Modal title="Remove project" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{projectTarget?.name}’ will be removed from the list. Files and folders on the server will be kept.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>Remove from list</button></div></Modal>}
+    {dialog === 'delete-session' && <Modal title="Delete session" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{stopTarget?.name}’ will be deleted. Its shell and running programs will stop.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void deleteSession()}>{busy ? 'Deleting…' : 'Delete session'}</button></div></Modal>}
+    {dialog === 'delete-project' && <Modal title="Delete project" onClose={() => !busy && setDialog(null)}><p className="dialog-description">‘{projectTarget?.name}’ and its {targetSessions.length} {targetSessions.length === 1 ? 'session' : 'sessions'} will be deleted. Running programs will stop. Files and folders on the server will be kept.</p>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="dialog-actions"><button className="button secondary" onClick={() => setDialog(null)} disabled={busy}>Cancel</button><button className="button danger" disabled={busy} onClick={() => void removeProject()}>{busy ? 'Deleting…' : 'Delete project'}</button></div></Modal>}
     {dialog === 'paste' && <Modal title="Paste into terminal" onClose={() => setDialog(null)}><form onSubmit={e => { e.preventDefault(); terminal.current?.paste(String(new FormData(e.currentTarget).get('text') ?? '')); setDialog(null); }}><textarea aria-label="Text to paste" name="text" className="paste-area" rows={7} required autoFocus /><div className="dialog-actions"><button className="button secondary" type="button" onClick={() => setDialog(null)}>Cancel</button><button className="button primary">Send to terminal</button></div></form></Modal>}
     {dialog === 'help' && <Modal title="Help" onClose={() => setDialog(null)}><dl className="help-items">
       <div><dt>Disconnect</dt><dd>Disconnects this browser. The session keeps running.</dd></div>
@@ -212,7 +224,7 @@ export function App() {
       <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
       <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
       <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns from tmux scrollback to input.</dd></div>
-      <div><dt>Copy</dt><dd>Select text freezes the visible screen for selection. On phones, hold text to select it. On desktop, Option-drag (Mac) or Shift-drag selects directly in the terminal.</dd></div>
+      <div><dt>Copy</dt><dd>Select text lets you scroll and copy terminal output. On phones, hold text to select it. On desktop, Option-drag (Mac) or Shift-drag selects directly in the terminal.</dd></div>
       <div><dt>Paste</dt><dd>Paste into Input or the terminal. Shortcuts → Paste text lets you review text before sending.</dd></div>
       <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>
       <div><dt>Hide browser chrome</dt><dd>{screen.available ? 'More → Fullscreen.' : 'iPhone: Share → Add to Home Screen. Open Jelly from that icon.'}</dd></div>

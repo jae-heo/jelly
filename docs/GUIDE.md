@@ -10,10 +10,15 @@ and the arrow beside a project to fold its session list.
 
 Right-click a project or session, or hold it on your phone, to open its options.
 Use **Shift+F10** on a focused item with a keyboard. Projects offer files, new
-sessions, renaming and removal; sessions offer renaming and stopping or record
-removal. Remove a project's sessions before removing the project from the list.
+sessions, renaming and deletion. **Delete session** stops its programs and removes
+the record in one action. **Delete project** also deletes its sessions. Both ask
+for confirmation; files and folders on the server are kept.
 You can also rename the current project or session from **More**. Renaming
 changes only the label; folders and running programs stay as they are.
+
+Drag to reorder projects or sessions within a project. On phones, hold first,
+then drag. **Move up** and **Move down** in the options menu work with a keyboard.
+Order is saved on the server and also controls session navigation.
 
 A session is a persistent shell. Run your usual tools, including Codex or Claude
 Code. Closing the browser or choosing **Disconnect** detaches your connection;
@@ -96,11 +101,11 @@ scrolling briefly; touch again to stop. Holding before lifting your finger stops
 Send **Esc** to return from tmux history to
 input.
 
-Use **Select text** to freeze the visible screen, then hold or drag to select text
-and choose **Copy**. **Select all** selects the frozen screen. Close selection to
-return to the live terminal; output continues while you select. To copy older
-output, scroll to it first. This works with the screen shown by Claude Code and
-other terminal apps, without relying on tmux history.
+Use **Select text**, then swipe or use the mouse wheel to browse terminal output.
+Hold or drag text to select it and choose **Copy**. **Select all** selects the
+current screen. The selected text stays still while programs continue running.
+Close selection to return to input. Scrolling uses the terminal app’s own scroll
+behavior, including Claude Code, without fetching a separate history log.
 
 On desktop, **Option-drag** on Mac or **Shift-drag** on Windows/Linux selects
 directly in the terminal, even when an app handles the mouse. Use **⌘C** on Mac, **Ctrl+C** on Windows/Linux, or

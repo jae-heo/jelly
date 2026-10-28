@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { TerminalHandle } from './TerminalView';
+import type { RefObject } from 'react';
 import { X } from 'lucide-react';
 
 // execCommand supports explicit copy gestures on Jelly's HTTP tailnet origin,
@@ -23,7 +25,8 @@ async function copyText(text: string): Promise<boolean> {
   } catch { return false; }
 }
 
-export function TerminalSelection({ text, fontSize, onClose }: { text: string; fontSize: number; onClose: () => void }) {
+export function TerminalSelection({ text, fontSize, terminal, onClose }: { text: string; fontSize: number; terminal: RefObject<TerminalHandle | null>; onClose: () => void }) {
+  const [snapshot, setSnapshot] = useState(text);
   const content = useRef<HTMLPreElement>(null);
   const close = useRef<HTMLButtonElement>(null);
   const [selected, setSelected] = useState('');
@@ -49,6 +52,13 @@ export function TerminalSelection({ text, fontSize, onClose }: { text: string; f
       if (previous instanceof HTMLElement && previous.isConnected && !previous.matches('input, textarea')) previous.focus({ preventScroll: true });
     };
   }, []);
+  useEffect(() => {
+    if (content.current) return terminal.current?.selectScroll(content.current, setSnapshot);
+  }, [terminal]);
+  useLayoutEffect(() => {
+    // The toolbar takes a few rows; keep the bottom of each screen reachable.
+    if (content.current) content.current.scrollTop = content.current.scrollHeight;
+  }, [snapshot]);
   const selectAll = () => {
     if (!content.current) return;
     const range = document.createRange();
@@ -74,6 +84,6 @@ export function TerminalSelection({ text, fontSize, onClose }: { text: string; f
       <button ref={close} className="icon-button" aria-label="Close selection" onClick={onClose}><X size={18} /></button>
     </div>
     {error && <p className="selection-error" role="alert">{error}</p>}
-    <pre ref={content} className="selection-text" tabIndex={0} style={{ fontSize }}>{text}</pre>
+    <pre ref={content} className="selection-text" tabIndex={0} style={{ fontSize }}>{snapshot}</pre>
   </section>;
 }

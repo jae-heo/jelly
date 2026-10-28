@@ -2,8 +2,10 @@ import type { Terminal } from '@xterm/xterm';
 
 // tmux owns scrollback. Keep using xterm's negotiated mouse protocol so swipes
 // also work inside terminal applications, without turning them into arrow keys.
-export function attachTerminalScroll(term: Terminal, onTap: () => void, active: () => boolean) {
+export function attachTerminalScroll(term: Terminal, onTap: () => void, active: () => boolean, selection?: { surface: HTMLElement; onScroll: () => void }) {
   const element = term.element!;
+  const surface = selection?.surface ?? element;
+  const selecting = () => !!selection && !window.getSelection()?.isCollapsed;
   type Gesture = { id: number; x: number; y: number; previousY: number; pending: number;
     scrolling: boolean; horizontal: boolean; time: number; velocity: number };
   let gesture: Gesture | undefined;
@@ -29,7 +31,7 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
     } finally { dispatchingWheel = false; }
   };
   const desktopWheel = (event: WheelEvent) => {
-    if (dispatchingWheel || !active() || document.hidden || term.modes.mouseTrackingMode === 'none' || event.ctrlKey || event.shiftKey) return;
+    if (dispatchingWheel || !active() || document.hidden || (!selection && term.modes.mouseTrackingMode === 'none') || event.ctrlKey || event.shiftKey) return;
     if (!event.deltaY || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     const screen = element.querySelector('.xterm-screen')?.getBoundingClientRect();
     if (!screen?.height) return;
@@ -43,7 +45,11 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
     wheelPending += distance;
     const count = Math.trunc(wheelPending);
     wheelPending -= count;
-    reportWheel(count, event.clientX, event.clientY, event);
+    if (count) selection?.onScroll();
+    if (selection && term.modes.mouseTrackingMode === 'none') term.scrollLines(count);
+    else if (selection) {
+      element.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: count, deltaMode: WheelEvent.DOM_DELTA_LINE, clientX: screen.left + 1, clientY: screen.top + 1 }));
+    } else reportWheel(count, event.clientX, event.clientY, event);
   };
   // Slow dragging stays precise; quick swipes cover substantially more output.
   const touchGain = (velocity: number) => 1 + Math.min(3, Math.max(0, Math.abs(velocity) - 0.5));
@@ -59,6 +65,7 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
     const step = Math.max(1, line * rows);
     const count = Math.trunc(state.pending / step);
     state.pending -= count * step;
+    if (count) selection?.onScroll();
     if (!mouse) {
       if (term.buffer.active.type !== 'normal') return false;
       term.scrollLines(count);
@@ -98,7 +105,7 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
   const wheel = (event: WheelEvent) => { if (event.isTrusted) stop(); };
   const start = (event: TouchEvent) => {
     stop();
-    if (!active() || event.touches.length !== 1) return;
+    if (!active() || event.touches.length !== 1 || selecting()) return;
     const touch = event.touches[0];
     if (!touch) return;
     gesture = { id: touch.identifier, x: touch.clientX, y: touch.clientY, previousY: touch.clientY,
@@ -114,6 +121,8 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
     const dy = touch.clientY - gesture.y;
     if (gesture.horizontal) return;
     if (!gesture.scrolling) {
+      // Leave long presses and native selection handles to the browser.
+      if (selection && (selecting() || performance.now() - gesture.time > 350)) { stop(); return; }
       if (Math.max(Math.abs(dx), Math.abs(dy)) < 6) return;
       if (Math.abs(dx) >= Math.abs(dy)) { gesture.horizontal = true; return; }
       gesture.scrolling = true;
@@ -138,7 +147,7 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
       // A held finger, cancelled gesture or second touch never starts momentum.
       if (event.type === 'touchend' && !event.touches.length && performance.now() - state.time < 100) coast(state);
     } else if (state && event.type === 'touchend' && !event.touches.length) {
-      event.preventDefault();
+      if (!selection) event.preventDefault();
       if (!state.horizontal && !stoppingTap) onTap();
     }
     stoppingTap = false;
@@ -152,11 +161,11 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
   document.addEventListener('visibilitychange', stop);
   window.addEventListener('resize', stop);
   visualViewport?.addEventListener('resize', stop);
-  element.addEventListener('wheel', desktopWheel, { capture: true, passive: false });
-  element.addEventListener('touchstart', start, { capture: true, passive: true });
-  element.addEventListener('touchmove', move, { capture: true, passive: false });
-  element.addEventListener('touchend', end, { capture: true, passive: false });
-  element.addEventListener('touchcancel', end, { capture: true, passive: false });
+  surface.addEventListener('wheel', desktopWheel, { capture: true, passive: false });
+  surface.addEventListener('touchstart', start, { capture: true, passive: true });
+  surface.addEventListener('touchmove', move, { capture: true, passive: false });
+  surface.addEventListener('touchend', end, { capture: true, passive: false });
+  surface.addEventListener('touchcancel', end, { capture: true, passive: false });
   return { stop, dispose: () => {
     stop();
     document.removeEventListener('touchstart', interrupt, true);
@@ -168,10 +177,10 @@ export function attachTerminalScroll(term: Terminal, onTap: () => void, active: 
     document.removeEventListener('visibilitychange', stop);
     window.removeEventListener('resize', stop);
     visualViewport?.removeEventListener('resize', stop);
-    element.removeEventListener('wheel', desktopWheel, true);
-    element.removeEventListener('touchstart', start, true);
-    element.removeEventListener('touchmove', move, true);
-    element.removeEventListener('touchend', end, true);
-    element.removeEventListener('touchcancel', end, true);
+    surface.removeEventListener('wheel', desktopWheel, true);
+    surface.removeEventListener('touchstart', start, true);
+    surface.removeEventListener('touchmove', move, true);
+    surface.removeEventListener('touchend', end, true);
+    surface.removeEventListener('touchcancel', end, true);
   } };
 }

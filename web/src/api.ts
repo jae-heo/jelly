@@ -5,11 +5,11 @@ export interface Session { id: string; projectId: string; name: string; status: 
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
 }
-export async function api<T>(token: string, path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
+export async function api<T>(token: string, path: string, method = 'GET', body?: unknown, signal?: AbortSignal, timeoutMs = 10_000): Promise<T> {
   const response = await fetch('/api' + path, {
     method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000), redirect: 'error',
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs), redirect: 'error',
   });
   const data = await response.json();
   if (!response.ok) throw new ApiError(response.status, data.error ?? 'Request failed');

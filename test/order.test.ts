@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { loadConfig } from '../src/config.js';
+import { startServer } from '../src/server.js';
+
+test('ordering and explicit project cascade validate scope and preserve records on a stop failure', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'jelly-order-'));
+  process.env.JELLY_DATA_DIR = join(dir, 'data'); process.env.JELLY_HOST = '127.0.0.1'; process.env.JELLY_PORT = '0';
+  const config = loadConfig();
+  const root = join(dir, 'project'); await mkdir(root); await writeFile(join(root, 'keep.txt'), 'keep');
+  let app = await startServer(config);
+  t.after(async () => { await app.close(); await rm(dir, { recursive: true, force: true }); });
+  const request = (path: string, method = 'GET', data?: unknown, auth = true, origin?: string) => fetch(`http://127.0.0.1:${app.port}` + path, {
+    method, headers: { ...(auth ? { Authorization: `Bearer ${config.token}` } : {}), 'Content-Type': 'application/json', ...(origin ? { Origin: origin } : {}) }, ...(data ? { body: JSON.stringify(data) } : {}),
+  });
+  const a = app.store.addProject('A', root), b = app.store.addProject('B', dir);
+  const one = app.store.addSession(a.id, 'One'), two = app.store.addSession(a.id, 'Two'), other = app.store.addSession(b.id, 'Other');
+  const move = `/api/sessions/${two.id}/move`;
+  assert.equal((await request(move, 'POST', { beforeId: one.id }, false)).status, 401);
+  assert.equal((await request(move, 'POST', { beforeId: one.id }, true, 'https://evil.test')).status, 403);
+  assert.equal((await request(move, 'POST', { beforeId: other.id })).status, 400);
+  assert.equal((await request(move, 'POST', { beforeId: 'bad' })).status, 400);
+  assert.equal((await request(move, 'POST', {})).status, 400);
+  const result = await request(move, 'POST', { beforeId: one.id });
+  assert.equal(result.status, 200);
+  assert.deepEqual(await result.json(), { ids: [two.id, one.id] });
+  assert.equal((await request(`/api/projects/${b.id}/move`, 'POST', { beforeId: a.id })).status, 200);
+  await app.close(); app = await startServer(config);
+  assert.deepEqual(app.store.projects().map(p => p.id), [b.id, a.id]);
+  assert.deepEqual(app.store.sessions(a.id).map(s => s.id), [two.id, one.id]);
+  const deletion = `/api/projects/${a.id}?deleteSessions=true`;
+  assert.equal((await request(`/api/projects/${a.id}`, 'DELETE')).status, 409);
+  assert.equal((await request(deletion, 'DELETE', undefined, false)).status, 401);
+  assert.equal((await request(deletion, 'DELETE', undefined, true, 'https://evil.test')).status, 403);
+  const stop = app.tmux.stop.bind(app.tmux);
+  const stopped: string[] = [];
+  app.tmux.stop = async id => { if (id === one.id) throw new Error('Fixture stop failure'); stopped.push(id); };
+  assert.equal((await request(deletion, 'DELETE')).status, 500);
+  assert.ok(app.store.project(a.id));
+  assert.ok(app.store.session(one.id)); assert.ok(app.store.session(two.id)?.stoppedAt);
+  assert.deepEqual(stopped, [two.id]);
+  app.tmux.stop = async id => { stopped.push(id); };
+  assert.equal((await request(deletion, 'DELETE')).status, 200);
+  assert.deepEqual(stopped, [two.id, one.id]);
+  assert.equal(app.store.project(a.id), undefined);
+  assert.equal(app.store.session(one.id), undefined);
+  assert.equal(app.store.session(two.id), undefined);
+  assert.ok(app.store.session(other.id));
+  assert.equal(await readFile(join(root, 'keep.txt'), 'utf8'), 'keep');
+  assert.deepEqual(app.store.db.prepare('PRAGMA foreign_key_check').all(), []);
+  app.tmux.stop = stop;
+});

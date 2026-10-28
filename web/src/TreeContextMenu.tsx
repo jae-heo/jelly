@@ -5,32 +5,65 @@ export type TreeTarget = { kind: 'project' | 'session'; id: string };
 interface Anchor extends TreeTarget { x: number; y: number; trigger: HTMLElement }
 export interface TreeAction { label: string; icon: ReactNode; run: () => void; danger?: boolean; disabled?: boolean; reason?: string }
 
-export function useTreeContextMenu() {
+export interface TreeDragHandlers {
+  start: (target: TreeTarget, x: number, y: number) => boolean;
+  move: (x: number, y: number) => void;
+  end: () => void;
+  cancel: () => void;
+}
+export function useTreeContextMenu(drag?: TreeDragHandlers) {
   const [anchor, setAnchor] = useState<Anchor | null>(null);
-  const hold = useRef<{ pointer: number; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const handlers = useRef(drag); handlers.current = drag;
+  const hold = useRef<{ pointer: number; type: string; x: number; y: number; trigger: HTMLElement; target: TreeTarget;
+    armed: boolean; dragging: boolean; timer: ReturnType<typeof setTimeout> } | null>(null);
   const suppressed = useRef<HTMLElement | null>(null);
-  const cancel = () => { if (hold.current) clearTimeout(hold.current.timer); hold.current = null; };
+  const clear = () => {
+    const state = hold.current;
+    if (state) {
+      clearTimeout(state.timer);
+      if (state.trigger.hasPointerCapture(state.pointer)) state.trigger.releasePointerCapture(state.pointer);
+    }
+    hold.current = null;
+  };
+  const cancel = () => { if (hold.current?.dragging) handlers.current?.cancel(); clear(); };
   useEffect(() => {
     const move = (event: PointerEvent) => {
-      const current = hold.current;
-      if (current && (event.pointerId !== current.pointer || Math.hypot(event.clientX - current.x, event.clientY - current.y) > 10)) cancel();
+      const state = hold.current;
+      if (!state || event.pointerId !== state.pointer) return;
+      if (!state.dragging && Math.hypot(event.clientX - state.x, event.clientY - state.y) > 10) {
+        if (!state.armed && state.type !== 'mouse') { cancel(); return; }
+        if (!handlers.current?.start(state.target, event.clientX, event.clientY)) { cancel(); return; }
+        state.dragging = true; clearTimeout(state.timer); setAnchor(null); suppressed.current = state.trigger;
+        try { state.trigger.setPointerCapture(state.pointer); } catch { /* Modeled events have no native pointer. */ }
+      }
+      if (state.dragging) { event.preventDefault(); handlers.current?.move(event.clientX, event.clientY); }
     };
+    const end = () => { const dragging = hold.current?.dragging; clear(); if (dragging) handlers.current?.end(); };
     const another = (event: PointerEvent) => { if (hold.current && event.pointerId !== hold.current.pointer) cancel(); };
+    const scroll = () => { if (!hold.current?.dragging) cancel(); };
+    const touchMove = (event: TouchEvent) => { if (hold.current?.armed || hold.current?.dragging) event.preventDefault(); };
+    const key = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape' && hold.current?.dragging) { event.preventDefault(); event.stopPropagation(); cancel(); }
+    };
     document.addEventListener('pointerdown', another, true);
-    document.addEventListener('pointermove', move, true);
-    document.addEventListener('pointerup', cancel, true);
+    document.addEventListener('pointermove', move, { capture: true, passive: false });
+    document.addEventListener('pointerup', end, true);
     document.addEventListener('pointercancel', cancel, true);
-    document.addEventListener('scroll', cancel, true);
+    document.addEventListener('touchmove', touchMove, { capture: true, passive: false });
+    document.addEventListener('keydown', key, true);
+    document.addEventListener('scroll', scroll, true);
     document.addEventListener('visibilitychange', cancel);
     window.addEventListener('blur', cancel);
     window.addEventListener('resize', cancel);
     return () => {
-      cancel();
+      clear(); handlers.current?.cancel();
       document.removeEventListener('pointerdown', another, true);
       document.removeEventListener('pointermove', move, true);
-      document.removeEventListener('pointerup', cancel, true);
+      document.removeEventListener('pointerup', end, true);
       document.removeEventListener('pointercancel', cancel, true);
-      document.removeEventListener('scroll', cancel, true);
+      document.removeEventListener('touchmove', touchMove, true);
+      document.removeEventListener('keydown', key, true);
+      document.removeEventListener('scroll', scroll, true);
       document.removeEventListener('visibilitychange', cancel);
       window.removeEventListener('blur', cancel);
       window.removeEventListener('resize', cancel);
@@ -39,10 +72,11 @@ export function useTreeContextMenu() {
   const bind = (target: TreeTarget) => ({
     'aria-haspopup': 'menu' as const,
     'aria-expanded': anchor?.kind === target.kind && anchor.id === target.id,
+    onDragStart: (event: MouseEvent<HTMLElement>) => event.preventDefault(),
     onContextMenu: (event: MouseEvent<HTMLElement>) => {
       event.preventDefault(); event.stopPropagation();
-      const holding = !!hold.current; cancel();
-      if (holding) suppressed.current = event.currentTarget;
+      if (hold.current?.dragging) return;
+      if (hold.current) { clearTimeout(hold.current.timer); hold.current.armed = true; suppressed.current = event.currentTarget; }
       if (suppressed.current === event.currentTarget && anchor) return;
       const rect = event.currentTarget.getBoundingClientRect();
       setAnchor({ ...target, trigger: event.currentTarget, x: event.clientX || rect.left + 12, y: event.clientY || rect.bottom });
@@ -55,18 +89,15 @@ export function useTreeContextMenu() {
     },
     onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
       cancel(); suppressed.current = null;
-      if (event.pointerType === 'mouse' || !event.isPrimary || event.button !== 0) return;
+      if (!event.isPrimary || event.button !== 0) return;
       const trigger = event.currentTarget, x = event.clientX, y = event.clientY;
-      hold.current = { pointer: event.pointerId, x, y, timer: setTimeout(() => {
-        hold.current = null;
-        if (!trigger.isConnected) return;
-        suppressed.current = trigger;
+      hold.current = { pointer: event.pointerId, type: event.pointerType, x, y, trigger, target, armed: false, dragging: false, timer: setTimeout(() => {
+        if (!hold.current || !trigger.isConnected) return;
+        hold.current.armed = true; suppressed.current = trigger;
         setAnchor({ ...target, trigger, x, y });
       }, 500) };
     },
     onMouseDownCapture: (event: MouseEvent<HTMLElement>) => {
-      // Touch release synthesizes mousedown before click. Keep that event from
-      // refocusing the row and closing the menu before the click is suppressed.
       if (suppressed.current === event.currentTarget) event.preventDefault();
     },
     onClickCapture: (event: MouseEvent<HTMLElement>) => {

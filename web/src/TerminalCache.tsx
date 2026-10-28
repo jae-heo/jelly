@@ -37,6 +37,7 @@ export const TerminalCache = forwardRef<TerminalHandle, Props>(function Terminal
     pressKey: key => { if (activeId) handles.current.get(activeId)?.pressKey(key); },
     paste: data => { if (activeId) handles.current.get(activeId)?.paste(data); },
     focus: () => { if (activeId) handles.current.get(activeId)?.focus(); },
+    selectScroll: (surface, update) => activeId ? handles.current.get(activeId)?.selectScroll(surface, update) : undefined,
     visibleText: () => activeId ? handles.current.get(activeId)?.visibleText() : undefined,
   }), [activeId]);
 

@@ -50,6 +50,12 @@ export function useWorkspaceData(token: string, onUnauthorized: () => void, onSn
   }, [token, refresh]);
   return {
     ...data, loading, online, refresh,
+    updateOrder: (kind: 'project' | 'session', ids: string[]) => {
+      generation.current++; pending.current?.abort(); pending.current = null;
+      const ranks = new Map(ids.map((id, index) => [id, index]));
+      const sort = <T extends { id: string }>(items: T[]) => [...items].sort((a, b) => (ranks.get(a.id) ?? Infinity) - (ranks.get(b.id) ?? Infinity));
+      setData(previous => kind === 'project' ? { ...previous, projects: sort(previous.projects) } : { ...previous, sessions: sort(previous.sessions) });
+    },
     updateName: (kind: 'project' | 'session', id: string, name: string) => {
       // A list request started before the save must not restore the old name.
       generation.current++; pending.current?.abort(); pending.current = null;

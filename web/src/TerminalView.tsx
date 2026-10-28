@@ -8,7 +8,7 @@ import './TerminalViewport.css';
 import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
 export type Connection = 'connecting' | 'connected' | 'retrying' | 'disconnected' | 'taken' | 'ended';
-export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void; visibleText: () => string | undefined }
+export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void; visibleText: () => string | undefined; selectScroll: (surface: HTMLElement, update: (text: string) => void) => (() => void) | undefined }
 interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
@@ -24,6 +24,25 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
   const stopScroll = useRef<() => void>(() => {});
   const callbacks = useRef(props);
   callbacks.current = props;
+  const visibleText = () => {
+    const term = termRef.current;
+    const clip = container.current?.getBoundingClientRect();
+    const screen = term?.element?.querySelector('.xterm-screen')?.getBoundingClientRect();
+    if (!callbacks.current.active || !term || !clip || !screen?.height) return;
+    // The mobile keyboard can clip the grid. Copy only the rows on screen,
+    // including the current tmux/TUI scroll position, without a server fetch.
+    const height = screen.height / term.rows;
+    const first = Math.max(0, Math.floor((clip.top - screen.top) / height));
+    const end = Math.min(term.rows, Math.ceil((clip.bottom - screen.top) / height));
+    const buffer = term.buffer.active;
+    let text = '';
+    for (let row = first; row < end; row++) {
+      const line = buffer.getLine(buffer.viewportY + row);
+      const wraps = row + 1 < end && buffer.getLine(buffer.viewportY + row + 1)?.isWrapped;
+      text += (line?.translateToString(!wraps) ?? '') + (wraps ? '' : '\n');
+    }
+    return text.replace(/\n+$/, '');
+  };
   useImperativeHandle(ref, () => ({
     send: data => { stopScroll.current(); sendRef.current(data); },
     chord: (key, modifiers) => {
@@ -34,25 +53,27 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     pressKey: key => { stopScroll.current(); sendRef.current(terminalKeySequence(key, termRef.current?.modes.applicationCursorKeysMode ?? false)); },
     paste: data => { stopScroll.current(); if (callbacks.current.active) termRef.current?.paste(data); },
     focus: () => { if (callbacks.current.active) termRef.current?.focus(); },
-    visibleText: () => {
-      stopScroll.current();
+    visibleText: () => { stopScroll.current(); return visibleText(); },
+    selectScroll: (surface, update) => {
       const term = termRef.current;
-      const clip = container.current?.getBoundingClientRect();
-      const screen = term?.element?.querySelector('.xterm-screen')?.getBoundingClientRect();
-      if (!callbacks.current.active || !term || !clip || !screen?.height) return;
-      // The mobile keyboard can clip the grid. Copy only the rows on screen,
-      // including the current tmux/TUI scroll position, without a server fetch.
-      const height = screen.height / term.rows;
-      const first = Math.max(0, Math.floor((clip.top - screen.top) / height));
-      const end = Math.min(term.rows, Math.ceil((clip.bottom - screen.top) / height));
-      const buffer = term.buffer.active;
-      let text = '';
-      for (let row = first; row < end; row++) {
-        const line = buffer.getLine(buffer.viewportY + row);
-        const wraps = row + 1 < end && buffer.getLine(buffer.viewportY + row + 1)?.isWrapped;
-        text += (line?.translateToString(!wraps) ?? '') + (wraps ? '' : '\n');
-      }
-      return text.replace(/\n+$/, '');
+      if (!term) return;
+      let until = 0;
+      let awaitingScroll = false;
+      const refresh = () => {
+        if (performance.now() > until || !window.getSelection()?.isCollapsed) return;
+        const text = visibleText();
+        if (text !== undefined) update(text);
+        if (awaitingScroll) { awaitingScroll = false; until = performance.now() + 300; }
+      };
+      const scrolling = attachTerminalScroll(term, () => {}, () => callbacks.current.active, {
+        surface, onScroll: () => {
+          window.getSelection()?.removeAllRanges();
+          awaitingScroll = true; until = performance.now() + 5000;
+        },
+      });
+      const write = term.onWriteParsed(refresh);
+      const scroll = term.onScroll(refresh);
+      return () => { scrolling.dispose(); write.dispose(); scroll.dispose(); };
     },
   }), []);
 

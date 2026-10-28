@@ -48,6 +48,16 @@ export class Store {
       } catch (error) { this.db.exec('ROLLBACK'); throw error; }
       finally { this.db.exec('PRAGMA foreign_keys = ON'); }
     }
+    // Separate order tables preserve the original metadata schema and allow
+    // older releases to keep reading and creating projects/sessions safely.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS project_order (
+        id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE, position INTEGER NOT NULL
+      ) STRICT;
+      CREATE TABLE IF NOT EXISTS session_order (
+        id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE, position INTEGER NOT NULL
+      ) STRICT;
+    `);
   }
   hosts(): Host[] { return this.db.prepare('SELECT * FROM hosts ORDER BY createdAt, id').all() as unknown as Host[]; }
   host(id: string): Host | undefined { return this.db.prepare('SELECT * FROM hosts WHERE id = ?').get(id) as unknown as Host | undefined; }
@@ -57,7 +67,7 @@ export class Store {
     return host;
   }
   deleteHost(id: string): void { this.db.prepare('DELETE FROM hosts WHERE id = ?').run(id); }
-  projects(): Project[] { return this.db.prepare('SELECT * FROM projects ORDER BY createdAt, id').all() as unknown as Project[]; }
+  projects(): Project[] { return this.db.prepare('SELECT p.* FROM projects p LEFT JOIN project_order o ON o.id = p.id ORDER BY o.position IS NULL, o.position, p.createdAt, p.id').all() as unknown as Project[]; }
   project(id: string): Project | undefined { return this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as unknown as Project | undefined; }
   projectByPath(path: string, hostId: string | null = null): Project | undefined { return this.db.prepare('SELECT * FROM projects WHERE path = ? AND hostId IS ?').get(path, hostId) as unknown as Project | undefined; }
   addProject(name: string, path: string, hostId: string | null = null): Project {
@@ -66,11 +76,19 @@ export class Store {
     return project;
   }
   deleteProject(id: string): void { this.db.prepare('DELETE FROM projects WHERE id = ?').run(id); }
+  deleteProjectWithSessions(id: string): void {
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      this.db.prepare('DELETE FROM sessions WHERE projectId = ?').run(id);
+      this.deleteProject(id);
+      this.db.exec('COMMIT');
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+  }
   renameProject(id: string, name: string): void { this.db.prepare('UPDATE projects SET name = ? WHERE id = ?').run(name, id); }
   sessions(projectId?: string): Session[] {
     return (projectId
-      ? this.db.prepare('SELECT * FROM sessions WHERE projectId = ? ORDER BY createdAt, id').all(projectId)
-      : this.db.prepare('SELECT * FROM sessions ORDER BY createdAt, id').all()) as unknown as Session[];
+      ? this.db.prepare('SELECT s.* FROM sessions s LEFT JOIN session_order o ON o.id = s.id WHERE s.projectId = ? ORDER BY o.position IS NULL, o.position, s.createdAt, s.id').all(projectId)
+      : this.db.prepare('SELECT s.* FROM sessions s LEFT JOIN session_order o ON o.id = s.id ORDER BY o.position IS NULL, o.position, s.createdAt, s.id').all()) as unknown as Session[];
   }
   session(id: string): Session | undefined { return this.db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as unknown as Session | undefined; }
   addSession(projectId: string, name: string): Session {
@@ -83,5 +101,22 @@ export class Store {
   }
   deleteSession(id: string): void { this.db.prepare('DELETE FROM sessions WHERE id = ?').run(id); }
   renameSession(id: string, name: string): void { this.db.prepare('UPDATE sessions SET name = ? WHERE id = ?').run(name, id); }
+  move(kind: 'project' | 'session', id: string, beforeId: string | null): string[] {
+    const source = kind === 'project' ? this.project(id) : this.session(id);
+    if (!source) throw new Error('Order item not found');
+    const items = kind === 'project' ? this.projects() : this.sessions((source as Session).projectId);
+    const ids = items.map(item => item.id);
+    if (beforeId !== null && !ids.includes(beforeId)) throw new Error('Order target not in the same list');
+    if (beforeId === id) return ids;
+    ids.splice(ids.indexOf(id), 1);
+    ids.splice(beforeId === null ? ids.length : ids.indexOf(beforeId), 0, id);
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const update = this.db.prepare(`INSERT INTO ${kind}_order (id, position) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET position = excluded.position`);
+      ids.forEach((value, index) => update.run(value, index));
+      this.db.exec('COMMIT');
+    } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+    return ids;
+  }
   close(): void { this.db.close(); }
 }
