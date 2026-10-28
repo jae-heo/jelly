@@ -14,4 +14,4 @@
 - Keep credentials, SQLite files, socket files, terminal output and machine-specific deployment settings out of Git.
 - Test with temporary data directories and dedicated tmux sockets. Clean up only resources created by that test.
 - Run `npm test` and `npm run check` after meaningful backend changes.
-- Goal scope and acceptance criteria live in `docs/GOAL.md`.
+- Current features are documented in `README.md` and `docs/`; verification history lives in `docs/VERIFICATION.md`.
