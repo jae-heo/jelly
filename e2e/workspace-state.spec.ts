@@ -50,7 +50,7 @@ test('a late list response cannot remove a newly created and selected terminal',
   await refresh(page);
   await expect.poll(() => !!state.held).toBe(true);
   await page.getByRole('button', { name: 'More', exact: true }).click();
-  await page.getByRole('button', { name: 'New session', exact: true }).click();
+  await page.getByRole('region', { name: 'Session menu' }).getByRole('button', { name: 'New session', exact: true }).click();
   await page.getByLabel('Session name', { exact: true }).fill(latest.name);
   await page.getByRole('button', { name: 'Open session', exact: true }).click();
   await expect(page.locator('.workspace-current strong')).toHaveText(latest.name);

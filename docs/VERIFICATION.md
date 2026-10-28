@@ -11,6 +11,15 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Header new-session button (2026-10-28)
+
+- While a session is open, + in the header creates and opens a session in the
+  same project without a dialog, like ⌘⇧Enter. Repeated taps during creation
+  create one session. The empty state keeps its New session button.
+- A mobile Chromium test (390px, touch) checks a single tap, a double tap, the
+  resulting names and the 44px target within a 320px viewport. All Chromium
+  browser tests passed; the test also runs on WebKit in CI.
+
 ## Delete shortcut and dialog focus (2026-10-28)
 
 - ⌘⇧⌫ opens Delete session for the current session with the delete button

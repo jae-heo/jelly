@@ -180,7 +180,7 @@ export function App() {
       canDeleteProject={!!project} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
       onSidebar={() => setSidebar(!sidebar)} onSelectText={selectText} onFontSize={setFontSize}
       onConnection={() => { if (attached && !['taken', 'ended'].includes(connection)) setAttached(false); else { setAttached(true); setRevision(r => r + 1); } }}
-      onDeleteSession={() => openDeleteSession()} onNewSession={() => openSession()} onStop={() => openStop()} onDeleteProject={() => openRemoveProject()}
+      onDeleteSession={() => openDeleteSession()} onNewSession={() => openSession()} onQuickSession={() => { if (project) void quickCreateSession(project); }} onStop={() => openStop()} onDeleteProject={() => openRemoveProject()}
       onRenameProject={() => openRename('project')} onRenameSession={() => openRename('session')}
       onFiles={() => openFiles()} onHosts={() => openDialog('hosts')} onHelp={() => openDialog('help')} onLogout={logout} />
     <div className="workspace-body">
@@ -238,7 +238,7 @@ export function App() {
       <div><dt>Stop session</dt><dd>Stops the shell and its running programs.</dd></div>
       <div><dt>Switch devices</dt><dd>Opening a session disconnects the previous device.</dd></div>
       <div><dt>Switch sessions</dt><dd>⌘⇧, previous · ⌘⇧. next. Cycles through sessions in project order.</dd></div>
-      <div><dt>New session</dt><dd>⌘⇧Enter creates a session in the current project.</dd></div>
+      <div><dt>New session</dt><dd>+ in the header or ⌘⇧Enter creates a session in the current project.</dd></div>
       <div><dt>Delete session</dt><dd>⌘⇧⌫ then Enter deletes the current session, stops its programs and opens the previous session.</dd></div>
       <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
       <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>

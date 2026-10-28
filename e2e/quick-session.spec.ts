@@ -86,3 +86,46 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: quick cre
     if (host) await call(`/hosts/${host.id}`, 'DELETE');
   }
 });
+
+test('mobile: header + opens a new session in the current project with one tap', async ({ browser, request }) => {
+  const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
+  const token = readFileSync(info.tokenFile, 'utf8').trim();
+  const call = async (path: string, method = 'GET', data?: unknown) => {
+    const response = await request.fetch(`/api${path}`, { method, data, headers: { Authorization: `Bearer ${token}` } });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const project = await call('/projects', 'POST', { name: 'Phone project', path: info.projectPath });
+  const existing = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Session 1' });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  let creates = 0;
+  page.on('request', request => { if (request.method() === 'POST' && /\/api\/projects\/[^/]+\/sessions$/.test(request.url())) creates++; });
+  try {
+    await page.addInitScript(({ token, projectId, sessionId }) => {
+      sessionStorage.setItem('jelly-token', token);
+      localStorage.setItem('jelly-project', projectId); localStorage.setItem('jelly-session', sessionId);
+    }, { token, projectId: project.id, sessionId: existing.id });
+    await page.goto('/');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
+    const add = page.getByRole('button', { name: 'New session', exact: true });
+    await add.tap();
+    await expect(page.locator('.workspace-current strong')).toHaveText('Session 2');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(creates).toBe(1);
+    // A quick double tap still creates one session.
+    await add.dblclick();
+    await expect(page.locator('.workspace-current strong')).toHaveText('Session 3');
+    await expect.poll(() => creates).toBe(2);
+    expect((await call(`/projects/${project.id}/sessions`)).sessions.map((s: any) => s.name)).toEqual(['Session 1', 'Session 2', 'Session 3']);
+    await page.screenshot({ path: '.data/screenshots/header-new-session-mobile.png', clip: { x: 0, y: 0, width: 390, height: 120 } });
+    await page.setViewportSize({ width: 320, height: 640 });
+    const box = (await add.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(320);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  } finally {
+    await context.close();
+    await call(`/projects/${project.id}?deleteSessions=true`, 'DELETE');
+  }
+});

@@ -6,7 +6,9 @@ For installation and remote access, see [Setup](SETUP.md).
 
 Add an existing folder on the Jelly server, or select an SSH host and browse its
 folders. Sessions appear beneath their project. Use **+** to create a session,
-and the arrow beside a project to fold its session list.
+and the arrow beside a project to fold its session list. While a session is open,
+**+** in the header opens a new one in the same project right away, without
+asking for a name; this is the quickest way on a phone.
 
 Right-click a project or session, or hold it on your phone, to open its options.
 Use **Shift+F10** on a focused item with a keyboard. Projects offer files, new

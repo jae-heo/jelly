@@ -9,7 +9,7 @@ interface Props {
   canDeleteProject: boolean; canDisconnect: boolean;
   fullscreenAvailable: boolean; fullscreen: boolean; onFullscreen: () => void;
   onSidebar: () => void; onSelectText: () => void; onFontSize: (size: number) => void;
-  onConnection: () => void; onNewSession: () => void; onStop: () => void;
+  onConnection: () => void; onNewSession: () => void; onQuickSession: () => void; onStop: () => void;
   onDeleteSession: () => void;
   onRenameProject: () => void; onRenameSession: () => void;
   onFiles: () => void; onDeleteProject: () => void; onHosts: () => void; onHelp: () => void; onLogout: () => void;
@@ -52,6 +52,7 @@ export function WorkspaceHeader(props: Props) {
     </div>
     <div className="workspace-actions">
       {props.session && <>
+        <button className="header-action" onClick={props.onQuickSession} title="New session (⌘⇧Enter)" aria-label="New session"><Plus size={20} /></button>
         <button className={`header-action select-text-action ${props.selecting ? 'active' : ''}`} onClick={props.onSelectText} disabled={!props.canSelect} title="Select text" aria-label="Select text" aria-pressed={props.selecting}><TextSelect size={19} /><span>Select text</span></button>
       </>}
       <details className="workspace-menu" ref={menu}>
