@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { terminalConnection } from './terminalConnection';
 import { terminalGeometry } from './terminalGeometry';
 import { attachTerminalScroll } from './touchScroll';
+import { attachTerminalClipboard } from './terminalClipboard';
 import './TerminalViewport.css';
 import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
@@ -12,7 +13,7 @@ export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) 
 interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
-  onTouchInput: () => void;
+  onTouchInput: () => void; onCopyBlocked: () => void;
 }
 
 export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalView(props, ref) {
@@ -94,6 +95,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     term.open(container.current);
     const touchScroll = attachTerminalScroll(term, () => callbacks.current.onTouchInput(), () => callbacks.current.active);
     stopScroll.current = touchScroll.stop;
+    const clipboard = attachTerminalClipboard(term, container.current, () => callbacks.current.onCopyBlocked());
     if (matchMedia('(pointer: coarse)').matches && term.textarea) term.textarea.inputMode = 'none';
     term.textarea?.setAttribute('aria-label', 'Terminal input');
     termRef.current = term;
@@ -119,7 +121,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     fitRef.current = geometry.schedule;
     wakeRef.current = connection.wake;
     return () => {
-      connection?.dispose(); geometry.dispose(); touchScroll.dispose(); term.dispose();
+      connection?.dispose(); geometry.dispose(); touchScroll.dispose(); clipboard(); term.dispose();
       stopScroll.current = () => {};
       termRef.current = null; sendRef.current = () => {}; fitRef.current = () => {}; wakeRef.current = () => {};
     };

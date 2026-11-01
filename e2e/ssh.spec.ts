@@ -68,6 +68,14 @@ test('SSH config aliases, remote folders and terminal from a mobile browser', as
     await inputField.press('Enter');
     await expect(page.locator('.xterm-rows')).toContainText('INPUT_SSH_한글');
   } finally { await cdp.detach(); }
+  // Mouse selections in the remote tmux reach the browser through OSC 52.
+  const row = (await page.locator('.xterm-rows > div').filter({ hasText: /^INPUT_SSH_한글/ }).boundingBox())!;
+  await page.mouse.dblclick(row.x + 10, row.y + row.height / 2);
+  await expect.poll(() => page.locator('.terminal-slot:visible .xterm-helper-textarea').evaluate(element => {
+    const event = new ClipboardEvent('copy', { clipboardData: new DataTransfer(), bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    return event.clipboardData!.getData('text/plain');
+  })).toMatch(/^INPUT/);
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('button', { name: 'Stop session', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Stop session', exact: true }).click();

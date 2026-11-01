@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-10-28.
+Last automated verification: 2026-11-01.
 
 ## Verification sources
 
@@ -10,6 +10,22 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Copy by dragging in the terminal (2026-11-01)
+
+- Plain drag, double-click and triple-click selections in tmux, local or over
+  SSH, reach the browser clipboard through OSC 52. tmux's default
+  `set-clipboard external` keeps programs from writing the clipboard with their
+  own OSC 52. The browser also accepts OSC 52 only within five seconds of a
+  pointer gesture in that terminal, and never answers clipboard queries.
+- Chromium writes the clipboard after the copy arrives. WebKit allows writes only
+  during the gesture itself, so it shows “Press ⌘C to copy the selection.” and
+  ⌘C copies tmux's last selection while xterm has no selection of its own.
+  Safari enables ⌘C without a selection because Jelly cancels `beforecopy`.
+- `e2e/clipboard.spec.ts` checks drag and double-click copies in Chromium through
+  a real paste, the ⌘C fallback in Chromium and WebKit, and that a program's
+  OSC 52 does not reach the clipboard. `e2e/ssh.spec.ts` checks a double-click
+  copy from the remote tmux.
 
 ## Local verification, touch hover and ⌘Enter (2026-10-28)
 

@@ -193,3 +193,89 @@ for (const macSelection of [false, true]) test(`native terminal selection: ${mac
     await call(`/projects/${project.id}`, 'DELETE');
   }
 });
+
+test('plain drag and double click copy through tmux', async ({ browser, request }) => {
+  const info = JSON.parse(readFileSync('.data/browser-test-info.json', 'utf8'));
+  const token = readFileSync(info.tokenFile, 'utf8').trim();
+  const call = async (path: string, method = 'GET', data?: unknown) => {
+    const response = await request.fetch(`/api${path}`, { method, data, headers: { Authorization: `Bearer ${token}` } });
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.status() === 204 ? undefined : response.json();
+  };
+  const project = await call('/projects', 'POST', { name: 'Mouse copy', path: info.projectPath });
+  const session = await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Drag' });
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.addInitScript(({ token, projectId, sessionId }) => {
+      sessionStorage.setItem('jelly-token', token);
+      localStorage.setItem('jelly-project', projectId);
+      localStorage.setItem('jelly-session', sessionId);
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    }, { token, projectId: project.id, sessionId: session.id });
+    await page.goto('/');
+    await expect(page.locator('.connection-label')).toHaveText('Connected');
+    const modifier = await page.evaluate(() => /Mac/.test(navigator.platform) ? 'Meta' : 'Control');
+    const pasted = async () => {
+      await page.evaluate(() => {
+        const field = document.createElement('textarea');
+        field.id = 'clipboard-check'; field.style.position = 'fixed'; field.style.top = '0'; field.style.zIndex = '1000';
+        document.body.append(field); field.focus();
+      });
+      await page.keyboard.press(`${modifier}+V`);
+      const field = page.locator('#clipboard-check');
+      const value = await field.inputValue();
+      await field.evaluate(element => element.remove());
+      return value;
+    };
+    const input = page.getByRole('textbox', { name: 'Input', exact: true });
+    // Programs cannot write the clipboard through OSC 52.
+    await input.fill("printf '\\033]52;c;%s\\a' $(printf PROGRAM_WRITE | base64); printf '\\033[2J\\033[HDRAG_한글_COPY tail\\nWORD_COPY other\\n'");
+    await input.press('Enter');
+    const row = (text: RegExp) => page.locator('.xterm-rows > div').filter({ hasText: text });
+    await expect(row(/^DRAG_한글_COPY/)).toHaveCount(1);
+    await expect(row(/^WORD_COPY/)).toHaveCount(1);
+    expect(await pasted()).not.toBe('PROGRAM_WRITE');
+
+    // WebKit allows clipboard writes only during the gesture itself, and tmux
+    // answers after mouseup. Then ⌘C copies the selection instead.
+    const blocked = test.info().project.name === 'webkit';
+    const copied = async (text: string) => {
+      if (blocked) {
+        await expect(page.getByRole('alert')).toHaveText('Press ⌘C to copy the selection.');
+        await page.getByRole('button', { name: 'Dismiss notification' }).click();
+      } else await expect.poll(pasted).toBe(text);
+      // The copy event ⌘C dispatches, without a selection of xterm's own.
+      expect(await page.locator('.terminal-slot:visible .xterm-helper-textarea').evaluate(element => {
+        const event = new ClipboardEvent('copy', { clipboardData: new DataTransfer(), bubbles: true, cancelable: true });
+        element.dispatchEvent(event);
+        return event.defaultPrevented ? event.clipboardData!.getData('text/plain') : '';
+      })).toBe(text);
+    };
+    const screen = (await page.locator('.xterm-screen').boundingBox())!;
+    const { cols } = await call(`/sessions/${session.id}`);
+    const cell = screen.width / cols;
+    const line = (await row(/^DRAG_한글_COPY/).boundingBox())!;
+    // 한글 takes two cells each: DRAG_ (5) + 한글 (4) + _COPY (5).
+    await page.mouse.move(screen.x + cell * 0.2, line.y + line.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(screen.x + cell * 13.5, line.y + line.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await copied('DRAG_한글_COPY');
+    await expect(page.locator('.xterm-selection > div')).toHaveCount(0);
+
+    // Leave tmux's double-click window so the drag's click is not counted.
+    await page.waitForTimeout(600);
+    const word = (await row(/^WORD_COPY/).boundingBox())!;
+    await page.mouse.dblclick(screen.x + cell * 3.5, word.y + word.height / 2);
+    await copied('WORD_COPY');
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+    await call(`/sessions/${session.id}/stop`, 'POST');
+    await call(`/sessions/${session.id}`, 'DELETE');
+    await call(`/projects/${project.id}`, 'DELETE');
+  }
+});

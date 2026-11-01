@@ -114,7 +114,12 @@ current screen. The selected text stays still while programs continue running.
 Close selection to return to input. Scrolling uses the terminal app’s own scroll
 behavior, including Claude Code, without fetching a separate history log.
 
-On desktop, **Option-drag** on Mac or **Shift-drag** on Windows/Linux selects
+On desktop, drag in the terminal to select and copy; double-click copies a word
+and triple-click a line. Dragging past the top or bottom edge scrolls. If the
+browser blocks the copy, as Safari does, press **⌘C** afterwards. Apps that
+handle the mouse receive these clicks instead.
+
+**Option-drag** on Mac or **Shift-drag** on Windows/Linux selects
 directly in the terminal, even when an app handles the mouse. Use **⌘C** on Mac, **Ctrl+C** on Windows/Linux, or
 the browser's **Copy** menu. Without a selection, Ctrl+C still interrupts the app. Paste normally into **Input** or the terminal;
 **Shortcuts → Paste text** lets you review text before sending it. Copy buttons

@@ -2,28 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { TerminalHandle } from './TerminalView';
 import type { RefObject } from 'react';
 import { X } from 'lucide-react';
-
-// execCommand supports explicit copy gestures on Jelly's HTTP tailnet origin,
-// where navigator.clipboard is unavailable. Never read the system clipboard.
-async function copyText(text: string): Promise<boolean> {
-  let copied = false;
-  const onCopy = (event: ClipboardEvent) => {
-    if (!event.clipboardData) return;
-    event.clipboardData.setData('text/plain', text);
-    event.preventDefault();
-    copied = true;
-  };
-  document.addEventListener('copy', onCopy);
-  try {
-    if (document.execCommand('copy') && copied) return true;
-  } catch { /* Try the secure-context API if available. */ }
-  finally { document.removeEventListener('copy', onCopy); }
-  try {
-    if (!navigator.clipboard?.writeText) return false;
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch { return false; }
-}
+import { copyText } from './clipboard';
 
 export function TerminalSelection({ text, fontSize, terminal, onClose }: { text: string; fontSize: number; terminal: RefObject<TerminalHandle | null>; onClose: () => void }) {
   const [snapshot, setSnapshot] = useState(text);

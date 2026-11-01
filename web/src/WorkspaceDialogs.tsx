@@ -62,7 +62,7 @@ export function HelpDialog({ fullscreenAvailable, onClose }: { fullscreenAvailab
     <div><dt>Key combination</dt><dd>⌘ button → select a key and modifiers → Send.</dd></div>
     <div><dt>Input</dt><dd>Sends as you type, after IME composition. Enter submits. Shift+Enter is passed to the app as a separate key.</dd></div>
     <div><dt>Scroll</dt><dd>Swipe the terminal to scroll. Esc returns from tmux scrollback to input.</dd></div>
-    <div><dt>Copy</dt><dd>Select text lets you scroll and copy terminal output. On phones, hold text to select it. On desktop, Option-drag (Mac) or Shift-drag selects directly in the terminal.</dd></div>
+    <div><dt>Copy</dt><dd>Select text lets you scroll and copy terminal output. On phones, hold text to select it. On desktop, drag in the terminal to copy; if Safari blocks it, press ⌘C. Option-drag (Mac) or Shift-drag selects even when an app handles the mouse.</dd></div>
     <div><dt>Paste</dt><dd>Paste into Input or the terminal. Shortcuts → Paste text lets you review text before sending.</dd></div>
     <div><dt>Font size</dt><dd>Adjust in the More menu.</dd></div>
     <div><dt>Hide browser chrome</dt><dd>{fullscreenAvailable ? 'More → Fullscreen.' : 'iPhone: Share → Add to Home Screen. Open Jelly from that icon.'}</dd></div>
