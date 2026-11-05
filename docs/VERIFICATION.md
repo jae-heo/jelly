@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-04.
+Last automated verification: 2026-11-05.
 
 ## Verification sources
 
@@ -10,6 +10,20 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Esc with tmux 3.6 (2026-11-05)
+
+- GitHub's `ubuntu-latest` moved to Ubuntu 26.04 with tmux 3.6a, and the mobile
+  scroll test began failing in about half of the full runs. A trace showed every
+  Esc taking about 780 ms to leave tmux copy mode; the last one merged with the
+  tap and typing that followed, so the typed command went to copy mode.
+- tmux asks for the terminal version (XTVERSION) on attach, and tmux 3.6 delays
+  a lone Esc by about half a second when it gets no answer. xterm.js does not
+  answer, so the terminal now replies `xterm.js`. With a static tmux 3.6a build
+  on this host, Esc took 517–522 ms before and 37–45 ms after, the same as tmux
+  3.2a.
+- `e2e/terminal-queries.spec.ts` checks the reply and that Esc leaves copy mode
+  within 250 ms three times. It fails against tmux 3.6a without the reply.
 
 ## Chat view for Claude Code (2026-11-04)
 
