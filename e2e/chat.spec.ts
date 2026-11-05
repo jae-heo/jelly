@@ -38,39 +38,56 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     // Typing goes to Input, which sends it to the agent in the terminal.
     await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeFocused();
     const chat = page.getByRole('region', { name: 'Chat' });
-    await expect(chat.locator('.chat-user')).toHaveText(['FIRST_QUESTION']);
+    await expect(chat.locator('.chat-user p')).toHaveText(['FIRST_QUESTION']);
     await expect(chat.locator('.chat-note').first()).toHaveText('/model opus');
-    await expect(chat.locator('.chat-heading')).toHaveText('Plan');
-    await expect(chat.locator('.chat-assistant strong')).toHaveText('ls');
-    await expect(chat.locator('.chat-assistant pre code')).toHaveText('ls -la');
-    await expect(chat.locator('.chat-table')).toContainText('| a | b |');
-    // Agent text is never rendered as HTML.
+    await expect(chat.locator('.md-heading')).toHaveText('Plan');
+    await expect(chat.locator('.chat-assistant strong').first()).toHaveText('ls');
+    await expect(chat.locator('.md-code pre code')).toHaveText('ls -la');
+    await expect(chat.locator('.md-table th')).toHaveText(['a', 'b']);
+    await expect(chat.locator('.md-table td')).toHaveText(['1', '2']);
+    await expect(chat.locator('.chat-assistant > ul > li')).toHaveCount(2);
+    await expect(chat.locator('.chat-assistant li ul > li')).toHaveText(['nested item']);
+    await expect(chat.locator('.chat-assistant > ol > li')).toHaveText(['one', 'two']);
+    await expect(chat.getByRole('link', { name: 'docs' })).toHaveAttribute('href', 'https://example.com/docs');
+    // Only http(s) links are clickable; agent text is never rendered as HTML.
+    await expect(chat.getByRole('link', { name: 'bad' })).toHaveCount(0);
     await expect(chat.locator('.chat-assistant').last()).toHaveText('<b>not html</b> FIRST_ANSWER');
     await expect(chat).not.toContainText('hidden');
-    const tool = chat.locator('.chat-tool').first();
-    await expect(tool.locator('summary')).toContainText('Bash');
-    await expect(tool.locator('summary')).toContainText('ls -la');
+    // Consecutive tool calls are one collapsed row with a failure count.
+    const group = chat.locator('.chat-tools');
+    await expect(group).toHaveCount(1);
+    await expect(group.locator('> summary')).toContainText('Bash ×2 · Edit');
+    await expect(group.locator('.chat-failed-count')).toHaveText('1');
+    await group.locator('> summary').click();
+    const tool = group.locator('.chat-tool').first();
+    await expect(tool.locator('summary')).toContainText('List files');
     await expect(tool.getByLabel('Done')).toBeVisible();
     await tool.locator('summary').click();
-    await expect(tool.locator('.chat-tool-output')).toHaveText('TOOL_OUTPUT_OK');
+    await expect(tool.locator('.chat-command')).toHaveText('ls -la\necho second line');
+    await expect(tool.locator('.chat-output')).toHaveText('TOOL_OUTPUT_OK');
+    const edit = group.locator('.chat-tool').nth(1);
+    await edit.locator('summary').click();
+    await expect(edit.locator('.chat-diff .removed')).toHaveText('const a = 1;\n');
+    await expect(edit.locator('.chat-diff .added')).toHaveText('const a = 2;\n');
+    await expect(group.locator('.chat-tool').nth(2).getByLabel('Failed')).toBeVisible();
     await expect(chat.getByRole('status')).toContainText('Idle');
 
     // Input still goes to the terminal; the reply arrives from the transcript.
     const input = page.getByRole('textbox', { name: 'Input', exact: true });
     await input.fill('hello chat 한글');
     await input.press('Enter');
-    await expect(chat.locator('.chat-user').last()).toHaveText('hello chat 한글');
+    await expect(chat.locator('.chat-user p').last()).toHaveText('hello chat 한글');
     await expect(chat.getByRole('status')).toContainText('Working');
     await expect(chat.locator('.chat-assistant').last()).toHaveText('Echo: hello chat 한글');
     await expect(chat.getByRole('status')).toContainText('Idle');
 
     // The choice is kept per session on this device.
     await page.reload();
-    await expect(page.getByRole('region', { name: 'Chat' }).locator('.chat-user').last()).toHaveText('hello chat 한글');
+    await expect(page.getByRole('region', { name: 'Chat' }).locator('.chat-user p').last()).toHaveText('hello chat 한글');
     await input.fill('/clear');
     await input.press('Enter');
     await expect(chat.locator('.chat-assistant')).toHaveText(['CLEARED_CONVERSATION']);
-    await expect(chat.locator('.chat-user')).toHaveCount(0);
+    await expect(chat.locator('.chat-user p')).toHaveCount(0);
 
     // Losing the terminal connection shows Reconnect above the chat.
     await page.getByRole('button', { name: 'More', exact: true }).click();

@@ -11,6 +11,21 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Chat view readability (2026-11-05)
+
+- Replies render headings, bullet and numbered lists (one nested level),
+  tables, quotes, dividers, code blocks with their language, and http(s) links
+  that open in a new tab. Other link targets stay plain text; raw HTML is never
+  rendered.
+- Consecutive tool calls form one collapsed row that names the tools, the latest
+  step and any failures. Edits show removed and added lines, Bash shows its
+  description, and file paths show the file name.
+- The Working/Idle bar and the Terminal button stay at the bottom; a button
+  returns to the latest message after scrolling up.
+- `e2e/chat.spec.ts` checks the list, table, link, grouping, failure count,
+  command, output and diff rendering. The screens were reviewed with a real
+  Claude Code transcript at 390 × 844 and 1440 × 900.
+
 ## Esc with tmux 3.6 (2026-11-05)
 
 - GitHub's `ubuntu-latest` moved to Ubuntu 26.04 with tmux 3.6a, and the mobile

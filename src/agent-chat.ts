@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 export type ChatItem =
   | { kind: 'user' | 'assistant' | 'note'; id: string; text: string; time?: string }
-  | { kind: 'tool'; id: string; name: string; summary: string; input: string; output?: string; error?: boolean; time?: string };
+  | { kind: 'tool'; id: string; name: string; summary: string; input: string; diff?: { old: string; new: string }[]; output?: string; error?: boolean; time?: string };
 export interface ChatAgent { kind: 'claude'; status: string; conversation: string; transcript: string }
 export interface ClaudeProcess { pid: number; config: string; procStart?: string }
 
@@ -88,16 +88,29 @@ const tag = (text: string, name: string) => new RegExp(`<${name}>([\\s\\S]*?)</$
 
 function toolSummary(name: string, input: unknown): string {
   const value = (input ?? {}) as Record<string, unknown>;
-  for (const key of ['command', 'file_path', 'path', 'pattern', 'url', 'query', 'description', 'prompt']) {
+  const question = Array.isArray(value.questions) ? (value.questions[0] as { question?: unknown } | undefined)?.question : undefined;
+  if (typeof question === 'string') return clip(question.split('\n')[0]!, 200);
+  // A Bash description reads better than the command; the command is in the details.
+  for (const key of [name === 'Bash' ? 'description' : '', 'command', 'file_path', 'path', 'pattern', 'url', 'query', 'description', 'prompt'].filter(Boolean)) {
     if (typeof value[key] === 'string' && value[key]) return clip(String(value[key]).split('\n')[0]!, 200);
   }
   return name;
 }
 
 const toolInput = (name: string, input: unknown) => {
-  const command = (input as { command?: unknown } | undefined)?.command;
-  return name === 'Bash' && typeof command === 'string' ? command : JSON.stringify(input ?? {}, null, 2);
+  const value = (input ?? {}) as { command?: unknown; content?: unknown };
+  if (name === 'Bash' && typeof value.command === 'string') return value.command;
+  if (name === 'Write' && typeof value.content === 'string') return value.content;
+  return JSON.stringify(input ?? {}, null, 2);
 };
+// Edits are shown as removed and added lines.
+function toolDiff(name: string, input: unknown) {
+  const value = (input ?? {}) as { old_string?: unknown; new_string?: unknown; edits?: unknown };
+  const edits = name === 'Edit' ? [value] : name === 'MultiEdit' && Array.isArray(value.edits) ? value.edits as typeof value[] : [];
+  const diff = edits.filter(edit => typeof edit.old_string === 'string' && typeof edit.new_string === 'string')
+    .slice(0, 20).map(edit => ({ old: clip(edit.old_string as string, detailLimit), new: clip(edit.new_string as string, detailLimit) }));
+  return diff.length ? { diff } : {};
+}
 
 /** Turns one transcript line into chat items. Tool results update earlier items. */
 function parse(entry: Entry, emit: (item: ChatItem) => void, result: (toolId: string, output: string, error: boolean) => void) {
@@ -128,7 +141,7 @@ function parse(entry: Entry, emit: (item: ChatItem) => void, result: (toolId: st
     const blockId = `${id}:${index}`;
     if (block.type === 'tool_result' && block.tool_use_id) result(block.tool_use_id, clip(toolText(block.content), detailLimit), !!block.is_error);
     else if (block.type === 'tool_use' && block.id) {
-      emit({ kind: 'tool', id: block.id, name: block.name ?? 'Tool', summary: toolSummary(block.name ?? '', block.input), input: clip(toolInput(block.name ?? '', block.input), detailLimit), time });
+      emit({ kind: 'tool', id: block.id, name: block.name ?? 'Tool', summary: toolSummary(block.name ?? '', block.input), input: clip(toolInput(block.name ?? '', block.input), detailLimit), ...toolDiff(block.name ?? '', block.input), time });
     } else if (block.type === 'text' && block.text?.trim()) {
       const interrupted = /^\[Request interrupted by user/.test(block.text);
       emit({ kind: entry.type === 'assistant' ? 'assistant' : interrupted ? 'note' : 'user', id: blockId, text: clip(interrupted ? 'Interrupted' : block.text, textLimit), time });

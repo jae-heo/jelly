@@ -1,58 +1,73 @@
-import { Fragment, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
-import { Check, CircleAlert, TerminalSquare } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowDown, Check, ChevronRight, CircleAlert, TerminalSquare } from 'lucide-react';
 import type { ChatAgent, ChatItem } from './api';
+import { Markdown } from './ChatMarkdown';
 import './ChatView.css';
 
-// Inline `code` and **bold**. React escapes everything else; no raw HTML.
-function inline(text: string): ReactNode[] {
-  return text.split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/).map((part, index) =>
-    part.startsWith('`') && part.endsWith('`') && part.length > 1 ? <code key={index}>{part.slice(1, -1)}</code>
-      : part.startsWith('**') && part.endsWith('**') && part.length > 4 ? <strong key={index}>{part.slice(2, -2)}</strong>
-        : <Fragment key={index}>{part}</Fragment>);
-}
+type Tool = Extract<ChatItem, { kind: 'tool' }>;
+type Row = { kind: 'item'; item: Exclude<ChatItem, Tool> } | { kind: 'tools'; tools: Tool[] };
 
-/** Enough Markdown for agent replies: paragraphs, headings, fences and tables. */
-export function Markdown({ text }: { text: string }) {
-  const blocks: ReactNode[] = [];
-  const lines = text.split('\n');
-  let paragraph: string[] = [];
-  const flush = () => {
-    if (paragraph.length) blocks.push(<p key={blocks.length}>{inline(paragraph.join('\n'))}</p>);
-    paragraph = [];
-  };
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (/^\s*```/.test(line)) {
-      flush();
-      const code: string[] = [];
-      while (++i < lines.length && !/^\s*```/.test(lines[i]!)) code.push(lines[i]!);
-      blocks.push(<pre key={blocks.length}><code>{code.join('\n')}</code></pre>);
-    } else if (/^\s*\|/.test(line)) {
-      flush();
-      const rows = [line];
-      while (i + 1 < lines.length && /^\s*\|/.test(lines[i + 1]!)) rows.push(lines[++i]!);
-      blocks.push(<pre key={blocks.length} className="chat-table">{rows.join('\n')}</pre>);
-    } else if (/^#{1,6}\s/.test(line)) {
-      flush();
-      blocks.push(<p key={blocks.length} className="chat-heading">{inline(line.replace(/^#+\s+/, ''))}</p>);
-    } else if (!line.trim()) flush();
-    else paragraph.push(line);
+// Consecutive tool calls become one collapsible row.
+function rows(items: ChatItem[]): Row[] {
+  const result: Row[] = [];
+  for (const item of items) {
+    const last = result.at(-1);
+    if (item.kind === 'tool') { if (last?.kind === 'tools') last.tools.push(item); else result.push({ kind: 'tools', tools: [item] }); }
+    else result.push({ kind: 'item', item });
   }
-  flush();
-  return <>{blocks}</>;
+  return result;
 }
 
-function Entry({ item, running }: { item: ChatItem; running: boolean }) {
-  if (item.kind === 'user') return <div className="chat-user"><p>{item.text}</p></div>;
-  if (item.kind === 'assistant') return <div className="chat-assistant"><Markdown text={item.text} /></div>;
-  if (item.kind === 'note') return <p className="chat-note">{item.text}</p>;
-  const state = item.output === undefined ? running ? <span className="chat-tool-running" aria-label="Running" /> : null
-    : item.error ? <CircleAlert size={14} className="chat-tool-error" aria-label="Failed" /> : <Check size={14} className="chat-tool-done" aria-label="Done" />;
+// A path reads best as its file name; the full path stays in the tooltip.
+const short = (summary: string) => /^\/\S+$/.test(summary) ? summary.split('/').filter(Boolean).at(-1) ?? summary : summary;
+const clock = (time?: string) => time ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+function State({ tool, running }: { tool: Tool; running: boolean }) {
+  if (tool.output === undefined) return running ? <span className="chat-spinner" aria-label="Running" /> : null;
+  return tool.error ? <CircleAlert size={14} className="chat-failed" aria-label="Failed" /> : <Check size={14} className="chat-done" aria-label="Done" />;
+}
+
+function Diff({ diff }: { diff: NonNullable<Tool['diff']> }) {
+  return <div className="chat-diff">{diff.map((edit, index) => <pre key={index}>
+    {edit.old.split('\n').map((line, row) => <span key={`o${row}`} className="removed">{line}{'\n'}</span>)}
+    {edit.new.split('\n').map((line, row) => <span key={`n${row}`} className="added">{line}{'\n'}</span>)}
+  </pre>)}</div>;
+}
+
+function ToolCall({ tool, running }: { tool: Tool; running: boolean }) {
   return <details className="chat-tool">
-    <summary><strong>{item.name}</strong><span>{item.summary}</span>{state}</summary>
-    <pre>{item.input}</pre>
-    {item.output !== undefined && <pre className={item.error ? 'chat-tool-output error' : 'chat-tool-output'}>{item.output || '(no output)'}</pre>}
+    <summary><ChevronRight size={13} className="chat-chevron" /><strong>{tool.name}</strong><span className="chat-tool-summary" title={tool.summary}>{short(tool.summary)}</span><State tool={tool} running={running} /></summary>
+    <div className="chat-tool-body">
+      {tool.diff ? <Diff diff={tool.diff} /> : <pre className={tool.name === 'Bash' ? 'chat-command' : undefined}>{tool.input}</pre>}
+      {tool.output !== undefined && <pre className={tool.error ? 'chat-output error' : 'chat-output'}>{tool.output || '(no output)'}</pre>}
+    </div>
   </details>;
+}
+
+function ToolGroup({ tools, running }: { tools: Tool[]; running: boolean }) {
+  if (tools.length === 1) return <ToolCall tool={tools[0]!} running={running} />;
+  const counts = new Map<string, number>();
+  for (const tool of tools) counts.set(tool.name, (counts.get(tool.name) ?? 0) + 1);
+  const failed = tools.filter(tool => tool.error).length;
+  const last = tools.at(-1)!;
+  const active = running && last.output === undefined;
+  return <details className="chat-tools">
+    <summary>
+      <ChevronRight size={13} className="chat-chevron" />
+      <strong>{[...counts].map(([name, count]) => count > 1 ? `${name} ×${count}` : name).join(' · ')}</strong>
+      <span className="chat-tool-summary" title={last.summary}>{short(last.summary)}</span>
+      {failed > 0 && <span className="chat-failed-count"><CircleAlert size={13} />{failed}</span>}
+      {active ? <span className="chat-spinner" aria-label="Running" /> : <Check size={14} className="chat-done" aria-label="Done" />}
+    </summary>
+    <div className="chat-tools-list">{tools.map(tool => <ToolCall key={tool.id} tool={tool} running={running} />)}</div>
+  </details>;
+}
+
+function Message({ item }: { item: Exclude<ChatItem, Tool> }) {
+  if (item.kind === 'user') return <div className="chat-user"><p>{item.text}</p>{item.time && <time dateTime={item.time}>{clock(item.time)}</time>}</div>;
+  if (item.kind === 'assistant') return <div className="chat-assistant"><Markdown text={item.text} /></div>;
+  if (item.text === 'Conversation compacted') return <p className="chat-divider"><span>{item.text}</span></p>;
+  return <p className={item.text.startsWith('/') || item.text.startsWith('! ') ? 'chat-note chat-command-note' : 'chat-note'}>{item.text}</p>;
 }
 
 export function ChatView({ agent, items, start, onLoadEarlier, onTerminal }: {
@@ -61,37 +76,47 @@ export function ChatView({ agent, items, start, onLoadEarlier, onTerminal }: {
   const scroller = useRef<HTMLDivElement>(null);
   const bottom = useRef(true);
   const restore = useRef<number | null>(null);
+  const [away, setAway] = useState(false);
+  const busy = agent.status === 'busy';
+  const toEnd = () => { const element = scroller.current; if (element) element.scrollTop = element.scrollHeight; };
   // Follow new messages only while the reader is at the end.
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element) return;
     if (restore.current !== null) { element.scrollTop = element.scrollHeight - restore.current; restore.current = null; }
-    else if (bottom.current) element.scrollTop = element.scrollHeight;
-  }, [items, agent.status]);
+    else if (bottom.current) toEnd();
+  }, [items, busy]);
   // The on-screen keyboard and rotation resize the view; keep the end in sight.
   useEffect(() => {
     const element = scroller.current;
     if (!element) return;
-    const observer = new ResizeObserver(() => { if (bottom.current) element.scrollTop = element.scrollHeight; });
+    const observer = new ResizeObserver(() => { if (bottom.current) toEnd(); });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const busy = agent.status === 'busy';
+  const last = items.at(-1);
   return <section className="chat-view" role="region" aria-label="Chat">
     <div className="chat-scroll" ref={scroller} onScroll={event => {
       const element = event.currentTarget;
       bottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+      setAway(element.scrollHeight - element.scrollTop - element.clientHeight > 400);
     }}>
-      {start > 0 && <button className="text-button chat-earlier" onClick={() => {
-        restore.current = scroller.current ? scroller.current.scrollHeight - scroller.current.scrollTop : null;
-        void onLoadEarlier().catch(() => { restore.current = null; });
-      }}>Load earlier</button>}
-      {!items.length && <p className="chat-note">No messages yet</p>}
-      {items.map(item => <Entry key={`${item.index}:${item.id}`} item={item} running={busy} />)}
-      <div className="chat-status" role="status">
-        {busy ? <><span className="chat-tool-running" />Working</> : 'Idle'}
-        <button className="text-button" onClick={onTerminal}><TerminalSquare size={14} />Terminal</button>
+      <div className="chat-thread">
+        {start > 0 && <button className="chat-earlier" onClick={() => {
+          restore.current = scroller.current ? scroller.current.scrollHeight - scroller.current.scrollTop : null;
+          void onLoadEarlier().catch(() => { restore.current = null; });
+        }}>Load earlier</button>}
+        {!items.length && <p className="chat-note">No messages yet</p>}
+        {rows(items).map(row => row.kind === 'tools'
+          ? <ToolGroup key={`t${row.tools[0]!.index}`} tools={row.tools} running={busy} />
+          : <Message key={`${row.item.index}:${row.item.id}`} item={row.item} />)}
+        {busy && last?.kind !== 'tool' && <div className="chat-typing" aria-hidden="true"><i /><i /><i /></div>}
       </div>
+    </div>
+    {away && <button className="chat-jump" aria-label="Latest messages" onClick={() => { bottom.current = true; toEnd(); }}><ArrowDown size={18} /></button>}
+    <div className="chat-status" role="status">
+      <span className={`chat-state ${busy ? 'busy' : ''}`}><i />{busy ? 'Working' : 'Idle'}</span>
+      <button className="chat-terminal" onClick={onTerminal}><TerminalSquare size={14} />Terminal</button>
     </div>
   </section>;
 }
