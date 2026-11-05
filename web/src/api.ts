@@ -42,3 +42,8 @@ export function errorMessage(error: unknown): string {
   }
   return 'Cannot reach the server. Check your Tailscale connection.';
 }
+export type ChatItem = { index: number; id: string; time?: string } & (
+  | { kind: 'user'; text: string } | { kind: 'assistant'; text: string } | { kind: 'note'; text: string }
+  | { kind: 'tool'; name: string; summary: string; input: string; output?: string; error?: boolean });
+export interface ChatAgent { kind: 'claude'; status: string; conversation: string }
+export interface ChatResponse { agent: ChatAgent | null; revision?: number; start?: number; reset?: boolean; items?: ChatItem[] }

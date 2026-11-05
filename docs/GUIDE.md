@@ -83,6 +83,13 @@ the assistant and terminal sessions, or reopen the same session from your phone.
 On a phone, use **Input** to type and the floating keyboard for Esc, Tab and Ctrl+C.
 Review each tool's permission prompts as usual.
 
+When Claude Code runs in a session on this server, the **chat** button in the
+header shows the conversation as messages: your prompts, replies and collapsed
+tool calls with their output. **Input** still types into Claude Code, and
+**Terminal** returns to the terminal, where permission prompts and menus are
+answered. Jelly remembers the view for each session on this device. Chat is not
+available for SSH sessions or Codex yet.
+
 The README demo shows the real Codex CLI with a request being composed, alongside
 an actual test run in a separate session. The [mobile video](media/mobile-codex.mp4)
 also shows input reaching Codex as you type, the floating keyboard and

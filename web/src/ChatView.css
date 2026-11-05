@@ -1,0 +1,112 @@
+/* Covers the terminal like the selection layer; the terminal stays connected below. */
+.chat-view {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: #0b1110;
+  color: #d6e3dd;
+}
+.chat-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.55;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.chat-scroll > * { max-width: 860px; width: 100%; margin-left: auto; margin-right: auto; }
+.chat-earlier { align-self: center; width: auto; min-height: 34px; }
+.chat-user { display: flex; justify-content: flex-end; }
+.chat-user p {
+  margin: 0;
+  max-width: min(85%, 640px);
+  padding: 8px 12px;
+  border-radius: 14px 14px 4px 14px;
+  background: #1f3a2b;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-assistant { overflow-wrap: anywhere; }
+.chat-assistant p { margin: 0 0 8px; white-space: pre-wrap; }
+.chat-assistant p:last-child { margin-bottom: 0; }
+.chat-assistant .chat-heading { font-weight: 650; color: #eef6f1; }
+.chat-assistant code, .chat-tool pre, .chat-assistant pre {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+.chat-assistant code { font-size: 12.5px; padding: 1px 4px; border-radius: 4px; background: #1a2822; color: #ccf8df; }
+.chat-assistant pre {
+  margin: 0 0 8px;
+  padding: 9px 11px;
+  border-radius: 7px;
+  background: #121c18;
+  border: 1px solid #22332a;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.chat-assistant pre code { padding: 0; background: none; color: inherit; }
+.chat-note { margin: 0; text-align: center; font-size: 12px; color: #75877c; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-tool { font-size: 12.5px; border-left: 2px solid #2b4032; padding-left: 9px; color: #99b2a1; }
+.chat-tool summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  cursor: pointer;
+  list-style: none;
+}
+.chat-tool summary::-webkit-details-marker { display: none; }
+.chat-tool summary strong { font-weight: 600; color: #bcd3c4; flex: none; }
+.chat-tool summary span:not(.chat-tool-running) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+.chat-tool pre {
+  margin: 6px 0;
+  padding: 8px 10px;
+  max-height: 320px;
+  overflow: auto;
+  border-radius: 6px;
+  background: #121c18;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #c3d4c9;
+}
+.chat-tool pre.error { color: #f9b4ae; }
+.chat-tool-done { color: #7fc79d; flex: none; }
+.chat-tool-error { color: #ef9a94; flex: none; }
+.chat-tool-running {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #b6eed125;
+  border-top-color: #b6eed1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.chat-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  font-size: 12px;
+  color: #75877c;
+}
+.chat-status .text-button { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; }
+@media (max-width: 720px) {
+  .chat-scroll { padding: 10px 10px 4px; font-size: 15px; }
+}

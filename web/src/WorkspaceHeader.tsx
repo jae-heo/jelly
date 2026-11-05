@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { CircleHelp, FolderOpen, TextSelect, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
+import { CircleHelp, FolderOpen, MessagesSquare, TextSelect, LogOut, Maximize, Minimize, Minus, MoreHorizontal, Pencil, Plus, RefreshCw, Server, Square, Trash2, Unplug } from 'lucide-react';
 import type { Project, Session } from './api';
 import { FONT_SIZE } from './terminalSettings';
 
 interface Props {
   project?: Project; session?: Session; hostName: string; status: string;
   live: boolean; online: boolean; sidebar: boolean; selecting: boolean; canSelect: boolean; fontSize: number;
-  canDeleteProject: boolean; canDisconnect: boolean;
+  canDeleteProject: boolean; canDisconnect: boolean; chatAvailable: boolean; chat: boolean; onChat: () => void;
   fullscreenAvailable: boolean; fullscreen: boolean; onFullscreen: () => void;
   onSidebar: () => void; onSelectText: () => void; onFontSize: (size: number) => void;
   onConnection: () => void; onNewSession: () => void; onQuickSession: () => void; onStop: () => void;
@@ -53,6 +53,7 @@ export function WorkspaceHeader(props: Props) {
     <div className="workspace-actions">
       {props.session && <>
         <button className="header-action" onClick={props.onQuickSession} title="New session (⌘Enter)" aria-label="New session"><Plus size={20} /></button>
+        {props.chatAvailable && <button className={`header-action ${props.chat ? 'active' : ''}`} onClick={props.onChat} title={props.chat ? 'Show terminal' : 'Show chat'} aria-label="Chat view" aria-pressed={props.chat}><MessagesSquare size={19} /></button>}
         <button className={`header-action select-text-action ${props.selecting ? 'active' : ''}`} onClick={props.onSelectText} disabled={!props.canSelect} title="Select text" aria-label="Select text" aria-pressed={props.selecting}><TextSelect size={19} /><span>Select text</span></button>
       </>}
       <details className="workspace-menu" ref={menu}>

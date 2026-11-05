@@ -10,6 +10,7 @@ import { FileTransfers } from './file-transfers.js';
 import { RemoteTmux } from './remote.js';
 import { sshAliases, sshTargetPattern } from './ssh-config.js';
 import { Terminals } from './terminals.js';
+import { AgentChats, claudeState, findClaude, type ClaudeProcess } from './agent-chat.js';
 import { ApiError, authorized, body, checkOrigin, failure, Id, json, Name, Size } from './http.js';
 import { serveWeb } from './web-static.js';
 
@@ -19,6 +20,11 @@ const Move = z.object({ beforeId: Id.nullable() }).strict();
 const Rename = z.object({ name: Name }).strict();
 const Adopt = z.object({ projectId: Id, name: Name }).strict();
 const StopUnregistered = z.object({ hostId: Id.nullable() }).strict();
+const ChatQuery = z.object({
+  revision: z.coerce.number().int().min(0).optional(),
+  before: z.coerce.number().int().min(0).optional(),
+  probe: z.literal('true').optional(),
+}).strict();
 const NewHost = z.object({
   name: Name,
   target: z.string().trim().regex(sshTargetPattern),
@@ -39,6 +45,17 @@ export async function startServer(config: Config) {
   const files = new FileTransfers(config, store);
   let stopping = false;
   const mutations = new MutationQueue();
+  const chats = new AgentChats();
+  const agents = new Map<string, { at: number; agent: Promise<ClaudeProcess | undefined> }>();
+  // Viewers poll; look for the agent process at most every few seconds.
+  function agent(id: string, panePid: number) {
+    const cached = agents.get(id);
+    if (cached && Date.now() - cached.at < 3000) return cached.agent;
+    for (const [key, value] of agents) if (Date.now() - value.at > 60_000) agents.delete(key);
+    const found = findClaude(panePid);
+    agents.set(id, { at: Date.now(), agent: found });
+    return found;
+  }
   const hostKey = (id: string | null) => id ?? 'local';
   function mutate<T>(key: string, action: () => Promise<T>): Promise<T> {
     // A request may finish reading its body after shutdown has begun.
@@ -232,7 +249,7 @@ export async function startServer(config: Config) {
         json(res, 200, { stopped: true });
       });
     }
-    const sessionMatch = /^\/api\/sessions\/([^/]+)(?:\/(stop|tickets|history))?$/.exec(url.pathname);
+    const sessionMatch = /^\/api\/sessions\/([^/]+)(?:\/(stop|tickets|history|chat))?$/.exec(url.pathname);
     if (sessionMatch) {
       const id = sessionMatch[1]!;
       const action = sessionMatch[2];
@@ -269,6 +286,18 @@ export async function startServer(config: Config) {
         const lines = z.coerce.number().int().min(1).max(10000).parse(url.searchParams.get('lines') ?? 1000);
         if (s.stoppedAt || !['running', 'exited', 'unreachable'].includes((await tmux.states([s])).get(id)?.status ?? '')) throw new ApiError(409, 'Session history no longer available');
         return json(res, 200, { text: await tmux.history(id, lines), format: 'plain', lines });
+      }
+      if (method === 'GET' && action === 'chat') {
+        const s = session(id);
+        const query = ChatQuery.parse(Object.fromEntries(url.searchParams));
+        // Local sessions only: Jelly reads the agent's own files on this server.
+        const state = s.stoppedAt || tmux.isRemote(id) ? undefined : (await tmux.states([s])).get(id);
+        const process = state?.status === 'running' && state.pid ? await agent(id, state.pid) : undefined;
+        const found = process && await claudeState(process);
+        if (!found) return json(res, 200, { agent: null });
+        const summary = { kind: found.kind, status: found.status, conversation: found.conversation };
+        if (query.probe) return json(res, 200, { agent: summary });
+        return json(res, 200, { agent: summary, ...(await chats.read(found.transcript, query)) });
       }
     }
     throw new ApiError(404, 'Not found');

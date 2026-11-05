@@ -2,7 +2,8 @@
 
 - This is an independent project at `/path/to/jelly`.
 - Use 줼리 as the Korean product name and Jelly as the English name.
-- Keep Jelly minimal: projects, persistent terminal sessions, HTTP/WebSocket, and the requested React web terminal. No IDE or unrelated features.
+- Keep Jelly minimal: projects, persistent terminal sessions, HTTP/WebSocket, the requested React web terminal, and a read-only chat view of agent transcripts in those sessions. No IDE or unrelated features.
+- The chat view only reads files the agent itself writes. Never install hooks, change agent settings or send input except through the terminal.
 - Keep UI copy short and factual: labels, state, and actionable errors. Avoid slogans, conversational prompts, redundant hints, and routine success notifications.
 - The web client lives in `web/`, uses React/TypeScript/Vite and xterm.js, and is served by the existing API process at the same Tailscale address.
 - Bind the backend to loopback for local development or this machine's verified Tailscale IPv4 address for remote access. Never bind to 0.0.0.0, a LAN/public address, or require Tailscale Serve/Funnel.

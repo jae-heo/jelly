@@ -49,7 +49,20 @@ localStorage (explicit remember-device selection). WebSockets use the short-live
 | POST | `/api/sessions/:id/stop` | terminate session processes, keep stopped record; idempotent |
 | DELETE | `/api/sessions/:id` | terminate session and delete record |
 | GET | `/api/sessions/:id/history?lines=1000` | `{text,format:"plain",lines}`; requested history plus current screen |
+| GET | `/api/sessions/:id/chat` | `{agent:null}` or `{agent:{kind:"claude",status,conversation},revision,items,start?,reset?}`; see below |
 | POST | `/api/sessions/:id/tickets` | `{ticket,expiresIn:30}` (201); browser WS authorization |
+
+Chat reads Claude Code's own files for a running session on this server: the
+process record `<config>/sessions/<pid>.json` of a Claude process under the
+session's shell, and the conversation `<config>/projects/…/<conversation>.jsonl`,
+where `<config>` is that process's `CLAUDE_CONFIG_DIR` or `~/.claude`. Jelly never
+writes them. SSH sessions and other agents return `{agent:null}`. Without a query,
+the latest 150 items are returned with `start` and `reset:true`. `?revision=n`
+returns items added or changed since `n` (a tool result updates its tool item);
+`reset:true` means start over. `?before=i` returns up to 150 items before index
+`i`. `?probe=true` returns only `agent`. Items are
+`{index,id,kind:"user"|"assistant"|"note",text}` or
+`{index,id,kind:"tool",name,summary,input,output?,error?}`; long text is shortened.
 
 Host: `{id,name,target,port,identityFile,createdAt}`. `target` is an OpenSSH alias or `[user@]hostname`;
 it must not contain whitespace, shell syntax or SSH flags. Port is 1–65535 or null (use SSH config).

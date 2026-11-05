@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-01.
+Last automated verification: 2026-11-04.
 
 ## Verification sources
 
@@ -10,6 +10,24 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Chat view for Claude Code (2026-11-04)
+
+- The server finds Claude Code under a local session's shell through Claude's own
+  `sessions/<pid>.json` record, checks the process start time against `/proc` so a
+  reused PID never matches, and reads the conversation transcript incrementally.
+  It never writes Claude's files. Thinking, system reminders, meta entries and
+  subagent entries are left out. Tool results update their tool item.
+- `test/agent-chat.test.ts` covers process discovery through a wrapper, stale
+  records, unusual folder names, rejected conversation IDs, partial last lines,
+  incremental revisions, paging and rewritten files.
+- `e2e/chat.spec.ts`, in Chromium and WebKit, runs `test/fake-claude.mjs` in a
+  real session. It checks rendering (Markdown without HTML, collapsed tools,
+  hidden entries), sending through Input to the terminal and the reply,
+  Working/Idle status, the view kept after reload, `/clear` switching
+  conversations, Reconnect shown above the chat after disconnecting, and no chat button
+  for a plain shell.
+- Checked against a real 6 MB Claude Code transcript: the first read took 23 ms.
 
 ## Copy by dragging in the terminal (2026-11-01)
 

@@ -13,6 +13,8 @@ import { HostManager } from './Hosts';
 import { WorkspaceHeader } from './WorkspaceHeader';
 import { TerminalControls, type TerminalControlsHandle } from './TerminalControls';
 import { TerminalSelection } from './TerminalSelection';
+import { ChatView } from './ChatView';
+import { useAgentChat } from './useAgentChat';
 import { FONT_SIZE_KEY, storedFontSize } from './terminalSettings';
 import { useWorkspaceViewport } from './useWorkspaceViewport';
 import { useFullscreen } from './useFullscreen';
@@ -43,6 +45,8 @@ export function App() {
   const [connection, setConnection] = useState<Connection>('connecting');
   const [fontSize, setFontSize] = useState(storedFontSize);
   const [selection, setSelection] = useState<{ sessionId: string; text: string } | null>(null);
+  // Sessions shown as chat, remembered per session on this device.
+  const [chatIds, setChatIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('jelly-chat-sessions') ?? '[]'); } catch { return []; } });
   const terminal = useRef<TerminalHandle>(null);
   const creatingSession = useRef(false);
   const selectionVersion = useRef(0);
@@ -64,6 +68,10 @@ export function App() {
   }, [fontSize]);
   useEffect(() => { setSelection(null); }, [sessionId, token, attached, revision]);
   useWorkspaceViewport(!!token);
+  useEffect(() => {
+    const ids = chatIds.filter(id => sessions.some(s => s.id === id));
+    try { localStorage.setItem('jelly-chat-sessions', JSON.stringify(sessions.length ? ids : chatIds)); } catch { /* Keep the in-memory preference. */ }
+  }, [chatIds, sessions]);
 
   const project = projects.find(p => p.id === projectId);
   const session = sessions.find(s => s.id === sessionId && s.projectId === projectId);
@@ -71,6 +79,16 @@ export function App() {
   const newSessionProject = projects.find(p => p.id === newSessionProjectId);
   const hasTerminal = session?.status === 'running' || session?.status === 'unreachable';
   const canInput = hasTerminal && attached && connection === 'connected';
+  const chatPreferred = !!session && chatIds.includes(session.id);
+  const chat = useAgentChat(token, session?.status === 'running' && !project?.hostId ? session.id : null, chatPreferred);
+  const chatOpen = chatPreferred && !!chat.agent && hasTerminal;
+  function toggleChat() {
+    if (!session) return;
+    setSelection(null);
+    setChatIds(ids => ids.includes(session.id) ? ids.filter(id => id !== session.id) : [...ids, session.id]);
+    // Typing goes through Input; on touch screens, wait for the user to tap it.
+    if (!chatPreferred && matchMedia('(pointer: fine)').matches) controls.current?.focus();
+  }
   const openDialog = (value: Dialog) => { setSelection(null); setFormError(''); setDialog(value); };
   function openRename(kind: 'project' | 'session', target = kind === 'project' ? project : session) {
     if (!target) return;
@@ -175,7 +193,7 @@ export function App() {
   return <div className="workspace">
     <WorkspaceHeader project={project} session={session} hostName={hosts.find(host => host.id === project?.hostId)?.target ?? 'This server'}
       status={session ? (hasTerminal && (session.status === 'running' || connection === 'connected') ? connectionLabels[connection] : stateLabels[session.status]) : online ? 'Server connected' : 'Checking connection'}
-      live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} selecting={!!selection} canSelect={canInput}
+      live={session ? canInput : online} online={online} sidebar={sidebar} fontSize={fontSize} selecting={!!selection} canSelect={canInput && !chatOpen} chatAvailable={!!chat.agent && hasTerminal} chat={chatOpen} onChat={toggleChat}
       fullscreenAvailable={screen.available} fullscreen={screen.fullscreen} onFullscreen={() => void screen.toggle()}
       canDeleteProject={!!project} canDisconnect={attached && !['taken', 'ended'].includes(connection)}
       onSidebar={() => setSidebar(!sidebar)} onSelectText={selectText} onFontSize={setFontSize}
@@ -208,6 +226,7 @@ export function App() {
             <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} onCopyBlocked={() => setNotice('Press ⌘C to copy the selection.')} /></Suspense>
             {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH host unreachable</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />Check again</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>Session ended</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />New session</button></div>}
             {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? 'In use on another device' : 'Disconnected'}</h2><p>Session running</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />Reconnect</button></div></div>}
+            {chatOpen && chat.agent && <ChatView key={`${session?.id}:${chat.agent.conversation}`} agent={chat.agent} items={chat.items} start={chat.start} onLoadEarlier={chat.loadEarlier} onTerminal={toggleChat} />}
             {selection && selection.sessionId === session?.id && <TerminalSelection key={selection.sessionId} text={selection.text} terminal={terminal} fontSize={fontSize} onClose={() => setSelection(null)} />}
           </div>
           {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput && !selection} terminal={terminal} onPaste={() => openDialog('paste')} />}
