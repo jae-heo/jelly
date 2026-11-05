@@ -52,7 +52,10 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: rendering
     }, { token, project: project.id, session: session.id });
     await page.goto('/');
     await expect(page.locator('.connection-label')).toHaveText('Connected');
-    await page.evaluate(() => (window as any).flowCommand("head -c 2097152 /dev/zero | tr '\\000' x; printf '\\nBROWSER_FLOW_%s_한글😀\\n' DONE\r"));
+    // tmux sends screen updates, not raw output, and skips frames for a slow
+    // reader; a fixed amount of output can reach the browser as little as a
+    // few KB. Keep producing until the test interrupts it.
+    await page.evaluate(() => (window as any).flowCommand("yes 'flow xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'\r"));
     await expect.poll(() => page.evaluate(() => (window as any).flowOffset())).toBeGreaterThanOrEqual(128 * 1024);
     await page.waitForTimeout(200);
     const paused = await page.evaluate(() => (window as any).flowOffset());
@@ -61,6 +64,8 @@ for (const remote of [false, true]) test(`${remote ? 'SSH' : 'local'}: rendering
     expect(paused).toBeLessThanOrEqual(512 * 1024);
     expect(acks).toBe(0);
     await page.evaluate(() => (window as any).flowRelease());
+    await page.evaluate(() => (window as any).flowCommand("\x03"));
+    await page.evaluate(() => (window as any).flowCommand("printf '\\nBROWSER_FLOW_%s_한글😀\\n' DONE\r"));
     await expect(page.locator('.terminal-slot:visible .xterm-rows')).toContainText('BROWSER_FLOW_DONE_한글😀');
     expect(acks).toBeGreaterThan(0);
     expect(connections).toBe(1);

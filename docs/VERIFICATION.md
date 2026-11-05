@@ -41,6 +41,11 @@ not to the maintainer's device testing.
   within 250 ms three times. It fails against tmux 3.6a without the reply.
 - WebKitGTK on Ubuntu 26.04 replaces spaces in a download's suggested name
   with `_`, although Jelly sends the exact name. The download test accepts either.
+- The output flow test printed a fixed 2 MB and expected at least 128 KB to
+  reach the browser before acknowledgements paused it. tmux sends screen updates
+  and skips frames for a slow reader: with a client pausing 5–20 ms per read,
+  the same flood reached it as 13–38 KB on both tmux 3.2a and 3.6a, so slower CI
+  runners failed intermittently. The test now runs `yes` until it interrupts it.
 
 ## Chat view for Claude Code (2026-11-04)
 
