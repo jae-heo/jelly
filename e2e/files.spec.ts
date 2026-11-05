@@ -57,7 +57,9 @@ for (const remote of [false, true]) test(`project files: ${remote ? 'SSH' : 'loc
     const downloading = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download', exact: true }).click();
     const download = await downloading;
-    expect(download.suggestedFilename()).toBe('보고서 & note.txt');
+    // WebKitGTK on Ubuntu 26.04 replaces spaces in suggested names with "_";
+    // Chromium and Safari keep the name Jelly sends.
+    expect(download.suggestedFilename()).toMatch(/^보고서[ _]&[ _]note\.txt$/);
     expect(await download.failure()).toBeNull();
     expect((await contents(download)).toString('utf8')).toContain('한글 🙂');
     await page.getByRole('button', { name: 'Back', exact: true }).click();

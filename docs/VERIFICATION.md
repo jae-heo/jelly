@@ -24,6 +24,8 @@ not to the maintainer's device testing.
   3.2a.
 - `e2e/terminal-queries.spec.ts` checks the reply and that Esc leaves copy mode
   within 250 ms three times. It fails against tmux 3.6a without the reply.
+- WebKitGTK on Ubuntu 26.04 replaces spaces in a download's suggested name
+  with `_`, although Jelly sends the exact name. The download test accepts either.
 
 ## Chat view for Claude Code (2026-11-04)
 
