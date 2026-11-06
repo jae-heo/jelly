@@ -11,6 +11,22 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## Chat view prompt (2026-11-05)
+
+- On a phone, Input is one row and is cleared when the keyboard closes, while
+  the text stays in Claude Code's prompt behind the chat. The chat now shows that
+  prompt above the status bar. It is read from the terminal screen in the
+  browser: the rows between the last two rules near the bottom that start with
+  `❯`. Dim cells, such as the placeholder, are ignored; anything else, such as a
+  permission menu, shows nothing.
+- With a real Claude Code 2.1 in a scratch tmux socket, the prompt was a rule,
+  `❯` and the draft with two-column continuation rows, a rule and a footer, and
+  the placeholder was dim.
+- `test/fake-claude.mjs` draws the same layout. `e2e/chat.spec.ts` checks that
+  the placeholder is not shown, the draft appears while typing and clears on
+  Enter, and a draft left after Input is cleared stays visible across wrapped
+  rows. The screen was reviewed at 390 × 700.
+
 ## Chat view readability (2026-11-05)
 
 - Replies render headings, bullet and numbered lists (one nested level),

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react';
-import { Terminal } from '@xterm/xterm';
+import { Terminal, type IBufferCell } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { terminalConnection } from './terminalConnection';
 import { terminalGeometry } from './terminalGeometry';
@@ -9,7 +9,7 @@ import './TerminalViewport.css';
 import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
 export type Connection = 'connecting' | 'connected' | 'retrying' | 'disconnected' | 'taken' | 'ended';
-export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void; visibleText: () => string | undefined; selectScroll: (surface: HTMLElement, update: (text: string) => void) => (() => void) | undefined }
+export interface TerminalHandle { chord: (key: string, modifiers: KeyModifiers) => void; send: (data: string) => void; pressKey: (key: TerminalKey) => void; paste: (data: string) => void; focus: () => void; visibleText: () => string | undefined; watchScreen: (update: (rows: string[]) => void) => (() => void) | undefined; selectScroll: (surface: HTMLElement, update: (text: string) => void) => (() => void) | undefined }
 interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
@@ -55,6 +55,34 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     paste: data => { stopScroll.current(); if (callbacks.current.active) termRef.current?.paste(data); },
     focus: () => { if (callbacks.current.active) termRef.current?.focus(); },
     visibleText: () => { stopScroll.current(); return visibleText(); },
+    watchScreen: update => {
+      const term = termRef.current;
+      if (!term) return;
+      let frame = 0;
+      // Rows of the live screen with dim cells (placeholders, hints) left blank.
+      const read = () => {
+        frame = 0;
+        const buffer = term.buffer.active;
+        const rows: string[] = [];
+        for (let row = 0; row < term.rows; row++) {
+          const line = buffer.getLine(buffer.baseY + row);
+          let text = '';
+          let cell: IBufferCell | undefined;
+          for (let column = 0; line && column < term.cols; column++) {
+            cell = line.getCell(column, cell);
+            if (!cell || !cell.getWidth()) continue;
+            text += cell.isDim() ? ' '.repeat(cell.getWidth()) : cell.getChars() || ' ';
+          }
+          rows.push(text.trimEnd());
+        }
+        update(rows);
+      };
+      const schedule = () => { if (!frame) frame = requestAnimationFrame(read); };
+      const write = term.onWriteParsed(schedule);
+      const resize = term.onResize(schedule);
+      read();
+      return () => { cancelAnimationFrame(frame); write.dispose(); resize.dispose(); };
+    },
     selectScroll: (surface, update) => {
       const term = termRef.current;
       if (!term) return;

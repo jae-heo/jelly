@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { ArrowDown, Check, ChevronRight, CircleAlert, TerminalSquare } from 'lucide-react';
 import type { ChatAgent, ChatItem } from './api';
 import { Markdown } from './ChatMarkdown';
+import { agentDraft } from './agentDraft';
+import type { TerminalHandle } from './TerminalView';
 import './ChatView.css';
 
 type Tool = Extract<ChatItem, { kind: 'tool' }>;
@@ -70,13 +72,22 @@ function Message({ item }: { item: Exclude<ChatItem, Tool> }) {
   return <p className={item.text.startsWith('/') || item.text.startsWith('! ') ? 'chat-note chat-command-note' : 'chat-note'}>{item.text}</p>;
 }
 
-export function ChatView({ agent, items, start, onLoadEarlier, onTerminal }: {
+export function ChatView({ agent, items, start, onLoadEarlier, onTerminal, terminal, live }: {
   agent: ChatAgent; items: ChatItem[]; start: number; onLoadEarlier: () => Promise<void>; onTerminal: () => void;
+  terminal: RefObject<TerminalHandle | null>; live: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const bottom = useRef(true);
   const restore = useRef<number | null>(null);
   const [away, setAway] = useState(false);
+  // What is typed into the agent's prompt, read from the terminal screen.
+  const [draft, setDraft] = useState('');
+  const draftBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!live) return;
+    return terminal.current?.watchScreen(rows => setDraft(agentDraft(rows) ?? ''));
+  }, [terminal, live]);
+  useLayoutEffect(() => { if (draftBox.current) draftBox.current.scrollTop = draftBox.current.scrollHeight; }, [draft]);
   const busy = agent.status === 'busy';
   const toEnd = () => { const element = scroller.current; if (element) element.scrollTop = element.scrollHeight; };
   // Follow new messages only while the reader is at the end.
@@ -96,24 +107,27 @@ export function ChatView({ agent, items, start, onLoadEarlier, onTerminal }: {
   }, []);
   const last = items.at(-1);
   return <section className="chat-view" role="region" aria-label="Chat">
-    <div className="chat-scroll" ref={scroller} onScroll={event => {
-      const element = event.currentTarget;
-      bottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
-      setAway(element.scrollHeight - element.scrollTop - element.clientHeight > 400);
-    }}>
-      <div className="chat-thread">
-        {start > 0 && <button className="chat-earlier" onClick={() => {
-          restore.current = scroller.current ? scroller.current.scrollHeight - scroller.current.scrollTop : null;
-          void onLoadEarlier().catch(() => { restore.current = null; });
-        }}>Load earlier</button>}
-        {!items.length && <p className="chat-note">No messages yet</p>}
-        {rows(items).map(row => row.kind === 'tools'
-          ? <ToolGroup key={`t${row.tools[0]!.index}`} tools={row.tools} running={busy} />
-          : <Message key={`${row.item.index}:${row.item.id}`} item={row.item} />)}
-        {busy && last?.kind !== 'tool' && <div className="chat-typing" aria-hidden="true"><i /><i /><i /></div>}
+    <div className="chat-body">
+      <div className="chat-scroll" ref={scroller} onScroll={event => {
+        const element = event.currentTarget;
+        bottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48;
+        setAway(element.scrollHeight - element.scrollTop - element.clientHeight > 400);
+      }}>
+        <div className="chat-thread">
+          {start > 0 && <button className="chat-earlier" onClick={() => {
+            restore.current = scroller.current ? scroller.current.scrollHeight - scroller.current.scrollTop : null;
+            void onLoadEarlier().catch(() => { restore.current = null; });
+          }}>Load earlier</button>}
+          {!items.length && <p className="chat-note">No messages yet</p>}
+          {rows(items).map(row => row.kind === 'tools'
+            ? <ToolGroup key={`t${row.tools[0]!.index}`} tools={row.tools} running={busy} />
+            : <Message key={`${row.item.index}:${row.item.id}`} item={row.item} />)}
+          {busy && last?.kind !== 'tool' && <div className="chat-typing" aria-hidden="true"><i /><i /><i /></div>}
+        </div>
       </div>
+      {away && <button className="chat-jump" aria-label="Latest messages" onClick={() => { bottom.current = true; toEnd(); }}><ArrowDown size={18} /></button>}
     </div>
-    {away && <button className="chat-jump" aria-label="Latest messages" onClick={() => { bottom.current = true; toEnd(); }}><ArrowDown size={18} /></button>}
+    {draft && <div className="chat-draft" ref={draftBox} role="group" aria-label="Prompt"><p>{draft}</p></div>}
     <div className="chat-status" role="status">
       <span className={`chat-state ${busy ? 'busy' : ''}`}><i />{busy ? 'Working' : 'Idle'}</span>
       <button className="chat-terminal" onClick={onTerminal}><TerminalSquare size={14} />Terminal</button>

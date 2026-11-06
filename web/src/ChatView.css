@@ -14,6 +14,7 @@
   font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+.chat-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .chat-scroll {
   flex: 1;
   min-height: 0;
@@ -156,6 +157,26 @@ details[open] > summary > .chat-chevron { transform: rotate(90deg); }
   animation: spin 1s linear infinite;
 }
 
+/* What is typed into the agent's prompt, until it is sent */
+.chat-draft {
+  flex: none;
+  max-height: 38%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 20px;
+  border-top: 1px solid var(--chat-line);
+  background: #0e1613;
+}
+.chat-draft p {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-left: 10px;
+  border-left: 2px solid #6fae8d;
+  color: #e6f1ea;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Working indicator, jump button and status bar */
 .chat-typing { display: flex; gap: 5px; padding: 6px 2px; }
 .chat-typing i { width: 7px; height: 7px; border-radius: 50%; background: #6fae8d; animation: chat-dot 1.2s infinite ease-in-out; }
@@ -165,7 +186,7 @@ details[open] > summary > .chat-chevron { transform: rotate(90deg); }
 .chat-jump {
   position: absolute;
   right: 16px;
-  bottom: 54px;
+  bottom: 14px;
   width: 38px;
   height: 38px;
   display: grid;
@@ -214,6 +235,7 @@ details[open] > summary > .chat-chevron { transform: rotate(90deg); }
 }
 @media (max-width: 720px) {
   .chat-thread { padding: 12px 12px 10px; gap: 12px; }
+  .chat-draft { padding: 7px 12px; }
   .chat-user p { max-width: 88%; }
   .chat-status { min-height: 38px; padding-left: 13px; }
 }

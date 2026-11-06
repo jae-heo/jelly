@@ -74,12 +74,27 @@ test('chat view shows a Claude Code transcript and sends input through the termi
 
     // Input still goes to the terminal; the reply arrives from the transcript.
     const input = page.getByRole('textbox', { name: 'Input', exact: true });
+    // The agent's prompt is shown while typing; its dim placeholder is not.
+    const prompt = chat.getByRole('group', { name: 'Prompt' });
+    await expect(prompt).toHaveCount(0);
     await input.fill('hello chat 한글');
+    await expect(prompt).toHaveText('hello chat 한글');
     await input.press('Enter');
+    await expect(prompt).toHaveCount(0);
     await expect(chat.locator('.chat-user p').last()).toHaveText('hello chat 한글');
     await expect(chat.getByRole('status')).toContainText('Working');
     await expect(chat.locator('.chat-assistant').last()).toHaveText('Echo: hello chat 한글');
     await expect(chat.getByRole('status')).toContainText('Idle');
+
+    // Text left in the prompt stays visible after Input is cleared, and long
+    // drafts keep the rows the agent wrapped them into.
+    const long = `draft-${'x'.repeat(400)}-end`;
+    await input.fill(long);
+    await input.press('Tab');
+    await expect(input).toHaveValue('');
+    await expect.poll(async () => (await prompt.innerText()).split('\n').length).toBeGreaterThan(1);
+    expect((await prompt.innerText()).replace(/\n/g, '')).toBe(long);
+    await input.press('Control+u');
 
     // The choice is kept per session on this device.
     await page.reload();

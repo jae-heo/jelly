@@ -87,8 +87,8 @@ When Claude Code runs in a session on this server, the **chat** button in the
 header shows the conversation as messages: your prompts and replies with
 lists, tables and code, and tool calls grouped into one collapsed row per run.
 Open a row for each command and its output, or an edit as removed and added
-lines. **Input** still types into Claude Code, and
-**Terminal** returns to the terminal, where permission prompts and menus are
+lines. **Input** still types into Claude Code; what Claude Code's prompt
+holds is shown above the status bar, including text left there earlier. **Terminal** returns to the terminal, where permission prompts and menus are
 answered. Jelly remembers the view for each session on this device. Chat is not
 available for SSH sessions or Codex yet.
 
