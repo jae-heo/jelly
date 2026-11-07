@@ -79,6 +79,9 @@ test('font changes preserve the live connection; compact controls retain input a
     await expect(page.locator('.xterm-rows')).toHaveCSS('font-size', '17px');
     await page.getByRole('button', { name: 'Reset font size', exact: true }).click();
     await expect(page.locator('.xterm-rows')).toHaveCSS('font-size', '14px');
+    // The grid follows the font after a short delay. Type once it has settled:
+    // a resize landing with Enter can make the shell redraw over the command.
+    await expect.poll(async () => (await call(`/sessions/${session.id}`)).cols).toBe(before.cols);
     await page.keyboard.press('Escape');
     const input = page.getByRole('textbox', { name: 'Input', exact: true });
     await page.getByRole('textbox', { name: 'Input', exact: true }).focus();

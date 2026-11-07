@@ -18,6 +18,14 @@ not to the maintainer's device testing.
   stays focused. The shared `sendVirtualKey` helper opens the panel when needed
   and expects it to close. The keys, controls, keyboard viewport, workspace,
   quick session and switch viewport tests pass.
+- The next CI run failed `e2e/controls.spec.ts` once: the command was typed and
+  Enter sent, then a new prompt appeared without the command's output.
+  Recording the WebSocket frames showed the resize that follows the font reset
+  arriving about 200 ms later, after the command was typed, independent of the
+  panel. The screen at the failure held a row from the earlier 33-column grid,
+  as tmux shows when the grid grows. The test now waits for the grid to return
+  to its original width before typing. The failure did not reproduce locally in
+  28 runs, including 10 with tmux 3.6a and 10 with every CPU busy.
 
 ## Chat view prompt (2026-11-05)
 
