@@ -63,27 +63,25 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     for (const [button, key] of [['Esc', 'Escape'], ['Tab', 'Tab'], ['Enter', 'Enter'], ['Ctrl C', 'Control+c'], ['Ctrl R', 'Control+r']]) {
       await compare(button!, key!);
     }
-    await page.getByRole('button', { name: 'Open shortcuts', exact: true }).tap();
     for (const application of [false, true]) {
       if (application) {
         await capture(() => physical.press('Control+n'));
         await expect(page.locator('.xterm-rows')).toContainText('MODE_APPLICATION');
       }
-      await page.getByRole('button', { name: 'Navigate', exact: true }).tap();
       for (const [button, key] of [['Up arrow', 'ArrowUp'], ['Left arrow', 'ArrowLeft'], ['Home', 'Home'], ['End', 'End'], ['Page Up', 'PageUp'], ['Delete', 'Delete'], ['Backspace', 'Backspace'], ['Shift Tab', 'Shift+Tab']]) {
         await compare(button!, key!);
       }
     }
-    await page.getByRole('button', { name: 'Letters', exact: true }).tap();
     for (const letter of ['A', 'D', 'G', 'U', 'W', 'Z']) await compare(`Ctrl ${letter}`, `Control+${letter.toLowerCase()}`);
-    await page.getByRole('button', { name: 'F1–F12', exact: true }).tap();
     for (const key of ['F1', 'F4', 'F5', 'F10', 'F12']) await compare(key, key);
     expect(await capture(() => physical.press('Shift+Enter'))).toBe('1b5b31333b3275');
     // Paste remains explicit and does not append Enter or run a command.
+    await page.getByRole('button', { name: 'Open shortcuts', exact: true }).tap();
     await page.getByRole('button', { name: 'Paste text', exact: true }).tap();
     await page.getByLabel('Text to paste').fill('paste-check');
     expect(await capture(() => page.getByRole('button', { name: 'Send to terminal', exact: true }).click())).toBe(Buffer.from('paste-check').toString('hex'));
     await page.setViewportSize({ width: 320, height: 520 });
+    await page.getByRole('button', { name: 'F1–F12', exact: true }).tap();
     await expect(page.getByRole('button', { name: 'F12', exact: true })).toBeInViewport();
     await expect(page.getByRole('button', { name: 'Hide keyboard', exact: true })).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -102,12 +100,12 @@ test('virtual keyboard matches physical terminal keys and preserves input focus'
     await page.waitForTimeout(150);
     expect(readFileSync(log).length).toBe(beforeSelection);
     expect(await capture(() => page.getByRole('button', { name: 'Send key combination', exact: true }).tap())).toBe('14');
-    await expect(page.getByRole('button', { name: 'Send key combination', exact: true })).toBeDisabled();
+    // Sending closes the panel and keeps typing in Input.
+    await expect(page.getByRole('region', { name: 'Virtual keyboard', exact: true })).toHaveCount(0);
     await expect(inputField).toBeFocused();
     for (const [button, physicalKey] of [['Alt+c', 'Alt+c'], ['Shift+c', 'Shift+C'], ['Ctrl+Up arrow', 'Control+ArrowUp'], ['Shift+Enter', 'Shift+Enter']]) {
       await compare(button!, physicalKey!);
     }
-    await page.getByRole('button', { name: 'Close shortcuts', exact: true }).tap();
     await page.getByRole('button', { name: 'Hide keyboard', exact: true }).tap();
     expect(await capture(() => inputField.fill('line'))).toBe(Buffer.from('line').toString('hex'));
     expect(await capture(() => inputField.press('Shift+Enter'))).toBe('1b5b31333b3275');

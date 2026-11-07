@@ -19,7 +19,7 @@ export const TerminalControls = forwardRef<TerminalControlsHandle, {
     // Cancelling pointerdown also suppresses touch clicks in WebKit.
     if (event.button === 0 && (event.target as Element).closest('button:not(:disabled)')) event.preventDefault();
   }}>
-    {keyboard && <VirtualKeyboard enabled={enabled} onSend={(key, modifiers) => run(() => terminal.current?.chord(key, modifiers))} onPaste={() => run(onPaste)} />}
+    {keyboard && <VirtualKeyboard enabled={enabled} onSend={(key, modifiers) => { run(() => terminal.current?.chord(key, modifiers)); setKeyboard(false); }} onPaste={() => run(onPaste)} />}
     <TerminalInput ref={input} enabled={enabled} terminal={terminal} actions={keyboardButton} />
   </div>;
 });

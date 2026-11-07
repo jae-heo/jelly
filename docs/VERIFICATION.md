@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-05.
+Last automated verification: 2026-11-06.
 
 ## Verification sources
 
@@ -10,6 +10,14 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Shortcut panel closes after Send (2026-11-06)
+
+- **Send** in the floating key panel now closes the panel; Input keeps focus.
+- `e2e/keys.spec.ts` checks that the panel closes after Send and that Input
+  stays focused. The shared `sendVirtualKey` helper opens the panel when needed
+  and expects it to close. The keys, controls, keyboard viewport, workspace,
+  quick session and switch viewport tests pass.
 
 ## Chat view prompt (2026-11-05)
 

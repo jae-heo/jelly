@@ -106,7 +106,7 @@ In the terminal and input, **Shift+Enter** is delivered as a separate key.
 Applications can use it for newlines; the running program determines its behavior.
 
 The **⌘ button** opens a compact floating panel. Select a key and modifiers
-such as Ctrl, Alt or Shift, then press **Send**. Selection alone sends nothing.
+such as Ctrl, Alt or Shift, then press **Send**, which also closes the panel. Selection alone sends nothing.
 Opening the panel does not resize or rearrange the terminal. Switching sessions
 clears the selected combination.
 
