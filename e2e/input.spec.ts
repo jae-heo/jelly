@@ -122,6 +122,27 @@ test('input: native composition, Korean fallback, ordered controls, edits and se
     await inputField.fill('mobile');
     await inputField.evaluate(field => field.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertLineBreak' })));
     await expected(start, 'mobile\r');
+
+    // Leaving Input keeps text that is still typed in the terminal, and later
+    // edits continue from it. Typing straight into the terminal clears it.
+    start = readFileSync(log).length;
+    await inputField.fill('keep');
+    await page.getByRole('button', { name: 'Hide keyboard', exact: true }).tap();
+    await expect(inputField).not.toBeFocused();
+    await expect(inputField).toHaveValue('keep');
+    await inputField.tap();
+    await inputField.fill('keeps');
+    await expected(start, 'keeps');
+    // Leaving during composition commits the syllable once.
+    for (const value of ['ㄱ', '가']) await compose(value);
+    await inputField.evaluate(field => (field as HTMLTextAreaElement).blur());
+    await expected(start, 'keeps가');
+    await expect(inputField).toHaveValue('keeps가');
+    await page.getByLabel('Terminal input', { exact: true }).press('Control+g');
+    await expected(start, 'keeps가\x07');
+    await expect(inputField).toHaveValue('');
+    await inputField.tap();
+    await inputField.press('Control+u');
     await page.getByRole('button', { name: 'Hide keyboard', exact: true }).tap();
     await expect(inputField).not.toBeFocused();
     await expect(inputField).toBeVisible();

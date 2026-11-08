@@ -100,7 +100,9 @@ switching back to Codex.
 ## Input
 
 **Input** sends text as you type, after IME composition. Enter submits to the
-terminal. Unicode input, including Korean, is supported.
+terminal. Unicode input, including Korean, is supported. Text stays in Input
+when you tap elsewhere or hide the keyboard, matching what the terminal holds;
+typing directly in the terminal clears it.
 
 In the terminal and input, **Shift+Enter** is delivered as a separate key.
 Applications can use it for newlines; the running program determines its behavior.

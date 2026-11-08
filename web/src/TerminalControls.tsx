@@ -4,13 +4,13 @@ import { TerminalInput, type TerminalInputHandle } from './TerminalInput';
 import { VirtualKeyboard } from './VirtualKeyboard';
 import type { TerminalHandle } from './TerminalView';
 
-export interface TerminalControlsHandle { focus: () => void }
+export interface TerminalControlsHandle { focus: () => void; reset: () => void }
 export const TerminalControls = forwardRef<TerminalControlsHandle, {
   enabled: boolean; terminal: RefObject<TerminalHandle | null>; onPaste: () => void;
 }>(function TerminalControls({ enabled, terminal, onPaste }, ref) {
   const [keyboard, setKeyboard] = useState(false);
   const input = useRef<TerminalInputHandle>(null);
-  useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focus: () => input.current?.focus(), reset: () => input.current?.reset() }), []);
   const run = (action: () => void) => { if (enabled) input.current?.run(action); };
   const keyboardButton = <button type="button" className={`dock-toggle ${keyboard ? 'active' : ''}`} aria-label={keyboard ? 'Close shortcuts' : 'Open shortcuts'}
     title={keyboard ? 'Close shortcuts' : 'Shortcuts'} aria-expanded={keyboard} aria-controls="terminal-virtual-keyboard" onClick={() => setKeyboard(!keyboard)}><Command size={19} aria-hidden="true" /></button>;

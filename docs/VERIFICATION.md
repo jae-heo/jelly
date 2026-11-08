@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-06.
+Last automated verification: 2026-11-08.
 
 ## Verification sources
 
@@ -10,6 +10,19 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Input keeps its text when it loses focus (2026-11-08)
+
+- Leaving Input (tapping the chat, hiding the keyboard) used to clear the field
+  while the text stayed typed in the terminal. Input now keeps it, and later
+  edits continue from it. A composition the blur ends is committed once.
+- Keys, IME text or a paste typed directly in the terminal clear Input, so it
+  never shows text the terminal no longer holds. Enter, virtual keys and
+  switching sessions clear it as before.
+- `e2e/input.spec.ts` checks the kept text, a continued edit, a syllable
+  committed by blur, and clearing on direct terminal typing.
+  `e2e/chat.spec.ts` checks that tapping the conversation keeps the text in
+  Input and in the prompt area.
 
 ## Shortcut panel closes after Send (2026-11-06)
 

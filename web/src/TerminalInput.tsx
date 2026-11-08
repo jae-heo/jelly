@@ -4,16 +4,16 @@ import { inputDelta, inputTarget } from './inputText';
 import type { TerminalHandle } from './TerminalView';
 import type { TerminalKey } from './terminalKeys';
 
-export interface TerminalInputHandle { focus: () => void; run: (action: () => void) => void }
+export interface TerminalInputHandle { focus: () => void; run: (action: () => void) => void; reset: () => void }
 interface Props { actions?: React.ReactNode; enabled: boolean; terminal: React.RefObject<TerminalHandle | null> }
 
 export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function TerminalInput(props, ref) {
   const field = useRef<HTMLTextAreaElement>(null);
   const current = useRef(props);
   current.current = props;
-  const actions = useRef<TerminalInputHandle>({ focus: () => {}, run: () => {} });
+  const actions = useRef<Omit<TerminalInputHandle, 'reset'>>({ focus: () => {}, run: () => {} });
   const reset = useRef(() => {});
-  useImperativeHandle(ref, () => ({ focus: () => actions.current.focus(), run: action => actions.current.run(action) }), []);
+  useImperativeHandle(ref, () => ({ focus: () => actions.current.focus(), run: action => actions.current.run(action), reset: () => reset.current() }), []);
 
   useLayoutEffect(() => {
     const input = field.current!;
@@ -119,7 +119,13 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
       const value = event.clipboardData.getData('text/plain');
       finish(() => current.current.terminal.current?.paste(value));
     };
-    const onBlur = () => { if (!finishing) finish(() => {}); };
+    // Leaving Input keeps its text, which is still typed in the terminal.
+    // Only commit what the blur ended; later edits continue from it.
+    const onBlur = () => {
+      if (finishing || !available()) return;
+      composing = false;
+      settle(0);
+    };
     input.addEventListener('compositionstart', onStart);
     input.addEventListener('compositionend', onEnd);
     input.addEventListener('input', onInput);
@@ -146,6 +152,6 @@ export const TerminalInput = forwardRef<TerminalInputHandle, Props>(function Ter
     <textarea ref={field} aria-label="Input" placeholder="Input" rows={1} maxLength={16384} disabled={!props.enabled}
       autoCorrect="off" autoCapitalize="off" autoComplete="off" spellCheck={false} enterKeyHint="enter" />
     {props.actions}
-    <button type="button" className="dock-toggle dock-dismiss" aria-label="Hide keyboard" title="Hide keyboard" onClick={() => actions.current.run(() => field.current?.blur())}><ChevronDown size={20} aria-hidden="true" /></button>
+    <button type="button" className="dock-toggle dock-dismiss" aria-label="Hide keyboard" title="Hide keyboard" onClick={() => field.current?.blur()}><ChevronDown size={20} aria-hidden="true" /></button>
   </div>;
 });

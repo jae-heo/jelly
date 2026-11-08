@@ -79,6 +79,11 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     await expect(prompt).toHaveCount(0);
     await input.fill('hello chat 한글');
     await expect(prompt).toHaveText('hello chat 한글');
+    // Tapping the conversation leaves Input with its text intact.
+    await chat.locator('.chat-user p').first().click();
+    await expect(input).not.toBeFocused();
+    await expect(input).toHaveValue('hello chat 한글');
+    await expect(prompt).toHaveText('hello chat 한글');
     await input.press('Enter');
     await expect(prompt).toHaveCount(0);
     await expect(chat.locator('.chat-user p').last()).toHaveText('hello chat 한글');
