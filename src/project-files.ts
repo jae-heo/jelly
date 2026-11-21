@@ -212,6 +212,6 @@ export function previewType(path: string): { type: string; limit: number; kind: 
   const images: Record<string, string> = { png: 'png', jpg: 'jpeg', jpeg: 'jpeg', gif: 'gif', webp: 'webp', avif: 'avif' };
   if (images[extension]) return { type: 'image/' + images[extension], limit: 20 * 1024 * 1024, kind: 'image' };
   if (extension === 'pdf') return { type: 'application/pdf', limit: 20 * 1024 * 1024, kind: 'pdf' };
-  if (['txt','md','mdx','log','json','jsonl','yaml','yml','toml','ini','csv','tsv','xml','svg','html','css','scss','js','jsx','ts','tsx','mjs','cjs','py','sh','bash','zsh','sql','go','rs','c','h','cpp','hpp','java','rb','php','env','conf','gitignore'].includes(extension) || ['readme','license','dockerfile','makefile','.gitignore','.env'].includes(posix.basename(path).toLowerCase())) return { type: 'text/plain; charset=utf-8', limit: 1024 * 1024, kind: 'text' };
+  if (['txt','md','mdx','markdown','log','json','jsonl','yaml','yml','toml','ini','csv','tsv','xml','svg','html','htm','css','scss','js','jsx','ts','tsx','mjs','cjs','py','sh','bash','zsh','sql','go','rs','c','h','cpp','hpp','java','rb','php','env','conf','gitignore'].includes(extension) || ['readme','license','dockerfile','makefile','.gitignore','.env'].includes(posix.basename(path).toLowerCase())) return { type: 'text/plain; charset=utf-8', limit: 1024 * 1024, kind: 'text' };
   throw new ApiError(415, 'Preview is not available for this file. Download it instead.');
 }

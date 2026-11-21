@@ -1,0 +1,29 @@
+/* Rendered Markdown, shared by chat replies and the file viewer. */
+.markdown { --md-line: #1f2e27; --md-code: #111a16; --md-muted: #7d9286; overflow-wrap: anywhere; }
+.markdown code, .markdown pre { font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p { margin: 0 0 10px; white-space: pre-wrap; }
+.markdown strong { color: #f4faf6; font-weight: 650; }
+.markdown a { color: #8fd6b4; text-underline-offset: 2px; }
+.markdown .md-heading { margin: 16px 0 6px; color: #f4faf6; font-weight: 700; letter-spacing: -.2px; }
+.markdown .md-h1 { font-size: 1.2em; }
+.markdown .md-h2 { font-size: 1.1em; }
+.markdown .md-h3 { font-size: 1em; }
+.markdown ul, .markdown ol { margin: 0 0 10px; padding-left: 22px; }
+.markdown li { margin: 3px 0; padding-left: 2px; white-space: pre-wrap; }
+.markdown li::marker { color: #6fae8d; }
+.markdown li > ul, .markdown li > ol { margin: 4px 0 0; }
+.markdown blockquote { margin: 0 0 10px; padding: 2px 0 2px 12px; border-left: 3px solid #2d4a3c; color: #b8cbbf; }
+.markdown hr { border: 0; border-top: 1px solid var(--md-line); margin: 14px 0; }
+.markdown code { font-size: .86em; padding: 1px 5px; border-radius: 5px; background: #17241e; color: #c4f1d9; }
+.markdown .md-code { margin: 0 0 10px; border-radius: 10px; background: var(--md-code); border: 1px solid var(--md-line); overflow: hidden; }
+.markdown .md-code figcaption { padding: 5px 12px; font-size: 11px; color: var(--md-muted); border-bottom: 1px solid var(--md-line); }
+.markdown .md-code pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
+.markdown .md-code code { padding: 0; background: none; color: #d6e3dd; font-size: inherit; }
+.markdown .md-table { margin: 0 0 10px; overflow-x: auto; border: 1px solid var(--md-line); border-radius: 10px; }
+.markdown table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.45; }
+.markdown th, .markdown td { padding: 7px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--md-line); }
+.markdown th { background: #121c17; color: #cfe0d6; font-weight: 600; white-space: nowrap; }
+.markdown tr:last-child td { border-bottom: 0; }
+

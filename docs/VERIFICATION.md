@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-08.
+Last automated verification: 2026-11-20.
 
 ## Verification sources
 
@@ -10,6 +10,23 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Markdown and HTML in the file viewer (2026-11-20)
+
+- Markdown files open formatted with the chat view's renderer (no raw HTML);
+  **Source** shows the text.
+- HTML files open as a page from a single-use `/api/views/:ticket` link. Its
+  response sets a `sandbox allow-scripts` content security policy, so the page
+  has an opaque origin, and the iframe carries the same sandbox. The page's
+  scripts run, but cannot read Jelly's page or storage, open popups, submit
+  forms or navigate the top window. Resources load only over https, data and
+  blob, so a page cannot reach plain-http services on the tailnet such as
+  Jelly itself. The app's own policy now allows same-origin frames for this.
+- `test/files.test.ts` checks authentication, the HTML-only rule, the policy,
+  single use, and that view and download links are not interchangeable.
+  `e2e/files.spec.ts` (local and SSH, Chromium and WebKit) checks rendered
+  Markdown and Source, and an HTML fixture whose script runs and reports that
+  it cannot reach the parent page or storage. The toolbar fits at 320 px.
 
 ## Input keeps its text when it loses focus (2026-11-08)
 

@@ -38,6 +38,14 @@ const samples = {
   'archive.bin': Buffer.from([0, 255, 65, 66]),
   'pixel.png': Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7x8AAAAASUVORK5CYII=', 'base64'),
   'sample.pdf': Buffer.from(pdf),
+  'notes.md': Buffer.from('# 메모\n\n- **굵게** item\n\n| a | b |\n|---|---|\n| 1 | 2 |\n'),
+  // Reports whether its script ran and whether it could reach Jelly's page or storage.
+  'report.html': Buffer.from('<!doctype html><meta charset="utf-8"><h1 id="title">REPORT_STATIC</h1><p id="checks"></p><script>'
+    + 'document.getElementById("title").textContent = "REPORT_SCRIPT 한글";'
+    + 'const checks = [];'
+    + 'try { parent.document.title; checks.push("PARENT_REACHED"); } catch { checks.push("PARENT_BLOCKED"); }'
+    + 'try { sessionStorage.length; checks.push("STORAGE_REACHED"); } catch { checks.push("STORAGE_BLOCKED"); }'
+    + 'document.getElementById("checks").textContent = checks.join(" ");</script>'),
 };
 for (const [name, value] of Object.entries(samples)) {
   writeFileSync(join(fileProjectPath, name), value);

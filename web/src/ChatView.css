@@ -56,34 +56,9 @@
 }
 .chat-user time { font-size: 11px; color: var(--chat-muted); padding-right: 4px; }
 .chat-assistant { overflow-wrap: anywhere; }
-.chat-assistant > :first-child { margin-top: 0; }
-.chat-assistant > :last-child { margin-bottom: 0; }
-.chat-assistant p { margin: 0 0 10px; white-space: pre-wrap; }
-.chat-assistant strong { color: #f4faf6; font-weight: 650; }
-.chat-assistant a { color: #8fd6b4; text-underline-offset: 2px; }
-.chat-assistant .md-heading { margin: 16px 0 6px; color: #f4faf6; font-weight: 700; letter-spacing: -.2px; }
-.chat-assistant .md-h1 { font-size: 1.2em; }
-.chat-assistant .md-h2 { font-size: 1.1em; }
-.chat-assistant .md-h3 { font-size: 1em; }
-.chat-assistant ul, .chat-assistant ol { margin: 0 0 10px; padding-left: 22px; }
-.chat-assistant li { margin: 3px 0; padding-left: 2px; white-space: pre-wrap; }
-.chat-assistant li::marker { color: #6fae8d; }
-.chat-assistant li > ul, .chat-assistant li > ol { margin: 4px 0 0; }
-.chat-assistant blockquote { margin: 0 0 10px; padding: 2px 0 2px 12px; border-left: 3px solid #2d4a3c; color: #b8cbbf; }
-.chat-assistant hr { border: 0; border-top: 1px solid var(--chat-line); margin: 14px 0; }
 .chat-view code, .chat-view pre {
   font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
 }
-.chat-assistant code { font-size: .86em; padding: 1px 5px; border-radius: 5px; background: #17241e; color: #c4f1d9; }
-.chat-assistant .md-code { margin: 0 0 10px; border-radius: 10px; background: var(--chat-code); border: 1px solid var(--chat-line); overflow: hidden; }
-.chat-assistant .md-code figcaption { padding: 5px 12px; font-size: 11px; color: var(--chat-muted); border-bottom: 1px solid var(--chat-line); }
-.chat-assistant .md-code pre { margin: 0; padding: 10px 12px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
-.chat-assistant .md-code code { padding: 0; background: none; color: #d6e3dd; font-size: inherit; }
-.chat-assistant .md-table { margin: 0 0 10px; overflow-x: auto; border: 1px solid var(--chat-line); border-radius: 10px; }
-.chat-assistant table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.45; }
-.chat-assistant th, .chat-assistant td { padding: 7px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--chat-line); }
-.chat-assistant th { background: #121c17; color: #cfe0d6; font-weight: 600; white-space: nowrap; }
-.chat-assistant tr:last-child td { border-bottom: 0; }
 
 /* Notes */
 .chat-note { margin: 0; align-self: center; max-width: 90%; text-align: center; font-size: 12px; line-height: 1.5; color: var(--chat-muted); white-space: pre-wrap; overflow-wrap: anywhere; }

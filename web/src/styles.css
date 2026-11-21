@@ -229,6 +229,7 @@ select:focus{outline:1px solid var(--mint)}
 .files-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .files-toolbar .button{min-height:36px;padding:0 10px;font-size:12px;flex-shrink:0}
 .files-location{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#a3b4a8}
+.files-toolbar .button[aria-pressed="true"]{background:#24493a;border-color:#4f8a6c;color:#effff4}
 .files-toolbar .checkbox{flex-shrink:0;margin:0;font-size:11px}
 .files-content{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
 .files-content.directory-list{max-height:none}
@@ -236,7 +237,9 @@ select:focus{outline:1px solid var(--mint)}
 .file-preview pre{margin:0;padding:12px;font:12px/1.6 ui-monospace,monospace;white-space:pre;user-select:text;-webkit-user-select:text}
 .file-preview img{display:block;max-width:100%;height:auto;margin:auto}
 .file-preview iframe{display:block;width:100%;height:100%;border:0;background:white}
-@media(max-width:700px){.files-dialog{padding:12px}.files-toolbar{gap:6px}.files-location{font-size:11px}}
+.file-markdown{padding:14px 16px;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#dbe7e0;user-select:text;-webkit-user-select:text}
+.file-markdown pre{padding:10px 12px}
+@media(max-width:700px){.files-dialog{padding:12px}.files-toolbar{gap:6px}.files-location{font-size:11px}.files-button-label{display:none}}
 .dialog .dialog-description+.dialog-path{margin:-17px 0 19px}
 /* Touch browsers keep :hover after a tap; highlight on hover only with a real pointer. */
 @media(hover:hover){.icon-button:hover{background:#ffffff09;color:#e7f0e9}.button.primary:hover:not(:disabled){background:#c9f5de}.project-item:hover{background:#ffffff05}.session-row:not(.selected):hover{background:#ffffff04}.header-action:hover{background:#b6eed10c;color:#c7e5d1}.workspace-menu-group>button:hover{background:#b6eed10b}.workspace-menu-group .menu-danger:hover{background:#e3a2980c}.font-stepper>button:hover:not(:disabled){background:#b6eed10b}.dock-toggle:hover{background:#b6eed110;color:#c4ebd2}.host-alias:hover{background:#b6eed10b}.directory-crumbs button:hover{background:#b6eed10d}.directory-entry:hover{background:#b6eed10c}}

@@ -88,6 +88,8 @@ export async function startServer(config: Config) {
     if (await serveWeb(url.pathname, method, res)) return;
     const download = /^\/api\/downloads\/([a-zA-Z0-9_-]{43})$/.exec(url.pathname);
     if (method === 'GET' && download) return files.download(download[1]!, req, res);
+    const page = /^\/api\/views\/([a-zA-Z0-9_-]{43})$/.exec(url.pathname);
+    if (method === 'GET' && page) return files.view(page[1]!, req, res);
     if (!authorized(req, config.token)) throw new ApiError(401, 'Unauthorized');
     if (method === 'GET' && url.pathname === '/api/ssh/aliases') return json(res, 200, await sshAliases(config.sshConfig));
     if (method === 'POST' && url.pathname === '/api/hosts/check') {
@@ -148,7 +150,7 @@ export async function startServer(config: Config) {
         });
       }
     }
-    const fileMatch = /^\/api\/projects\/([^/]+)\/(files|preview|downloads)$/.exec(url.pathname);
+    const fileMatch = /^\/api\/projects\/([^/]+)\/(files|preview|downloads|views)$/.exec(url.pathname);
     if (fileMatch) {
       const p = project(fileMatch[1]!);
       const action = fileMatch[2];
@@ -161,9 +163,9 @@ export async function startServer(config: Config) {
         const input = z.object({ path: Path.min(1) }).strict().parse(Object.fromEntries(url.searchParams));
         return files.operation(req, res, signal => files.preview(p, input.path, res, signal));
       }
-      if (method === 'POST' && action === 'downloads') {
+      if (method === 'POST' && (action === 'downloads' || action === 'views')) {
         const input = z.object({ path: Path.min(1) }).strict().parse(await body(req));
-        return files.operation(req, res, async signal => json(res, 201, await files.ticket(p, input.path, signal)));
+        return files.operation(req, res, async signal => json(res, 201, await files.ticket(p, input.path, signal, action === 'views' ? 'view' : 'download')));
       }
     }
     const projectMatch = /^\/api\/projects\/([^/]+)(\/sessions)?$/.exec(url.pathname);

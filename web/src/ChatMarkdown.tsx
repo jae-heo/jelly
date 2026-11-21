@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
+import './ChatMarkdown.css';
 
 // Agent replies use a small part of Markdown. React escapes all text and raw
 // HTML is never rendered; links open only for http(s) URLs.

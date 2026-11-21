@@ -45,6 +45,10 @@ or a file to preview it. Use **Download** to save the original file to your devi
 This works for local and SSH projects, including projects without a running session.
 
 Text and code are shown as plain text; images and PDFs open in the viewer.
+Markdown files open formatted and HTML files open as a page; **Source** shows the
+text. An HTML page runs its scripts in an isolated sandbox that cannot reach
+Jelly. It can load https resources such as script libraries, but not files next
+to it or plain-http addresses.
 Other formats can be downloaded. Text previews are limited to 1 MiB, images and
 PDFs to 20 MiB. Larger files can still be downloaded. PDF display uses your browser's
 built-in viewer; use Download if your browser cannot display it.

@@ -9,7 +9,7 @@ import { ProjectFiles, collect, filePath, previewType } from './project-files.js
 
 export class FileTransfers {
   private files: ProjectFiles;
-  private tickets = new Map<string, { projectId: string; path: string; expires: number }>();
+  private tickets = new Map<string, { projectId: string; path: string; kind: TicketKind; expires: number }>();
   private active = new Set<AbortController>();
   private closed = false;
   constructor(config: Config, private store: Store) { this.files = new ProjectFiles(config, id => store.host(id)); }
@@ -30,8 +30,9 @@ export class FileTransfers {
   async list(project: Project, path: string, hidden: boolean, signal: AbortSignal) {
     return this.files.list(project, path, hidden, AbortSignal.any([signal, AbortSignal.timeout(8000)]));
   }
-  async ticket(project: Project, requested: string, signal: AbortSignal) {
+  async ticket(project: Project, requested: string, signal: AbortSignal, kind: TicketKind = 'download') {
     this.prune();
+    if (kind === 'view' && !/\.html?$/i.test(requested)) throw new ApiError(415, 'Only HTML files can be viewed as a page');
     if (this.tickets.size >= 64) throw new ApiError(429, 'Too many pending downloads. Try again shortly.');
     const path = filePath(requested);
     const stream = await this.files.open(project, path, AbortSignal.any([signal, AbortSignal.timeout(8000)]));
@@ -39,13 +40,17 @@ export class FileTransfers {
     if (this.tickets.size >= 64) throw new ApiError(429, 'Too many pending downloads. Try again shortly.');
     if (this.closed || signal.aborted) throw new ApiError(408, 'File request cancelled');
     const ticket = randomBytes(32).toString('base64url');
-    this.tickets.set(ticket, { projectId: project.id, path, expires: Date.now() + 30_000 });
-    return { url: `/api/downloads/${ticket}`, name: posix.basename(path), expiresIn: 30 };
+    this.tickets.set(ticket, { projectId: project.id, path, kind, expires: Date.now() + 30_000 });
+    return { url: `/api/${kind === 'view' ? 'views' : 'downloads'}/${ticket}`, name: posix.basename(path), expiresIn: 30 };
   }
-  async download(ticket: string, req: IncomingMessage, res: ServerResponse) {
+  private redeem(ticket: string, kind: TicketKind) {
     this.prune();
     const grant = this.tickets.get(ticket);
     this.tickets.delete(ticket);
+    return grant?.kind === kind ? grant : undefined;
+  }
+  async download(ticket: string, req: IncomingMessage, res: ServerResponse) {
+    const grant = this.redeem(ticket, 'download');
     if (!grant) throw new ApiError(401, 'Download link expired. Start the download again.');
     const project = this.store.project(grant.projectId);
     if (!project) throw new ApiError(404, 'Project not found');
@@ -67,6 +72,26 @@ export class FileTransfers {
     res.writeHead(200, { ...fileHeaders, 'Content-Type': format.type, 'Content-Length': content.length, 'X-Jelly-Preview': format.kind });
     res.end(content);
   }
+  // An HTML file as a page, in a sandbox with an opaque origin: its scripts can
+  // run but cannot reach Jelly's storage, frame or API, and may load only https
+  // resources, never plain-http services on the tailnet.
+  async view(ticket: string, req: IncomingMessage, res: ServerResponse) {
+    const grant = this.redeem(ticket, 'view');
+    if (!grant) throw new ApiError(401, 'Page link expired. Open the file again.');
+    const project = this.store.project(grant.projectId);
+    if (!project) throw new ApiError(404, 'Project not found');
+    return this.operation(req, res, async signal => {
+      const content = await collect(await this.files.open(project, grant.path, signal), 5 * 1024 * 1024);
+      if (content.includes(0)) throw new ApiError(415, 'Binary files cannot be previewed. Download it instead.');
+      res.writeHead(200, {
+        'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
+        'Content-Type': 'text/html; charset=utf-8', 'Content-Length': content.length,
+        'Content-Security-Policy': "sandbox allow-scripts; default-src https: data: blob: 'unsafe-inline' 'unsafe-eval'; form-action 'none'; frame-ancestors 'self'",
+      });
+      res.end(content);
+    });
+  }
   close() { this.closed = true; this.tickets.clear(); for (const controller of this.active) controller.abort(); }
 }
+type TicketKind = 'download' | 'view';
 const fileHeaders = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'; sandbox", 'X-Frame-Options': 'DENY' };

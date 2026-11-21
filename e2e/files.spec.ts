@@ -64,6 +64,34 @@ for (const remote of [false, true]) test(`project files: ${remote ? 'SSH' : 'loc
     expect((await contents(download)).toString('utf8')).toContain('한글 🙂');
     await page.getByRole('button', { name: 'Back', exact: true }).click();
     await page.getByRole('button', { name: 'Parent', exact: true }).click();
+
+    // Markdown opens rendered; Source shows the text.
+    await list.getByRole('button', { name: 'notes.md', exact: true }).click();
+    await expect(preview.locator('.file-markdown .md-heading')).toHaveText('메모');
+    await expect(preview.locator('.file-markdown strong')).toHaveText('굵게');
+    await expect(preview.locator('.file-markdown th')).toHaveText(['a', 'b']);
+    const source = page.getByRole('button', { name: 'Source', exact: true });
+    await source.click();
+    await expect(source).toHaveAttribute('aria-pressed', 'true');
+    await expect(preview.locator('pre')).toContainText('# 메모');
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+
+    // HTML runs as a page in a sandbox with an opaque origin: its script runs
+    // but cannot reach Jelly's page or storage.
+    await list.getByRole('button', { name: 'report.html', exact: true }).click();
+    await expect(source).toHaveAttribute('aria-pressed', 'false');
+    await expect(preview.locator('iframe')).toHaveAttribute('src', /^\/api\/views\/[\w-]{43}$/);
+    const report = page.frameLocator('.file-preview iframe');
+    await expect(report.locator('h1')).toHaveText('REPORT_SCRIPT 한글');
+    await expect(report.locator('#checks')).toHaveText('PARENT_BLOCKED STORAGE_BLOCKED');
+    await page.screenshot({ path: `.data/screenshots/files-html-${remote ? 'ssh' : 'local'}.png` });
+    await expect(page.getByRole('button', { name: 'Download', exact: true })).toBeInViewport();
+    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await source.click();
+    await expect(preview.locator('pre')).toContainText('<h1 id="title">REPORT_STATIC</h1>');
+    await expect(preview.locator('iframe')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+
     await list.getByRole('button', { name: 'pixel.png', exact: true }).click();
     await expect(preview.getByRole('img', { name: 'pixel.png' })).toBeVisible();
     await expect.poll(() => preview.locator('img').evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(1);

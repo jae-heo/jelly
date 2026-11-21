@@ -67,7 +67,7 @@ function ToolGroup({ tools, running }: { tools: Tool[]; running: boolean }) {
 
 function Message({ item }: { item: Exclude<ChatItem, Tool> }) {
   if (item.kind === 'user') return <div className="chat-user"><p>{item.text}</p>{item.time && <time dateTime={item.time}>{clock(item.time)}</time>}</div>;
-  if (item.kind === 'assistant') return <div className="chat-assistant"><Markdown text={item.text} /></div>;
+  if (item.kind === 'assistant') return <div className="chat-assistant markdown"><Markdown text={item.text} /></div>;
   if (item.text === 'Conversation compacted') return <p className="chat-divider"><span>{item.text}</span></p>;
   return <p className={item.text.startsWith('/') || item.text.startsWith('! ') ? 'chat-note chat-command-note' : 'chat-note'}>{item.text}</p>;
 }

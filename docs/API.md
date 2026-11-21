@@ -3,7 +3,7 @@
 Local development: `http://127.0.0.1:47821`. Remote mode: `http://TAILSCALE_IP:47821` over the Tailscale VPN.
 `JELLY_HOST=tailscale` discovers and binds only this machine's Tailscale IPv4 address. Serve is not required.
 All `/api/*` HTTP routes require `Authorization: Bearer <token>`, except single-use
-`/api/downloads/:ticket` links described below. JSON request bodies require
+`/api/downloads/:ticket` and `/api/views/:ticket` links described below. JSON request bodies require
 `Content-Type: application/json`. Responses are uncached; previews and downloads
 return file bytes, while other API responses are JSON.
 If Origin is present, it must match the binding IP/MagicDNS origin or the exact `JELLY_ORIGINS` allowlist (loopback defaults also allowed).
@@ -38,6 +38,8 @@ localStorage (explicit remember-device selection). WebSockets use the short-live
 | GET | `/api/projects/:id/preview?path=nested/file.txt` | bounded file bytes; `X-Jelly-Preview: text`, `image` or `pdf` |
 | POST | `/api/projects/:id/downloads` | `{path}` → `{url,name,expiresIn:30}` (201); single-use download link |
 | GET | `/api/downloads/:ticket` | attachment stream; authorized by the short-lived ticket |
+| POST | `/api/projects/:id/views` | `{path}` of an `.html`/`.htm` file → `{url,name,expiresIn:30}` (201); single-use page link |
+| GET | `/api/views/:ticket` | the HTML file as a sandboxed page (5 MiB); authorized by the short-lived ticket |
 | GET | `/api/projects/:id/sessions` | `{sessions:[...]}` |
 | POST | `/api/projects/:id/sessions` | `{name?,cols?,rows?}` → session (201) |
 | GET | `/api/sessions` | `{sessions,unregistered}`: all session records with current tmux state, and tmux sessions without a record |
@@ -113,7 +115,7 @@ Absolute paths, NUL bytes, `.`/`..` components and symbolic links are rejected.
 Only regular files are served. The server account's filesystem permissions apply.
 
 Previews accept common text/code formats (1 MiB), PNG/JPEG/GIF/WebP/AVIF images and
-PDFs (20 MiB). HTML and SVG are plain text, never rendered as active pages. Unknown
+PDFs (20 MiB). HTML and SVG previews are plain text, never rendered as active pages. Unknown
 formats and binary text return 415; files exceeding the preview limit return 413.
 Responses include no-store, nosniff and restrictive content security headers.
 
@@ -122,6 +124,14 @@ are lost on restart. The file is checked again when the link is consumed. A miss
 or consumed ticket returns 401; a deleted project returns 404. The long-lived key
 is never placed in the URL. Treat download URLs as credentials and exclude them
 from any proxy/access logs. Origin checks apply to downloads too.
+
+Page links work like download links, and the two are not interchangeable. The
+page is served as `text/html` with `Content-Security-Policy: sandbox
+allow-scripts; default-src https: data: blob: 'unsafe-inline' 'unsafe-eval';
+form-action 'none'; frame-ancestors 'self'`. The sandbox gives it an opaque
+origin, so its scripts run without access to Jelly's storage, page or API, and
+without popups, forms or top-level navigation. It may load only https, data and
+blob resources. The web client frames it with the same sandbox.
 
 Downloads stream with backpressure and `Content-Disposition: attachment`, without
 buffering whole files or saving temporary copies. They have no preview-size cap.

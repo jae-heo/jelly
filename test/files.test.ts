@@ -64,6 +64,31 @@ test('project files: scoped browsing, safe previews, one-use streaming downloads
     assert.equal((await request(base + '/preview?path=archive.bin')).status, 415);
     assert.equal((await request(base + '/preview?path=fake.txt')).status, 415);
   });
+  await t.test('HTML pages use one-use view links in an opaque-origin sandbox', async () => {
+    assert.equal((await request(base + '/views', 'POST', { path: 'page.html' }, false)).status, 401);
+    assert.equal((await request(base + '/views', 'POST', { path: 'nested/' + name })).status, 415);
+    assert.equal((await request(base + '/views', 'POST', { path: 'escape.html' })).status, 404);
+    const view = async () => {
+      const res = await request(base + '/views', 'POST', { path: 'page.html' }); assert.equal(res.status, 201, await res.clone().text());
+      return (await res.json() as { url: string }).url;
+    };
+    const page = await view();
+    assert.match(page, /^\/api\/views\/[\w-]{43}$/);
+    const response = await fetch(url + page);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8');
+    const policy = response.headers.get('content-security-policy')!;
+    assert.match(policy, /^sandbox allow-scripts;/);
+    assert.doesNotMatch(policy, /allow-same-origin|allow-top-navigation|allow-popups|allow-forms/);
+    assert.match(policy, /default-src https: data: blob:/);
+    assert.match(policy, /frame-ancestors 'self'/);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.equal(await response.text(), payload);
+    assert.equal((await fetch(url + page)).status, 401);
+    // View and download links are not interchangeable.
+    assert.equal((await fetch(url + (await view()).replace('/views/', '/downloads/'))).status, 401);
+    assert.equal((await fetch(url + (await grant('page.html')).url.replace('/downloads/', '/views/'))).status, 401);
+  });
   await t.test('binary/Unicode downloads, replay, invalid origin and expiration', async () => {
     const ticket = await grant('nested/' + name);
     assert.equal(ticket.name, name); assert.ok(!ticket.url.includes(config.token));
