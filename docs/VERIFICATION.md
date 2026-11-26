@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-20.
+Last automated verification: 2026-11-25.
 
 ## Verification sources
 
@@ -10,6 +10,20 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## File uploads to the terminal (2026-11-25)
+
+- The paperclip beside Input, a drop on the terminal or chat, or a pasted image
+  uploads files to `${TMPDIR:-/tmp}/jelly-<instanceId>/<random>/` on the
+  session's server and pastes their paths, committing Input's text first.
+  Nothing is written to the project folder.
+- `test/uploads.test.ts` checks authentication, chunk order and sizes, the
+  50 MiB limit, file and folder modes, refusal of a folder others can read,
+  expiry of week-old uploads, and name sanitizing. `npm run test:ssh` checks a
+  two-chunk upload's checksum and modes on the SSH container and the same refusal.
+- `e2e/uploads.spec.ts` (local and SSH in Chromium, local in WebKit) attaches
+  with the file picker after text in Input, drops two files, pastes an image,
+  and runs `cat`/`wc` on the pasted paths; an oversized drop shows the limit.
 
 ## Markdown and HTML in the file viewer (2026-11-20)
 

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CircleAlert, Plus, Power, RefreshCw, TerminalSquare, Unplug, X, Server } from 'lucide-react';
+import { CircleAlert, Paperclip, Plus, Power, RefreshCw, TerminalSquare, Unplug, X, Server } from 'lucide-react';
 import { api, errorMessage, forgetToken, storedToken, type Project, type Session, type Unregistered } from './api';
 import { useWorkspaceData } from './useWorkspaceData';
 import { Login } from './Login';
@@ -19,6 +19,7 @@ import { FONT_SIZE_KEY, storedFontSize } from './terminalSettings';
 import { useWorkspaceViewport } from './useWorkspaceViewport';
 import { useFullscreen } from './useFullscreen';
 import { useSessionShortcuts } from './useSessionShortcuts';
+import { pastedPaths, uploadFile } from './uploads';
 import type { Connection, TerminalHandle } from './TerminalView';
 const TerminalCache = lazy(() => import('./TerminalCache').then(module => ({ default: module.TerminalCache })));
 
@@ -45,6 +46,8 @@ export function App() {
   const [connection, setConnection] = useState<Connection>('connecting');
   const [fontSize, setFontSize] = useState(storedFontSize);
   const [selection, setSelection] = useState<{ sessionId: string; text: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dropping, setDropping] = useState(false);
   // Sessions shown as chat, remembered per session on this device.
   const [chatIds, setChatIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('jelly-chat-sessions') ?? '[]'); } catch { return []; } });
   const terminal = useRef<TerminalHandle>(null);
@@ -183,6 +186,23 @@ export function App() {
     try { await api(token, `/projects/${projectTarget.id}?deleteSessions=true`, 'DELETE', undefined, undefined, 120_000); await refresh(); setDialog(null); }
     catch (error) { setFormError(errorMessage(error)); } finally { setBusy(false); }
   }
+  const canAttach = canInput && !selection && !uploading;
+  const currentSession = useRef(session?.id);
+  currentSession.current = session?.id;
+  // Files go to a private temp folder on the session's server; their paths are
+  // pasted into the terminal like a file dropped on a native terminal.
+  async function attachFiles(files: File[]) {
+    if (!session || !canAttach || !files.length) return;
+    const target = session.id;
+    setUploading(true);
+    try {
+      const paths: string[] = [];
+      for (const file of files) paths.push(await uploadFile(token, target, file));
+      if (currentSession.current === target) controls.current?.paste(pastedPaths(paths));
+    } catch (error) { if (currentToken.current === token) setNotice(errorMessage(error)); }
+    finally { setUploading(false); }
+  }
+  const dragsFiles = (event: React.DragEvent) => event.dataTransfer.types.includes('Files');
   function selectText() {
     if (selection) { setSelection(null); return; }
     const text = terminal.current?.visibleText();
@@ -216,20 +236,40 @@ export function App() {
             } catch (error) { if (currentToken.current === token) setNotice(errorMessage(error)); }
           }} />
       </aside>
-      <main className="main-panel">
+      <main className="main-panel" onPasteCapture={event => {
+        // A pasted image or file, such as a screenshot, is attached. Text pastes as usual.
+        const files = Array.from(event.clipboardData.files);
+        if (!files.length || event.clipboardData.getData('text/plain') || !session || !hasTerminal) return;
+        event.preventDefault(); event.stopPropagation();
+        void attachFiles(files);
+      }}>
         {!online && <div className="network-banner" role="alert">Cannot reach the server. Check your Tailscale connection.<button className="text-button" onClick={() => void refresh()}>Retry</button></div>}
         {loading && !projects.length ? <div className="empty-state"><div className="spinner" /><p>Loading…</p></div> : !session ? <div className="empty-state">
           <h1>{project ? 'Select a session' : 'No projects'}</h1>
           <button className="button primary" onClick={() => project ? openSession(project) : openDialog('project')}><Plus size={17} />{project ? 'New session' : 'Add project'}</button>
         </div> : null}
-          <div className="terminal-stage" hidden={!session}>
+          <div className="terminal-stage" hidden={!session}
+            onDragOver={event => {
+              if (!dragsFiles(event)) return;
+              // Never let the browser navigate to a dropped file.
+              event.preventDefault();
+              event.dataTransfer.dropEffect = canAttach ? 'copy' : 'none';
+              if (canAttach) setDropping(true);
+            }}
+            onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false); }}
+            onDrop={event => {
+              if (!dragsFiles(event)) return;
+              event.preventDefault(); setDropping(false);
+              void attachFiles(Array.from(event.dataTransfer.files));
+            }}>
             <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} onTyping={() => controls.current?.reset()} onCopyBlocked={() => setNotice('Press ⌘C to copy the selection.')} /></Suspense>
             {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH host unreachable</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />Check again</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>Session ended</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />New session</button></div>}
             {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? 'In use on another device' : 'Disconnected'}</h2><p>Session running</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />Reconnect</button></div></div>}
             {chatOpen && chat.agent && <ChatView key={`${session?.id}:${chat.agent.conversation}`} agent={chat.agent} items={chat.items} start={chat.start} onLoadEarlier={chat.loadEarlier} onTerminal={toggleChat} terminal={terminal} live={canInput} />}
+            {dropping && <div className="drop-target"><Paperclip size={18} aria-hidden="true" />Drop to attach</div>}
             {selection && selection.sessionId === session?.id && <TerminalSelection key={selection.sessionId} text={selection.text} terminal={terminal} fontSize={fontSize} onClose={() => setSelection(null)} />}
           </div>
-          {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput && !selection} terminal={terminal} onPaste={() => openDialog('paste')} />}
+          {session && hasTerminal && <TerminalControls key={session.id} ref={controls} enabled={canInput && !selection} terminal={terminal} uploading={uploading} onPaste={() => openDialog('paste')} onAttach={files => void attachFiles(files)} />}
       </main>
     </div>
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}

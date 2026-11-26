@@ -4,7 +4,7 @@ Local development: `http://127.0.0.1:47821`. Remote mode: `http://TAILSCALE_IP:4
 `JELLY_HOST=tailscale` discovers and binds only this machine's Tailscale IPv4 address. Serve is not required.
 All `/api/*` HTTP routes require `Authorization: Bearer <token>`, except single-use
 `/api/downloads/:ticket` and `/api/views/:ticket` links described below. JSON request bodies require
-`Content-Type: application/json`. Responses are uncached; previews and downloads
+`Content-Type: application/json`; upload chunks use `application/octet-stream`. Responses are uncached; previews and downloads
 return file bytes, while other API responses are JSON.
 If Origin is present, it must match the binding IP/MagicDNS origin or the exact `JELLY_ORIGINS` allowlist (loopback defaults also allowed).
 No cross-origin CORS permissions are issued; the web client uses the same origin.
@@ -47,6 +47,8 @@ localStorage (explicit remember-device selection). WebSockets use the short-live
 | POST | `/api/unregistered-sessions/:id/adopt` | `{projectId,name}` → session (201); records the existing shell under that project |
 | POST | `/api/unregistered-sessions/:id/stop` | `{hostId}` → `{stopped:true}`; terminates a shell that has no record |
 | GET | `/api/sessions/:id` | session with current state |
+| POST | `/api/sessions/:id/uploads?name=&size=` | first chunk (raw bytes) → `{id,path,received}` (201); see [Uploads](#uploads) |
+| POST | `/api/uploads/:id?offset=` | next chunk → `{received}` |
 | PATCH | `/api/sessions/:id` | `{name}` → updated session metadata (`id,projectId,name,createdAt,stoppedAt`); no shell status query |
 | POST | `/api/sessions/:id/stop` | terminate session processes, keep stopped record; idempotent |
 | DELETE | `/api/sessions/:id` | terminate session and delete record |
@@ -140,6 +142,24 @@ additional requests return 429. Transfers time out after five minutes and releas
 resources on cancellation or shutdown. SSH file operations use dedicated connections
 with existing SSH configuration and strict host-key verification, without a PTY or
 changes to running terminal sessions.
+
+## Uploads
+
+Uploads let the browser hand a file to the session's programs. The file goes to
+a private folder on the session's server, `${TMPDIR:-/tmp}/jelly-<instanceId>/<random>/<name>`,
+never into the project. The folder must be a real directory owned by the account
+with mode 0700, otherwise 403; files are 0600. The returned `path` is absolute on
+that server; the web client pastes it into the terminal. Upload folders older than
+seven days are removed when another upload starts.
+
+Files are limited to 50 MiB (413) and sent in 2 MiB chunks: the first request
+declares the total `size`, and every chunk except the last is exactly 2 MiB.
+Each following chunk names the upload `id` and its byte `offset`; a wrong offset
+returns 409. An upload not continued for two minutes, or already complete,
+returns 404. Names keep letters and digits in any script plus `.`, `_` and `-`;
+other characters become `_`, so paths need no shell quoting when the temp
+directory has none. SSH uploads use `sh`, `mkdir`, `ls`, `cat` and `find` on the
+remote server, over dedicated connections like file downloads.
 
 ## WebSocket
 

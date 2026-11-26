@@ -11,7 +11,8 @@ import { RemoteTmux } from './remote.js';
 import { sshAliases, sshTargetPattern } from './ssh-config.js';
 import { Terminals } from './terminals.js';
 import { AgentChats, claudeState, findClaude, type ClaudeProcess } from './agent-chat.js';
-import { ApiError, authorized, body, checkOrigin, failure, Id, json, Name, Size } from './http.js';
+import { ApiError, authorized, body, checkOrigin, failure, Id, json, Name, raw, Size } from './http.js';
+import { CHUNK_LIMIT, UPLOAD_LIMIT, Uploads } from './uploads.js';
 import { serveWeb } from './web-static.js';
 
 const NewProject = z.object({ name: Name, path: z.string().min(1).max(4096), hostId: Id.nullable().default(null) }).strict();
@@ -20,6 +21,8 @@ const Move = z.object({ beforeId: Id.nullable() }).strict();
 const Rename = z.object({ name: Name }).strict();
 const Adopt = z.object({ projectId: Id, name: Name }).strict();
 const StopUnregistered = z.object({ hostId: Id.nullable() }).strict();
+const NewUpload = z.object({ name: z.string().min(1).max(1024), size: z.coerce.number().int().min(0) }).strict();
+const UploadChunk = z.object({ offset: z.coerce.number().int().min(0).max(UPLOAD_LIMIT) }).strict();
 const ChatQuery = z.object({
   revision: z.coerce.number().int().min(0).optional(),
   before: z.coerce.number().int().min(0).optional(),
@@ -43,6 +46,7 @@ export async function startServer(config: Config) {
   try { await tmux.check(); } catch (error) { store.close(); throw error; }
   const terminals = new Terminals(config, store, tmux);
   const files = new FileTransfers(config, store);
+  const uploads = new Uploads(config, store);
   let stopping = false;
   const mutations = new MutationQueue();
   const chats = new AgentChats();
@@ -251,7 +255,12 @@ export async function startServer(config: Config) {
         json(res, 200, { stopped: true });
       });
     }
-    const sessionMatch = /^\/api\/sessions\/([^/]+)(?:\/(stop|tickets|history|chat))?$/.exec(url.pathname);
+    const uploadMatch = /^\/api\/uploads\/([a-zA-Z0-9_-]{43})$/.exec(url.pathname);
+    if (method === 'POST' && uploadMatch) {
+      const input = UploadChunk.parse(Object.fromEntries(url.searchParams));
+      return files.operation(req, res, async signal => json(res, 200, await uploads.append(uploadMatch[1]!, input.offset, await raw(req, CHUNK_LIMIT), signal)));
+    }
+    const sessionMatch = /^\/api\/sessions\/([^/]+)(?:\/(stop|tickets|history|chat|uploads))?$/.exec(url.pathname);
     if (sessionMatch) {
       const id = sessionMatch[1]!;
       const action = sessionMatch[2];
@@ -288,6 +297,14 @@ export async function startServer(config: Config) {
         const lines = z.coerce.number().int().min(1).max(10000).parse(url.searchParams.get('lines') ?? 1000);
         if (s.stoppedAt || !['running', 'exited', 'unreachable'].includes((await tmux.states([s])).get(id)?.status ?? '')) throw new ApiError(409, 'Session history no longer available');
         return json(res, 200, { text: await tmux.history(id, lines), format: 'plain', lines });
+      }
+      // Files for the session's programs, in a private temp folder on the
+      // session's server. The client pastes the returned path into the terminal.
+      if (method === 'POST' && action === 'uploads') {
+        const hostId = project(session(id).projectId).hostId;
+        const input = NewUpload.parse(Object.fromEntries(url.searchParams));
+        if (input.size > UPLOAD_LIMIT) throw new ApiError(413, 'Files up to 50 MiB can be uploaded');
+        return files.operation(req, res, async signal => json(res, 201, await uploads.start(hostId, input.name, input.size, await raw(req, CHUNK_LIMIT), signal)));
       }
       if (method === 'GET' && action === 'chat') {
         const s = session(id);
@@ -329,6 +346,7 @@ export async function startServer(config: Config) {
       stopping = true;
       terminals.close();
       files.close();
+      uploads.close();
       const stopped = new Promise<void>(resolve => server.close(() => resolve()));
       await mutations.idle();
       server.closeIdleConnections();

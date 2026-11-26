@@ -108,6 +108,12 @@ terminal. Unicode input, including Korean, is supported. Text stays in Input
 when you tap elsewhere or hide the keyboard, matching what the terminal holds;
 typing directly in the terminal clears it.
 
+To give a file to the running program, such as a screenshot for Claude Code,
+use the **paperclip** beside Input, drop files on the terminal or chat, or paste
+an image. Jelly uploads them to a private temp folder on the session's server,
+not the project, and types their paths at the cursor without pressing Enter.
+Files up to 50 MiB are accepted; uploads older than a week are removed.
+
 In the terminal and input, **Shift+Enter** is delivered as a separate key.
 Applications can use it for newlines; the running program determines its behavior.
 

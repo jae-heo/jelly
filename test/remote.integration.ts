@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { once } from 'node:events';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { loadConfig } from '../src/config.js';
 import { startServer } from '../src/server.js';
@@ -134,6 +134,28 @@ test('agentless SSH projects and persistent remote terminals', { timeout: 180_00
     third.ws.close(); await once(third.ws, 'close');
     assert.equal((await request(`/api/sessions/${session.id}`)).pid, session.pid);
     assert.ok((await request(`/api/sessions/${session.id}/history`)).text.includes('한글SSH확인'));
+  });
+  await t.test('uploads go to a private temp folder on the SSH server, in chunks', async () => {
+    const CHUNK = 2 * 1024 * 1024;
+    const data = Buffer.alloc(CHUNK + 3);
+    for (let i = 0; i < data.length; i++) data[i] = i % 253;
+    const send = async (path: string, body: Buffer, status: number) => {
+      const response = await fetch(url + path, { method: 'POST', body: new Uint8Array(body), headers: { Authorization: `Bearer ${config.token}`, 'Content-Type': 'application/octet-stream' } });
+      const result = await response.json() as any;
+      assert.equal(response.status, status, JSON.stringify(result)); return result;
+    };
+    const first = await send(`/api/sessions/${session.id}/uploads?` + new URLSearchParams({ name: '원격 사진.png', size: String(data.length) }), data.subarray(0, CHUNK), 201);
+    const base = `/tmp/jelly-${config.instanceId}`;
+    assert.match(first.path, new RegExp(`^${base}/[\\w-]{12}/원격_사진\\.png$`));
+    await send(`/api/uploads/${first.id}?offset=1`, data.subarray(CHUNK), 409);
+    await send(`/api/uploads/${first.id}?offset=${CHUNK}`, data.subarray(CHUNK), 200);
+    assert.equal((await fixture.command('sha256sum', first.path)).split(' ')[0], createHash('sha256').update(data).digest('hex'));
+    assert.equal((await fixture.command('stat', '-c', '%a', base, first.path)).trim(), '700\n600');
+    assert.ok(!(await fixture.command('ls', '-A', remotePath)).includes('원격'));
+    // A temp folder another account could read is refused.
+    await fixture.command('chmod', '755', base);
+    assert.equal((await send(`/api/sessions/${session.id}/uploads?name=x.txt&size=1`, Buffer.from('x'), 403)).error, 'Upload folder is not private');
+    await fixture.command('chmod', '700', base);
   });
   await t.test('sessions share a private SSH transport and reconnect after its loss', async () => {
     const remote = new RemoteTmux(config, host);

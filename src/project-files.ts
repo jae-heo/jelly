@@ -4,7 +4,7 @@ import { posix, relative, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { ApiError } from './http.js';
-import { RemoteTmux, shellQuote } from './remote.js';
+import { RemoteTmux, shellQuote, sshError } from './remote.js';
 import type { Config } from './config.js';
 import type { Project, Host } from './store.js';
 
@@ -113,11 +113,7 @@ function remoteStream(config: Config, host: Host, root: string, path: string, ac
       if (code === 43) throw new ApiError(403, 'File access denied');
       if (code === 44) throw new ApiError(404, 'File or folder not found');
       if (code === 45) throw new ApiError(400, 'Choose a regular file');
-      if (code !== 0) {
-        if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(stderr)) throw new ApiError(502, 'SSH_HOST_KEY');
-        if (/Permission denied|sign_and_send_pubkey/i.test(stderr)) throw new ApiError(502, 'SSH_AUTH');
-        throw new ApiError(502, 'SSH_UNREACHABLE');
-      }
+      if (code !== 0) throw sshError(stderr);
     } finally { cancel(); signal.removeEventListener('abort', cancel); }
   })());
   result.once('close', () => { cancel(); signal.removeEventListener('abort', cancel); });

@@ -56,6 +56,9 @@ process.env.JELLY_HOST = '127.0.0.1';
 process.env.JELLY_PORT = '47932';
 process.env.JELLY_SSH_CONFIG = ssh.config;
 const config = loadConfig();
+// Uploads go to the temp directory; keep them inside this run's data.
+process.env.TMPDIR = join(dataDir, 'tmp');
+mkdirSync(process.env.TMPDIR);
 const app = await startServer(config);
 writeFileSync(join(root, 'browser-test-info.json'), JSON.stringify({ projectPath, browseRoot, remoteRoot, fileProjectPath, remoteFilePath, tokenFile: join(dataDir, 'token') }), { mode: 0o600 });
 console.log('Jelly browser test server ready');

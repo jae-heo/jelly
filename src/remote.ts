@@ -10,6 +10,12 @@ import { ApiError } from './http.js';
 
 const exec = promisify(execFile);
 export const shellQuote = (value: string): string => "'" + value.replaceAll("'", "'\\''") + "'";
+// Maps OpenSSH's own failures; the remote command's exit codes are the caller's.
+export function sshError(stderr: string): ApiError {
+  if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(stderr)) return new ApiError(502, 'SSH_HOST_KEY');
+  if (/Permission denied|sign_and_send_pubkey/i.test(stderr)) return new ApiError(502, 'SSH_AUTH');
+  return new ApiError(502, 'SSH_UNREACHABLE');
+}
 
 const browseScript = String.raw`
 _jelly_path=$1

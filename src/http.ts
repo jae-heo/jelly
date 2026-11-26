@@ -30,6 +30,19 @@ export async function body(req: IncomingMessage): Promise<unknown> {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { throw new ApiError(400, 'Invalid JSON'); }
 }
+export async function raw(req: IncomingMessage, limit: number): Promise<Buffer> {
+  if (req.headers['content-type']?.split(';')[0]?.trim() !== 'application/octet-stream') throw new ApiError(415, 'Expected application/octet-stream');
+  // Answer before reading; Node discards the unread body.
+  if (Number(req.headers['content-length']) > limit) throw new ApiError(413, 'Request body too large');
+  let size = 0;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new ApiError(413, 'Request body too large');
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
 export function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
   res.end(JSON.stringify(value));
