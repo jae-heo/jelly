@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import './ChatMarkdown.css';
+import { trimUrl } from './terminalLinks';
 
 // Agent replies use a small part of Markdown. React escapes all text and raw
 // HTML is never rendered; links open only for http(s) URLs.
@@ -7,7 +8,10 @@ const inlinePattern = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\)|(?<![\
 
 function inline(text: string): ReactNode[] {
   return text.split(inlinePattern).filter(part => part !== '').map((part, index) => {
-    if (part.length > 1 && part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>;
+    if (part.length > 1 && part.startsWith('`') && part.endsWith('`')) {
+      const code = part.slice(1, -1);
+      return /^https?:\/\/\S+$/.test(code) ? <a key={index} href={code} target="_blank" rel="noopener noreferrer"><code>{code}</code></a> : <code key={index}>{code}</code>;
+    }
     if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{inline(part.slice(2, -2))}</strong>;
     if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) return <em key={index}>{inline(part.slice(1, -1))}</em>;
     const link = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(part);
@@ -15,6 +19,14 @@ function inline(text: string): ReactNode[] {
     if (url && /^https?:\/\//.test(url)) return <a key={index} href={url} target="_blank" rel="noopener noreferrer">{link ? inline(link[1]!) : part}</a>;
     return <Fragment key={index}>{link ? link[1] : part}</Fragment>;
   });
+}
+
+// Plain text such as prompts and command output, with its http(s) URLs as links.
+export function Linked({ text }: { text: string }) {
+  return <>{text.split(/(https?:\/\/[^\s<>"'`]+)/).map((part, index) => {
+    const url = index % 2 ? trimUrl(part) : '';
+    return url ? <Fragment key={index}><a href={url} target="_blank" rel="noopener noreferrer">{url}</a>{part.slice(url.length)}</Fragment> : <Fragment key={index}>{part}</Fragment>;
+  })}</>;
 }
 
 const cells = (line: string) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(cell => cell.trim());

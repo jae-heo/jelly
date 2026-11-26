@@ -38,7 +38,10 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     // Typing goes to Input, which sends it to the agent in the terminal.
     await expect(page.getByRole('textbox', { name: 'Input', exact: true })).toBeFocused();
     const chat = page.getByRole('region', { name: 'Chat' });
-    await expect(chat.locator('.chat-user p')).toHaveText(['FIRST_QUESTION']);
+    await expect(chat.locator('.chat-user p')).toHaveText(['FIRST_QUESTION https://example.com/question']);
+    // URLs in prompts, inline code and command output are links too.
+    await expect(chat.locator('.chat-user a')).toHaveAttribute('href', 'https://example.com/question');
+    await expect(chat.getByRole('link', { name: 'https://example.com/code' })).toHaveAttribute('href', 'https://example.com/code');
     await expect(chat.locator('.chat-note').first()).toHaveText('/model opus');
     await expect(chat.locator('.md-heading')).toHaveText('Plan');
     await expect(chat.locator('.chat-assistant strong').first()).toHaveText('ls');
@@ -64,7 +67,8 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     await expect(tool.getByLabel('Done')).toBeVisible();
     await tool.locator('summary').click();
     await expect(tool.locator('.chat-command')).toHaveText('ls -la\necho second line');
-    await expect(tool.locator('.chat-output')).toHaveText('TOOL_OUTPUT_OK');
+    await expect(tool.locator('.chat-output')).toHaveText('TOOL_OUTPUT_OK https://example.com/log.');
+    await expect(tool.locator('.chat-output a')).toHaveAttribute('href', 'https://example.com/log');
     const edit = group.locator('.chat-tool').nth(1);
     await edit.locator('summary').click();
     await expect(edit.locator('.chat-diff .removed')).toHaveText('const a = 1;\n');

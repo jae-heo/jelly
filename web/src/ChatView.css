@@ -214,3 +214,4 @@ details[open] > summary > .chat-chevron { transform: rotate(90deg); }
   .chat-user p { max-width: 88%; }
   .chat-status { min-height: 38px; padding-left: 13px; }
 }
+.chat-user a, .chat-output a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }

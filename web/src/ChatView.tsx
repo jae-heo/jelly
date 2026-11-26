@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { ArrowDown, Check, ChevronRight, CircleAlert, TerminalSquare } from 'lucide-react';
 import type { ChatAgent, ChatItem } from './api';
-import { Markdown } from './ChatMarkdown';
+import { Linked, Markdown } from './ChatMarkdown';
 import { agentDraft } from './agentDraft';
 import type { TerminalHandle } from './TerminalView';
 import './ChatView.css';
@@ -41,7 +41,7 @@ function ToolCall({ tool, running }: { tool: Tool; running: boolean }) {
     <summary><ChevronRight size={13} className="chat-chevron" /><strong>{tool.name}</strong><span className="chat-tool-summary" title={tool.summary}>{short(tool.summary)}</span><State tool={tool} running={running} /></summary>
     <div className="chat-tool-body">
       {tool.diff ? <Diff diff={tool.diff} /> : <pre className={tool.name === 'Bash' ? 'chat-command' : undefined}>{tool.input}</pre>}
-      {tool.output !== undefined && <pre className={tool.error ? 'chat-output error' : 'chat-output'}>{tool.output || '(no output)'}</pre>}
+      {tool.output !== undefined && <pre className={tool.error ? 'chat-output error' : 'chat-output'}>{tool.output ? <Linked text={tool.output} /> : '(no output)'}</pre>}
     </div>
   </details>;
 }
@@ -66,7 +66,7 @@ function ToolGroup({ tools, running }: { tools: Tool[]; running: boolean }) {
 }
 
 function Message({ item }: { item: Exclude<ChatItem, Tool> }) {
-  if (item.kind === 'user') return <div className="chat-user"><p>{item.text}</p>{item.time && <time dateTime={item.time}>{clock(item.time)}</time>}</div>;
+  if (item.kind === 'user') return <div className="chat-user"><p><Linked text={item.text} /></p>{item.time && <time dateTime={item.time}>{clock(item.time)}</time>}</div>;
   if (item.kind === 'assistant') return <div className="chat-assistant markdown"><Markdown text={item.text} /></div>;
   if (item.text === 'Conversation compacted') return <p className="chat-divider"><span>{item.text}</span></p>;
   return <p className={item.text.startsWith('/') || item.text.startsWith('! ') ? 'chat-note chat-command-note' : 'chat-note'}>{item.text}</p>;

@@ -140,6 +140,11 @@ and triple-click a line. Dragging past the top or bottom edge scrolls. If the
 browser blocks the copy, as Safari does, press **⌘C** afterwards. Apps that
 handle the mouse receive these clicks instead.
 
+**⌘-click** a web address in the terminal to open it in a new tab (**Ctrl-click** on
+Windows/Linux), including one that wraps onto the next row. A plain click still
+goes to the program. In the chat view, addresses in messages and command output
+open with a tap.
+
 **Option-drag** on Mac or **Shift-drag** on Windows/Linux selects
 directly in the terminal, even when an app handles the mouse. Use **⌘C** on Mac, **Ctrl+C** on Windows/Linux, or
 the browser's **Copy** menu. Without a selection, Ctrl+C still interrupts the app. Paste normally into **Input** or the terminal;

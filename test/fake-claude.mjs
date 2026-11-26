@@ -23,10 +23,10 @@ function start(intro) {
 mkdirSync(join(config, 'sessions'), { recursive: true });
 start([
   ['user', '<command-name>/model</command-name>\n<command-args>opus</command-args>'],
-  ['user', 'FIRST_QUESTION<system-reminder>hidden reminder</system-reminder>'],
-  ['assistant', [{ type: 'thinking', thinking: 'hidden thought' }, { type: 'text', text: '## Plan\nRun **ls** and `pwd`.\n```sh\nls -la\n```\n| a | b |\n|---|---|\n| 1 | 2 |\n\n- first item\n- second item\n  - nested item\n1. one\n2. two\n\nSee [docs](https://example.com/docs) and [bad](javascript:alert(1)).' }]],
+  ['user', 'FIRST_QUESTION https://example.com/question<system-reminder>hidden reminder</system-reminder>'],
+  ['assistant', [{ type: 'thinking', thinking: 'hidden thought' }, { type: 'text', text: '## Plan\nRun **ls** and `pwd`, then open `https://example.com/code`.\n```sh\nls -la\n```\n| a | b |\n|---|---|\n| 1 | 2 |\n\n- first item\n- second item\n  - nested item\n1. one\n2. two\n\nSee [docs](https://example.com/docs) and [bad](javascript:alert(1)).' }]],
   ['assistant', [{ type: 'tool_use', id: 'toolu_fake_1', name: 'Bash', input: { command: 'ls -la\necho second line', description: 'List files' } }]],
-  ['user', [{ type: 'tool_result', tool_use_id: 'toolu_fake_1', content: 'TOOL_OUTPUT_OK', is_error: false }]],
+  ['user', [{ type: 'tool_result', tool_use_id: 'toolu_fake_1', content: 'TOOL_OUTPUT_OK https://example.com/log.', is_error: false }]],
   ['assistant', [{ type: 'tool_use', id: 'toolu_fake_2', name: 'Edit', input: { file_path: '/work/app.ts', old_string: 'const a = 1;', new_string: 'const a = 2;' } }]],
   ['user', [{ type: 'tool_result', tool_use_id: 'toolu_fake_2', content: 'Updated', is_error: false }]],
   ['assistant', [{ type: 'tool_use', id: 'toolu_fake_3', name: 'Bash', input: { command: 'false' } }]],

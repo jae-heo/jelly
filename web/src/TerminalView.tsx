@@ -5,6 +5,7 @@ import { terminalConnection } from './terminalConnection';
 import { terminalGeometry } from './terminalGeometry';
 import { attachTerminalScroll } from './touchScroll';
 import { attachTerminalClipboard } from './terminalClipboard';
+import { attachTerminalLinks } from './terminalLinks';
 import './TerminalViewport.css';
 import { terminalKeySequence, terminalChordSequence, type KeyModifiers, type TerminalKey } from './terminalKeys';
 
@@ -129,6 +130,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     term.textarea?.addEventListener('compositionend', typing);
     term.textarea?.addEventListener('paste', typing);
     const clipboard = attachTerminalClipboard(term, container.current, () => callbacks.current.onCopyBlocked());
+    const links = attachTerminalLinks(term);
     // tmux asks for the terminal version (XTVERSION) on attach. Without an
     // answer, tmux 3.6 delays every lone Esc by about half a second and merges it
     // with the next key. xterm.js does not answer this query itself.
@@ -161,7 +163,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     fitRef.current = geometry.schedule;
     wakeRef.current = connection.wake;
     return () => {
-      connection?.dispose(); geometry.dispose(); touchScroll.dispose(); clipboard(); version.dispose(); key.dispose(); term.dispose();
+      connection?.dispose(); geometry.dispose(); touchScroll.dispose(); clipboard(); links.dispose(); version.dispose(); key.dispose(); term.dispose();
       stopScroll.current = () => {};
       termRef.current = null; sendRef.current = () => {}; fitRef.current = () => {}; wakeRef.current = () => {};
     };

@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-25.
+Last automated verification: 2026-11-26.
 
 ## Verification sources
 
@@ -10,6 +10,18 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Links in the terminal and chat (2026-11-26)
+
+- The terminal finds http(s) URLs on screen, joining rows that run to the last
+  column, as tmux draws wrapped output. ⌘/Ctrl-click opens one in a new tab
+  with `noopener`; the pointer and underline appear only while the modifier is
+  held, and a plain click still reaches the program. Trailing sentence
+  punctuation is dropped, and a closing bracket stays when the URL opened it.
+- The chat view also links URLs in prompts, command output and inline code.
+- `e2e/links.spec.ts` (Chromium and WebKit) checks that a plain click opens
+  nothing, a Ctrl-click opens the trimmed URL, and a click on the second row of
+  a 419-character URL opens all of it. `e2e/chat.spec.ts` checks the chat links.
 
 ## File uploads to the terminal (2026-11-25)
 
