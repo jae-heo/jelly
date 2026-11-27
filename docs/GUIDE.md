@@ -141,9 +141,12 @@ browser blocks the copy, as Safari does, press **⌘C** afterwards. Apps that
 handle the mouse receive these clicks instead.
 
 **⌘-click** a web address in the terminal to open it in a new tab (**Ctrl-click** on
-Windows/Linux), including one that wraps onto the next row. A plain click still
-goes to the program. In the chat view, addresses in messages and command output
-open with a tap.
+Windows/Linux), including one that wraps onto the next row. ⌘-click a file path
+in the project, such as `out/report.html` or its full path, to open it in
+**Files**; HTML, Markdown, images and PDFs open rendered. Paths are read from
+the project folder, and files outside it do not open. A plain click still goes
+to the program. In the chat view, addresses in messages and command output,
+and file paths in replies, open with a tap.
 
 **Option-drag** on Mac or **Shift-drag** on Windows/Linux selects
 directly in the terminal, even when an app handles the mouse. Use **⌘C** on Mac, **Ctrl+C** on Windows/Linux, or

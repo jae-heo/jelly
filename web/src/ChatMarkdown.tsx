@@ -1,6 +1,15 @@
-import { Fragment, type ReactNode } from 'react';
+import { createContext, Fragment, useContext, type ReactNode } from 'react';
 import './ChatMarkdown.css';
-import { trimUrl } from './terminalLinks';
+import { isFilePath, projectFile, trimUrl } from './terminalLinks';
+
+// In the chat view, paths of files in the session's project open in Files.
+export const FileLinks = createContext<{ root: string; open: (path: string) => void } | null>(null);
+
+function FileLink({ path, children }: { path: string; children: ReactNode }) {
+  const files = useContext(FileLinks);
+  const target = files && isFilePath(path) ? projectFile(path, files.root) : null;
+  return target ? <button type="button" className="file-link" title={target} onClick={() => files!.open(target)}>{children}</button> : <>{children}</>;
+}
 
 // Agent replies use a small part of Markdown. React escapes all text and raw
 // HTML is never rendered; links open only for http(s) URLs.
@@ -10,13 +19,14 @@ function inline(text: string): ReactNode[] {
   return text.split(inlinePattern).filter(part => part !== '').map((part, index) => {
     if (part.length > 1 && part.startsWith('`') && part.endsWith('`')) {
       const code = part.slice(1, -1);
-      return /^https?:\/\/\S+$/.test(code) ? <a key={index} href={code} target="_blank" rel="noopener noreferrer"><code>{code}</code></a> : <code key={index}>{code}</code>;
+      return /^https?:\/\/\S+$/.test(code) ? <a key={index} href={code} target="_blank" rel="noopener noreferrer"><code>{code}</code></a> : <FileLink key={index} path={code}><code>{code}</code></FileLink>;
     }
     if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{inline(part.slice(2, -2))}</strong>;
     if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) return <em key={index}>{inline(part.slice(1, -1))}</em>;
     const link = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(part);
     const url = link ? link[2]! : /^https?:\/\//.test(part) ? part : null;
     if (url && /^https?:\/\//.test(url)) return <a key={index} href={url} target="_blank" rel="noopener noreferrer">{link ? inline(link[1]!) : part}</a>;
+    if (link) return <FileLink key={index} path={link[2]!.replace(/#.*$/, '')}>{inline(link[1]!)}</FileLink>;
     return <Fragment key={index}>{link ? link[1] : part}</Fragment>;
   });
 }

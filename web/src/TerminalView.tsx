@@ -15,6 +15,7 @@ interface Props {
   token: string; sessionId: string; active: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
   onTouchInput: () => void; onTyping: () => void; onCopyBlocked: () => void;
+  projectPath?: string; onOpenFile: (path: string) => void;
 }
 
 export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalView(props, ref) {
@@ -130,7 +131,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(function TerminalV
     term.textarea?.addEventListener('compositionend', typing);
     term.textarea?.addEventListener('paste', typing);
     const clipboard = attachTerminalClipboard(term, container.current, () => callbacks.current.onCopyBlocked());
-    const links = attachTerminalLinks(term);
+    const links = attachTerminalLinks(term, { root: () => callbacks.current.projectPath, open: path => callbacks.current.onOpenFile(path) });
     // tmux asks for the terminal version (XTVERSION) on attach. Without an
     // answer, tmux 3.6 delays every lone Esc by about half a second and merges it
     // with the next key. xterm.js does not answer this query itself.

@@ -6,6 +6,7 @@
 .markdown p { margin: 0 0 10px; white-space: pre-wrap; }
 .markdown strong { color: #f4faf6; font-weight: 650; }
 .markdown a { color: #8fd6b4; text-underline-offset: 2px; }
+.markdown .file-link { padding: 0; border: 0; background: none; font: inherit; color: #8fd6b4; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; overflow-wrap: anywhere; text-align: inherit; }
 .markdown .md-heading { margin: 16px 0 6px; color: #f4faf6; font-weight: 700; letter-spacing: -.2px; }
 .markdown .md-h1 { font-size: 1.2em; }
 .markdown .md-h2 { font-size: 1.1em; }

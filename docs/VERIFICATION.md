@@ -11,6 +11,24 @@ The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
 
+## File links in the terminal and chat (2026-11-26)
+
+- Paths whose last part has a file extension, optionally with `:line:column`,
+  are links when they resolve inside the session's project: relative to the
+  project folder, or absolute under it. ⌘/Ctrl-click opens the file in Files,
+  which lists its folder first and then shows the file; a missing file shows
+  Files' not-found error. Paths outside the project are not links, and Files
+  keeps its existing checks.
+- The pointer and underline now follow the modifier while the pointer is over a
+  link. xterm reads a link's decorations before its `hover` callback, so they
+  are read from the modifier state that key and mouse events keep.
+- In the chat view, inline code and Markdown link targets that are project file
+  paths open Files.
+- `e2e/links.spec.ts` (Chromium and WebKit) checks that pressing and releasing
+  Ctrl over a link toggles the pointer, and that a relative and an absolute path
+  open the project's HTML file in Files. `e2e/chat.spec.ts` checks an inline
+  code path in a reply.
+
 ## Links in the terminal and chat (2026-11-26)
 
 - The terminal finds http(s) URLs on screen, joining rows that run to the last

@@ -14,6 +14,7 @@ import { WorkspaceHeader } from './WorkspaceHeader';
 import { TerminalControls, type TerminalControlsHandle } from './TerminalControls';
 import { TerminalSelection } from './TerminalSelection';
 import { ChatView } from './ChatView';
+import { FileLinks } from './ChatMarkdown';
 import { useAgentChat } from './useAgentChat';
 import { FONT_SIZE_KEY, storedFontSize } from './terminalSettings';
 import { useWorkspaceViewport } from './useWorkspaceViewport';
@@ -35,6 +36,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [renameTarget, setRenameTarget] = useState<{ kind: 'project' | 'session'; id: string; name: string } | null>(null);
   const [projectTarget, setProjectTarget] = useState<Project | null>(null);
+  const [filePath, setFilePath] = useState('');
   const [stopTarget, setStopTarget] = useState<Session | null>(null);
   const [unregisteredTarget, setUnregisteredTarget] = useState<Unregistered | null>(null);
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
@@ -97,7 +99,7 @@ export function App() {
     if (!target) return;
     setRenameTarget({ kind, id: target.id, name: target.name }); openDialog('rename');
   }
-  function openFiles(p = project) { if (p) { setProjectTarget(p); openDialog('files'); } }
+  function openFiles(p = project, path = '') { if (p) { setProjectTarget(p); setFilePath(path); openDialog('files'); } }
   function openRemoveProject(p = project) { if (p) { setProjectTarget(p); openDialog('delete-project'); } }
   function openDeleteSession(s = session) { if (s) { setStopTarget(s); openDialog('delete-session'); } }
   function openStop(s = session) { if (s) { setStopTarget(s); openDialog('stop'); } }
@@ -262,10 +264,10 @@ export function App() {
               event.preventDefault(); setDropping(false);
               void attachFiles(Array.from(event.dataTransfer.files));
             }}>
-            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} onTyping={() => controls.current?.reset()} onCopyBlocked={() => setNotice('Press ⌘C to copy the selection.')} /></Suspense>
+            <Suspense fallback={<div className="terminal-ended"><div className="spinner" /><p>Connecting to terminal…</p></div>}><TerminalCache ref={terminal} token={token} sessionId={session?.id ?? null} runningIds={sessions.filter(s => s.status === 'running').map(s => s.id)} retainedIds={sessions.filter(s => s.status === 'running' || s.status === 'unreachable').map(s => s.id)} enabled={attached} revision={revision} onConnection={setConnection} fontSize={fontSize} onUnauthorized={logout} onTouchInput={() => controls.current?.focus()} onTyping={() => controls.current?.reset()} onCopyBlocked={() => setNotice('Press ⌘C to copy the selection.')} projectPath={project?.path} onOpenFile={path => openFiles(project, path)} /></Suspense>
             {!session || session.status === 'running' || (session.status === 'unreachable' && connection === 'connected') ? null : session.status === 'unreachable' ? <div className="terminal-ended"><Server size={30} /><h2>SSH host unreachable</h2><button className="button secondary" onClick={() => void refresh()}><RefreshCw size={16} />Check again</button></div> : <div className="terminal-ended"><TerminalSquare size={30} /><h2>Session ended</h2><button className="button primary" onClick={() => openSession()}><Plus size={16} />New session</button></div>}
             {session?.status === 'running' && ['disconnected', 'taken', 'ended'].includes(connection) && <div className="connection-overlay"><div><Unplug size={27} /><h2>{connection === 'taken' ? 'In use on another device' : 'Disconnected'}</h2><p>Session running</p><button className="button primary" onClick={() => { setAttached(true); setRevision(r => r + 1); }}><RefreshCw size={16} />Reconnect</button></div></div>}
-            {chatOpen && chat.agent && <ChatView key={`${session?.id}:${chat.agent.conversation}`} agent={chat.agent} items={chat.items} start={chat.start} onLoadEarlier={chat.loadEarlier} onTerminal={toggleChat} terminal={terminal} live={canInput} />}
+            {chatOpen && chat.agent && project && <FileLinks.Provider value={{ root: project.path, open: path => openFiles(project, path) }}><ChatView key={`${session?.id}:${chat.agent.conversation}`} agent={chat.agent} items={chat.items} start={chat.start} onLoadEarlier={chat.loadEarlier} onTerminal={toggleChat} terminal={terminal} live={canInput} /></FileLinks.Provider>}
             {dropping && <div className="drop-target"><Paperclip size={18} aria-hidden="true" />Drop to attach</div>}
             {selection && selection.sessionId === session?.id && <TerminalSelection key={selection.sessionId} text={selection.text} terminal={terminal} fontSize={fontSize} onClose={() => setSelection(null)} />}
           </div>
@@ -273,7 +275,7 @@ export function App() {
       </main>
     </div>
     {notice && <div className="toast" role="alert"><CircleAlert size={16} />{notice}<button className="icon-button" aria-label="Dismiss notification" onClick={() => setNotice('')}><X size={14} /></button></div>}
-    {dialog === 'files' && projectTarget && <ProjectFiles key={projectTarget.id} token={token} project={projectTarget} onClose={() => setDialog(null)} />}
+    {dialog === 'files' && projectTarget && <ProjectFiles key={`${projectTarget.id}:${filePath}`} token={token} project={projectTarget} initialPath={filePath} onClose={() => setDialog(null)} />}
     {dialog === 'hosts' && <HostManager token={token} hosts={hosts} projects={projects} onChanged={() => void refresh()} onClose={() => setDialog(null)} />}
     {dialog === 'project' && <ProjectDialog token={token} hosts={hosts} onHostAdded={addHost} busy={busy} error={formError} onClose={() => setDialog(null)} onSubmit={submitProject} />}
     {dialog === 'rename' && renameTarget && <RenameDialog kind={renameTarget.kind} name={renameTarget.name} onClose={() => setDialog(null)} onSave={async name => {

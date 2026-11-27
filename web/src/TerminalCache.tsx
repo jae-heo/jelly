@@ -5,6 +5,8 @@ interface Props {
   token: string; sessionId: string | null; runningIds: string[]; retainedIds: string[]; enabled: boolean; revision: number; fontSize: number;
   onConnection: (state: Connection) => void; onUnauthorized: () => void;
   onTouchInput: () => void; onTyping: () => void; onCopyBlocked: () => void;
+  // Only the active terminal takes clicks, so its project is the current one.
+  projectPath?: string; onOpenFile: (path: string) => void;
 }
 interface Entry { id: string; revision: number }
 const CAPACITY = 3;
@@ -61,7 +63,7 @@ export const TerminalCache = forwardRef<TerminalHandle, Props>(function Terminal
         onConnection={state => {
           connections.current.set(entry.id, { revision: entry.revision, state });
           if (current.current.enabled && current.current.sessionId === entry.id) current.current.onConnection(state);
-        }} onUnauthorized={props.onUnauthorized} onTouchInput={props.onTouchInput} onTyping={props.onTyping} onCopyBlocked={props.onCopyBlocked} />
+        }} onUnauthorized={props.onUnauthorized} onTouchInput={props.onTouchInput} onTyping={props.onTyping} onCopyBlocked={props.onCopyBlocked} projectPath={props.projectPath} onOpenFile={props.onOpenFile} />
     </div>)}
   </div>;
 });

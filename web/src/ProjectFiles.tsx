@@ -11,8 +11,10 @@ type Preview = { kind: 'text'; text: string } | { kind: 'image' | 'pdf' | 'page'
 const rendered = (name: string) => /\.(md|markdown|mdx)$/i.test(name) ? 'markdown' : /\.html?$/i.test(name) ? 'html' : null;
 const fileError = (error: unknown) => error instanceof ApiError && [400, 403, 404, 413, 415, 429].includes(error.status) ? error.message : errorMessage(error);
 
-export function ProjectFiles({ token, project, onClose }: { token: string; project: Project; onClose: () => void }) {
-  const [target, setTarget] = useState({ path: '', hidden: false });
+export function ProjectFiles({ token, project, initialPath = '', onClose }: { token: string; project: Project; initialPath?: string; onClose: () => void }) {
+  // A file link opens its folder, then the file itself once the folder lists it.
+  const [target, setTarget] = useState({ path: initialPath.split('/').slice(0, -1).join('/'), hidden: initialPath.split('/').some(part => part.startsWith('.')) });
+  const reveal = useRef(initialPath.split('/').at(-1) ?? '');
   const [listing, setListing] = useState<Listing | null>(null);
   const [selected, setSelected] = useState<Entry | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -29,12 +31,18 @@ export function ProjectFiles({ token, project, onClose }: { token: string; proje
     const controller = new AbortController();
     setLoading(true); setError(''); setPreview(null);
     let objectURL: string | undefined;
+    let moved = false;
     async function load() {
       try {
         if (!selected) {
+          const name = reveal.current; reveal.current = '';
           const query = new URLSearchParams({ path: target.path, hidden: String(target.hidden) });
           const result = await api<Listing>(token, `/projects/${project.id}/files?${query}`, 'GET', undefined, controller.signal);
-          if (!controller.signal.aborted) { setListing(result); setFilter(''); }
+          if (controller.signal.aborted) return;
+          setListing(result); setFilter('');
+          // A long folder may not list the file; its preview then says whether it exists.
+          const entry = result.entries.find(entry => entry.name === name) ?? (name && { name, path: initialPath, kind: 'file' as const });
+          if (entry) { moved = true; return entry.kind === 'directory' ? navigate(entry.path) : open(entry); }
         } else if (format === 'html') {
           const grant = await api<{ url: string }>(token, `/projects/${project.id}/views`, 'POST', { path: selected.path }, controller.signal);
           if (!controller.signal.aborted) setPreview({ kind: 'page', url: grant.url });
@@ -54,7 +62,7 @@ export function ProjectFiles({ token, project, onClose }: { token: string; proje
         }
         content.current?.scrollTo(0, 0);
       } catch (error) { if (!controller.signal.aborted) setError(fileError(error)); }
-      finally { if (!controller.signal.aborted) setLoading(false); }
+      finally { if (!controller.signal.aborted && !moved) setLoading(false); }
     }
     void load();
     return () => { controller.abort(); if (objectURL) URL.revokeObjectURL(objectURL); };

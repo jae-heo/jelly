@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 test('chat view shows a Claude Code transcript and sends input through the terminal', async ({ page, request }) => {
@@ -18,6 +18,7 @@ test('chat view shows a Claude Code transcript and sends input through the termi
   await call(`/projects/${project.id}/sessions`, 'POST', { name: 'Plain shell' });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
+  writeFileSync(join(info.projectPath, 'chat-page.html'), '<h1>CHAT_PAGE</h1>');
   try {
     expect(await call(`/sessions/${session.id}/chat?probe=true`)).toEqual({ agent: null });
     execFileSync('tmux', ['-S', socket, 'send-keys', '-t', `=jelly-${session.id}:0.0`, '-l',
@@ -26,6 +27,7 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     await expect.poll(async () => (await call(`/sessions/${session.id}/chat?probe=true`)).agent?.status, { timeout: 15_000 }).toBe('idle');
 
     await page.addInitScript(({ token, projectId, sessionId }) => {
+      if (window !== window.top) return; // Do not inject app credentials into the previewed page.
       sessionStorage.setItem('jelly-token', token);
       localStorage.setItem('jelly-project', projectId); localStorage.setItem('jelly-session', sessionId);
     }, { token, projectId: project.id, sessionId: session.id });
@@ -54,6 +56,13 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     await expect(chat.getByRole('link', { name: 'docs' })).toHaveAttribute('href', 'https://example.com/docs');
     // Only http(s) links are clickable; agent text is never rendered as HTML.
     await expect(chat.getByRole('link', { name: 'bad' })).toHaveCount(0);
+    // Paths of files in the project open in Files.
+    await chat.getByRole('button', { name: 'chat-page.html' }).click();
+    const files = page.getByRole('dialog', { name: 'Files' });
+    await expect(files.locator('.files-location')).toHaveText('Chat / chat-page.html');
+    await expect(page.frameLocator('.file-preview iframe').locator('h1')).toHaveText('CHAT_PAGE');
+    await files.getByRole('button', { name: 'Close' }).click();
+    await expect(files).toHaveCount(0);
     await expect(chat.locator('.chat-assistant').last()).toHaveText('<b>not html</b> FIRST_ANSWER');
     await expect(chat).not.toContainText('hidden');
     // Consecutive tool calls are one collapsed row with a failure count.
@@ -132,6 +141,7 @@ test('chat view shows a Claude Code transcript and sends input through the termi
     expect(errors).toEqual([]);
   } finally {
     await page.close();
+    rmSync(join(info.projectPath, 'chat-page.html'), { force: true });
     await call(`/projects/${project.id}?deleteSessions=true`, 'DELETE');
   }
 });
