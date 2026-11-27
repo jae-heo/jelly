@@ -49,6 +49,10 @@ Markdown files open formatted and HTML files open as a page; **Source** shows th
 text. An HTML page runs its scripts in an isolated sandbox that cannot reach
 Jelly. It can load https resources such as script libraries, but not files next
 to it or plain-http addresses.
+**New tab** opens the page in its own browser tab with the same sandbox. Because
+its link works once, reloading that tab shows an expired-link error; open it from
+Files again. The **full screen** button beside Close fills the window and is
+remembered; on desktop, drag the bottom-right corner to resize the viewer.
 Other formats can be downloaded. Text previews are limited to 1 MiB, images and
 PDFs to 20 MiB. Larger files can still be downloaded. PDF display uses your browser's
 built-in viewer; use Download if your browser cannot display it.

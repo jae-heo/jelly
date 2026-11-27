@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUp, Code, Download, File, Folder, Search } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Code, Download, ExternalLink, File, Folder, Maximize2, Minimize2, Search } from 'lucide-react';
 import { api, ApiError, errorMessage, type Project } from './api';
 import { Modal } from './Modal';
 import { Markdown } from './ChatMarkdown';
@@ -9,6 +9,7 @@ interface Listing { path: string; parent: string | null; entries: Entry[]; trunc
 type Preview = { kind: 'text'; text: string } | { kind: 'image' | 'pdf' | 'page'; url: string };
 // Markdown and HTML open rendered; Source shows the text.
 const rendered = (name: string) => /\.(md|markdown|mdx)$/i.test(name) ? 'markdown' : /\.html?$/i.test(name) ? 'html' : null;
+const MAXIMIZED_KEY = 'jelly-files-maximized';
 const fileError = (error: unknown) => error instanceof ApiError && [400, 403, 404, 413, 415, 429].includes(error.status) ? error.message : errorMessage(error);
 
 export function ProjectFiles({ token, project, initialPath = '', onClose }: { token: string; project: Project; initialPath?: string; onClose: () => void }) {
@@ -23,6 +24,8 @@ export function ProjectFiles({ token, project, initialPath = '', onClose }: { to
   const [filter, setFilter] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [source, setSource] = useState(false);
+  const [maximized, setMaximized] = useState(() => { try { return localStorage.getItem(MAXIMIZED_KEY) === 'true'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem(MAXIMIZED_KEY, String(maximized)); } catch { /* Keep the in-memory preference. */ } }, [maximized]);
   const format = selected && !source ? rendered(selected.name) : null;
   const lifetime = useRef<AbortController | null>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -81,13 +84,28 @@ export function ProjectFiles({ token, project, initialPath = '', onClose }: { to
     } catch (error) { if (!lifetime.current?.signal.aborted) setError(fileError(error)); }
     finally { if (!lifetime.current?.signal.aborted) setDownloading(false); }
   };
+  // The page opens in a browser tab with the same sandbox as the preview. The
+  // tab is opened during the click so pop-up blockers allow it, and loses its
+  // opener before it loads the page.
+  const openTab = async () => {
+    if (!selected) return;
+    const tab = window.open('', '_blank');
+    if (!tab) return setError('Allow pop-ups to open the page in a new tab.');
+    tab.opener = null;
+    try {
+      const grant = await api<{ url: string }>(token, `/projects/${project.id}/views`, 'POST', { path: selected.path }, lifetime.current?.signal);
+      tab.location.replace(grant.url);
+    } catch (error) { tab.close(); if (!lifetime.current?.signal.aborted) setError(fileError(error)); }
+  };
   const visible = listing?.entries.filter(entry => entry.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase())) ?? [];
-  return <Modal title="Files" className="files-dialog" onClose={onClose}>
+  const resize = <button className="icon-button" aria-label={maximized ? 'Restore size' : 'Full screen'} title={maximized ? 'Restore size' : 'Full screen'} onClick={() => setMaximized(!maximized)}>{maximized ? <Minimize2 size={17} /> : <Maximize2 size={17} />}</button>;
+  return <Modal title="Files" className={`files-dialog${maximized ? ' maximized' : ''}`} actions={resize} onClose={onClose}>
     <div className="files-toolbar">
       {selected ? <button className="button secondary" onClick={() => { setLoading(true); setSelected(null); }}><ArrowLeft size={15} />Back</button>
         : <button className="button secondary" disabled={loading || listing?.parent == null} onClick={() => listing?.parent != null && navigate(listing.parent)}><ArrowUp size={15} />Parent</button>}
       <span className="files-location" title={selected?.path ?? listing?.path}>{project.name}{(selected?.path ?? listing?.path) ? ' / ' + (selected?.path ?? listing?.path) : ''}</span>
       {selected && rendered(selected.name) && <button className="button secondary" aria-label="Source" title="Source" aria-pressed={source} disabled={loading} onClick={() => { if (rendered(selected.name) === 'html') setLoading(true); setSource(!source); }}><Code size={15} /><span className="files-button-label">Source</span></button>}
+      {format === 'html' && <button className="button secondary" aria-label="Open in new tab" title="Open in new tab" disabled={loading} onClick={() => void openTab()}><ExternalLink size={15} /><span className="files-button-label">New tab</span></button>}
       {selected ? <button className="button secondary" disabled={downloading} onClick={() => void download()}><Download size={15} />{downloading ? 'Preparing…' : 'Download'}</button>
         : <label className="checkbox"><input type="checkbox" checked={target.hidden} disabled={loading} onChange={event => setTarget(current => ({ ...current, hidden: event.target.checked }))} />Hidden files</label>}
     </div>

@@ -133,7 +133,9 @@ allow-scripts; default-src https: data: blob: 'unsafe-inline' 'unsafe-eval';
 form-action 'none'; frame-ancestors 'self'`. The sandbox gives it an opaque
 origin, so its scripts run without access to Jelly's storage, page or API, and
 without popups, forms or top-level navigation. It may load only https, data and
-blob resources. The web client frames it with the same sandbox.
+blob resources. The web client frames it with the same sandbox, or opens it in
+a new tab after clearing that tab's `opener`; the response's CSP sandbox
+applies to the top-level tab too.
 
 Downloads stream with backpressure and `Content-Disposition: attachment`, without
 buffering whole files or saving temporary copies. They have no preview-size cap.

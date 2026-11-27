@@ -1,6 +1,6 @@
 # Verification record
 
-Last automated verification: 2026-11-26.
+Last automated verification: 2026-11-27.
 
 ## Verification sources
 
@@ -10,6 +10,16 @@ home-screen web app, and provided feedback during development.
 The records below describe automated tests and development checks. Historical
 notes about physical-device checks not being performed refer to those checks,
 not to the maintainer's device testing.
+
+## Larger Files viewer and HTML in a tab (2026-11-27)
+
+- Files has a full screen toggle in its header, remembered in local storage,
+  and can be resized from its corner on desktop.
+- **New tab** opens an HTML file in a browser tab. The tab is opened during the
+  click, its `opener` is cleared, and it then loads a fresh single-use page
+  link, so the page keeps the CSP sandbox and opaque origin of the preview.
+- `e2e/files.spec.ts` (local and SSH) checks that the tab shows the page with
+  no opener, and that full screen fills the viewport, is saved and restores.
 
 ## File links in the terminal and chat (2026-11-26)
 

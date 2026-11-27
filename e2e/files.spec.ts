@@ -87,6 +87,21 @@ for (const remote of [false, true]) test(`project files: ${remote ? 'SSH' : 'loc
     await page.screenshot({ path: `.data/screenshots/files-html-${remote ? 'ssh' : 'local'}.png` });
     await expect(page.getByRole('button', { name: 'Download', exact: true })).toBeInViewport();
     expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    // The page also opens in its own tab, with the same sandbox and no opener.
+    const popup = context.waitForEvent('page');
+    await page.getByRole('button', { name: 'Open in new tab' }).click();
+    const tab = await popup;
+    await expect(tab.locator('h1')).toHaveText('REPORT_SCRIPT 한글');
+    expect(await tab.evaluate(() => window.opener)).toBeNull();
+    await tab.close();
+    // Full screen fills the viewport and is remembered.
+    await page.getByRole('button', { name: 'Full screen' }).click();
+    const viewport = page.viewportSize()!;
+    await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(viewport.width);
+    expect((await dialog.boundingBox())?.height).toBe(viewport.height);
+    expect(await page.evaluate(() => localStorage.getItem('jelly-files-maximized'))).toBe('true');
+    await page.getByRole('button', { name: 'Restore size' }).click();
+    await expect.poll(async () => (await dialog.boundingBox())?.height).toBeLessThan(viewport.height);
     await source.click();
     await expect(preview.locator('pre')).toContainText('<h1 id="title">REPORT_STATIC</h1>');
     await expect(preview.locator('iframe')).toHaveCount(0);
